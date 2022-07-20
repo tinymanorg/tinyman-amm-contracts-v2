@@ -1,6 +1,5 @@
 #pragma version 7
 
-# Max uint64
 const int POOL_TOKEN_TOTAL_SUPPLY = 18446744073709551615
 const int LOCKED_POOL_TOKENS = 1000
 
@@ -76,7 +75,7 @@ block bootstrap:
         TypeEnum: Pay
         Sender: pool_address
         Receiver: Global.CurrentApplicationAddress
-        Amount: 100000
+        Amount: 200000
         Fee: 0
     end
 
@@ -172,12 +171,13 @@ block main:
     int protocol_fees_asset_2 = app_local_get(1, "protocol_fees_asset_2")
 
     switch Txn.ApplicationArgs[0]:
-        "add_liquidity": add_liquidity
+        "add_liquidity": add_liquidity        
         "remove_liquidity": remove_liquidity
         "swap": swap
         "claim_fees": claim_fees
-        "claim_extra": claim_extra
+        "claim_extra": claim_extra   
     end
+
 
     block swap:
         # Gtxn[0]: Transfer Asset1 to Pool from User

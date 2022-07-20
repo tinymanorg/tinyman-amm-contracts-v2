@@ -5,12 +5,28 @@ Tinyman is an automated market maker (AMM) implementation on Algorand.
 
 
 ### Contracts
-The contracts are written in Tealish.
+The contracts are written in [Tealish](https://github.com/Hipo/tealish).
 
 The annotated TEAL outputs and compiled bytecode are available in the [build](contracts/build/) folder.
 
+The Tealish source can be compiled as follows:
+```
+    tealish contracts/
+```
+The `.teal` files will be output to the `contracts/build` directory.
+
 A VS Code extension for syntax highlighting of Tealish & TEAL is available [here](https://www.dropbox.com/s/zn3swrfxkyyelpi/tealish-0.0.1.vsix?dl=0)
 
+
+### Tests
+Tests are included in the `tests/` directory. [AlgoJig](https://github.com/Hipo/algojig) and [Tealish](https://github.com/Hipo/tealish) are required to run the tests.
+
+Set up a new virtualenv and install AlgoJig & Tealish into the venv by cloning the (private) repos and install with `pip install /path/to/repo`.
+Install the remaining requirements with `pip install -r requirements.txt`
+
+```
+    python -m unittest tests.test
+```
 
 ### Docs
 

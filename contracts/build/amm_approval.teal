@@ -1,7 +1,6 @@
 #pragma version 7
 
 
-// Max uint64
 
 // switch Txn.OnCompletion:
 txn OnCompletion
@@ -159,7 +158,7 @@ bootstrap:
   itxn_field Sender
   global CurrentApplicationAddress
   itxn_field Receiver
-  pushint 100000
+  pushint 200000
   itxn_field Amount
   pushint 0
   itxn_field Fee
@@ -393,6 +392,7 @@ main:
   ==
   bnz main__claim_extra
   err // unexpected value
+  
   
   // block swap
   main__swap:
