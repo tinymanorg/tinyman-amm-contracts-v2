@@ -80,30 +80,85 @@ bootstrap:
   txn ApplicationArgs 2
   btoi 
   store 1 // asset_2_id
-  // assert(asset_1_id == Txn.Assets[0])
-  load 0 // asset_1_id
-  txn Assets 0
-  ==
-  assert 
-  // assert(asset_2_id == Txn.Assets[1])
-  load 1 // asset_2_id
-  txn Assets 1
-  ==
-  assert 
   // assert(asset_1_id > asset_2_id)
   load 0 // asset_1_id
   load 1 // asset_2_id
   >
   assert 
+  // assert(asset_1_id == Txn.Assets[0])
+  load 0 // asset_1_id
+  txn Assets 0
+  ==
+  assert 
   
-  // int fee_tier = btoi(Txn.ApplicationArgs[3]) [slot 2]
+  // int asset_unit_name_exist = 0 [slot 2]
+  pushint 0
+  store 2 // asset_unit_name_exist
+  // byte asset_1_unit_name = ""
+  pushbytes ""
+  store 3 // asset_1_unit_name
+  // byte asset_2_unit_name = "ALGO"
+  pushbytes "ALGO"
+  store 4 // asset_2_unit_name
+  
+  // asset_unit_name_exist, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
+  load 0 // asset_1_id
+  asset_params_get AssetUnitName
+  store 2 // asset_unit_name_exist
+  store 3 // asset_1_unit_name
+  // assert(asset_unit_name_exist)
+  load 2 // asset_unit_name_exist
+  assert 
+  
+  // if asset_2_id > 0:
+    load 1 // asset_2_id
+    pushint 0
+    >
+    bz l0_else
+    // then:
+      // assert(asset_2_id == Txn.Assets[1])
+      load 1 // asset_2_id
+      txn Assets 1
+      ==
+      assert 
+      // asset_unit_name_exist, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
+      load 1 // asset_2_id
+      asset_params_get AssetUnitName
+      store 2 // asset_unit_name_exist
+      store 4 // asset_2_unit_name
+      // assert(asset_unit_name_exist)
+      load 2 // asset_unit_name_exist
+      assert 
+    b l0_end
+    l0_else:
+    // else:
+      // Asset 2 is Algo
+      // assert(1 == Txn.NumAssets)
+      pushint 1
+      txn NumAssets
+      ==
+      assert 
+    l0_end: // end
+  
+  // byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
+  pushbytes "TinymanPool2.0 "
+  load 3 // asset_1_unit_name
+  pushbytes "-"
+  concat 
+  load 4 // asset_2_unit_name
+  concat 
+  concat 
+  store 5 // pool_token_asset_name
+  
+  // TODO: Validate fee_tier
+  // int fee_tier = btoi(Txn.ApplicationArgs[3]) [slot 6]
   txn ApplicationArgs 3
   btoi 
-  store 2 // fee_tier
+  store 6 // fee_tier
   
   // byte pool_address = Txn.Sender
   txn Sender
-  store 3 // pool_address
+  store 7 // pool_address
   
   // Ensure pool_address == SHA512_256("program" + bytes from template and args)
   // byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
@@ -111,30 +166,30 @@ bootstrap:
   global CurrentApplicationID
   itob 
   replace2 3
-  store 4 // program
+  store 8 // program
   // program = replace2(11, program, Txn.ApplicationArgs[1])
-  load 4 // program
+  load 8 // program
   txn ApplicationArgs 1
   replace2 11
-  store 4 // program
+  store 8 // program
   // program = replace2(19, program, Txn.ApplicationArgs[2])
-  load 4 // program
+  load 8 // program
   txn ApplicationArgs 2
   replace2 19
-  store 4 // program
+  store 8 // program
   // program = replace2(27, program, Txn.ApplicationArgs[3])
-  load 4 // program
+  load 8 // program
   txn ApplicationArgs 3
   replace2 27
-  store 4 // program
+  store 8 // program
   // byte hash = sha512_256(concat("Program", program))
   pushbytes "Program"
-  load 4 // program
+  load 8 // program
   concat 
   sha512_256 
-  store 5 // hash
+  store 9 // hash
   // assert(hash == Txn.Sender)
-  load 5 // hash
+  load 9 // hash
   txn Sender
   ==
   assert 
@@ -154,7 +209,7 @@ bootstrap:
   itxn_begin
   pushint 1 // Pay
   itxn_field TypeEnum
-  load 3 // pool_address
+  load 7 // pool_address
   itxn_field Sender
   global CurrentApplicationAddress
   itxn_field Receiver
@@ -171,27 +226,33 @@ bootstrap:
   itxn_field TypeEnum
   global CurrentApplicationAddress
   itxn_field Sender
-  pushbytes "TinymanPool2.0"
+  pushbytes "TMPOOL2"
+  itxn_field ConfigAssetUnitName
+  load 5 // pool_token_asset_name
   itxn_field ConfigAssetName
   pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
   itxn_field ConfigAssetTotal
+  pushint 6
+  itxn_field ConfigAssetDecimals
+  pushbytes "https://tinyman.org"
+  itxn_field ConfigAssetURL
   pushint 0
   itxn_field Fee
   itxn_submit
   
   // Get the id of the asset just created
-  // int pool_token_id = Itxn.CreatedAssetID [slot 6]
+  // int pool_token_id = Itxn.CreatedAssetID [slot 10]
   itxn CreatedAssetID
-  store 6 // pool_token_id
+  store 10 // pool_token_id
   
   // itxn[2]: Optin Pool to Asset 1
   // inner_txn:
   itxn_begin
   pushint 4 // Axfer
   itxn_field TypeEnum
-  load 3 // pool_address
+  load 7 // pool_address
   itxn_field Sender
-  load 3 // pool_address
+  load 7 // pool_address
   itxn_field AssetReceiver
   load 0 // asset_1_id
   itxn_field XferAsset
@@ -206,15 +267,15 @@ bootstrap:
     load 1 // asset_2_id
     pushint 0
     >
-    bz l0_end
+    bz l1_end
     // then:
       // inner_txn:
       itxn_begin
       pushint 4 // Axfer
       itxn_field TypeEnum
-      load 3 // pool_address
+      load 7 // pool_address
       itxn_field Sender
-      load 3 // pool_address
+      load 7 // pool_address
       itxn_field AssetReceiver
       load 1 // asset_2_id
       itxn_field XferAsset
@@ -223,19 +284,19 @@ bootstrap:
       pushint 0
       itxn_field Fee
       itxn_submit
-    b l0_end
-    l0_end: // end
+    b l1_end
+    l1_end: // end
   
   // itxn[4]: Optin Pool to Pool Token Asset
   // inner_txn:
   itxn_begin
   pushint 4 // Axfer
   itxn_field TypeEnum
-  load 3 // pool_address
+  load 7 // pool_address
   itxn_field Sender
-  load 3 // pool_address
+  load 7 // pool_address
   itxn_field AssetReceiver
-  load 6 // pool_token_id
+  load 10 // pool_token_id
   itxn_field XferAsset
   pushint 0
   itxn_field Amount
@@ -250,9 +311,9 @@ bootstrap:
   itxn_field TypeEnum
   global CurrentApplicationAddress
   itxn_field Sender
-  load 3 // pool_address
+  load 7 // pool_address
   itxn_field AssetReceiver
-  load 6 // pool_token_id
+  load 10 // pool_token_id
   itxn_field XferAsset
   pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
   itxn_field AssetAmount
@@ -260,12 +321,12 @@ bootstrap:
   itxn_field Fee
   itxn_submit
   
-  // int poolers_fee_share = 25 [slot 7]
+  // int poolers_fee_share = 25 [slot 11]
   pushint 25
-  store 7 // poolers_fee_share
-  // int protocol_fee_share = 5 [slot 8]
+  store 11 // poolers_fee_share
+  // int protocol_fee_share = 5 [slot 12]
   pushint 5
-  store 8 // protocol_fee_share
+  store 12 // protocol_fee_share
   // State updates
   // [pool_token_id]
   // [asset_1]
@@ -276,7 +337,7 @@ bootstrap:
   // app_local_put(0, "pool_token_id", pool_token_id)
   pushint 0
   pushbytes "pool_token_id"
-  load 6 // pool_token_id
+  load 10 // pool_token_id
   app_local_put 
   // app_local_put(0, "asset_1_id", asset_1_id)
   pushint 0
@@ -291,17 +352,17 @@ bootstrap:
   // app_local_put(0, "fee_tier", fee_tier)
   pushint 0
   pushbytes "fee_tier"
-  load 2 // fee_tier
+  load 6 // fee_tier
   app_local_put 
   // app_local_put(0, "poolers_fee_share", poolers_fee_share)
   pushint 0
   pushbytes "poolers_fee_share"
-  load 7 // poolers_fee_share
+  load 11 // poolers_fee_share
   app_local_put 
   // app_local_put(0, "protocol_fee_share", protocol_fee_share)
   pushint 0
   pushbytes "protocol_fee_share"
-  load 8 // protocol_fee_share
+  load 12 // protocol_fee_share
   app_local_put 
   // exit(1)
   pushint 1
@@ -314,14 +375,14 @@ main:
     txn NumAppArgs
     pushint 0
     ==
-    bz l1_end
+    bz l2_end
     // then:
       // create app
       // exit(1)
       pushint 1
       return
-    b l1_end
-    l1_end: // end
+    b l2_end
+    l2_end: // end
   
   // byte user_address = Txn.Sender
   txn Sender
@@ -427,7 +488,7 @@ main:
       load 10 // input_asset_id
       pushint 0
       ==
-      bz l2_else
+      bz l3_else
       // then:
         // assert(Gtxn[input_txn_index].TypeEnum == Pay)
         load 15 // input_txn_index
@@ -445,8 +506,8 @@ main:
         load 15 // input_txn_index
         gtxns Amount
         store 14 // input_amount
-      b l2_end
-      l2_else:
+      b l3_end
+      l3_else:
       // else:
         // assert(Gtxn[input_txn_index].TypeEnum == Axfer)
         load 15 // input_txn_index
@@ -470,7 +531,7 @@ main:
         load 15 // input_txn_index
         gtxns AssetAmount
         store 14 // input_amount
-      l2_end: // end
+      l3_end: // end
     
     // input_asset_id must be asset_1_id or asset_2_id
     // output_asset_id must be asset_1_id or asset_2_id
@@ -485,7 +546,7 @@ main:
       load 3 // asset_2_id
       ==
       &&
-      bz l3_elif_0
+      bz l4_elif_0
       // then:
         // input_supply = asset_1_reserves
         load 5 // asset_1_reserves
@@ -493,8 +554,8 @@ main:
         // output_supply = asset_2_reserves
         load 6 // asset_2_reserves
         store 17 // output_supply
-      b l3_end
-      l3_elif_0:
+      b l4_end
+      l4_elif_0:
       // elif (input_asset_id == asset_2_id) && (output_asset_id == asset_1_id):
       load 10 // input_asset_id
       load 3 // asset_2_id
@@ -503,19 +564,19 @@ main:
       load 2 // asset_1_id
       ==
       &&
-      bz l3_else
+      bz l4_else
         // input_supply = asset_2_reserves
         load 6 // asset_2_reserves
         store 16 // input_supply
         // output_supply = asset_1_reserves
         load 5 // asset_1_reserves
         store 17 // output_supply
-      b l3_end
-      l3_else:
+      b l4_end
+      l4_else:
       // else:
         // error()
         err
-      l3_end: // end
+      l4_end: // end
     
     // int poolers_fee_amount [slot 18]
     // int protocol_fee_amount [slot 19]
@@ -528,7 +589,7 @@ main:
       load 13 // mode
       pushbytes "fixed-input"
       ==
-      bz l4_elif_0
+      bz l5_elif_0
       // then:
         // poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(input_amount)
         load 14 // input_amount
@@ -553,13 +614,13 @@ main:
         load 12 // min_output
         >=
         assert 
-      b l4_end
-      l4_elif_0:
+      b l5_end
+      l5_elif_0:
       // elif mode == 'fixed-output':
       load 13 // mode
       pushbytes "fixed-output"
       ==
-      bz l4_else
+      bz l5_else
         // output_amount = min_output
         load 12 // min_output
         store 21 // output_amount
@@ -590,20 +651,20 @@ main:
           load 24 // change
           pushint 0
           >
-          bz l5_end
+          bz l6_end
           // then:
             // transfer_to_user(input_asset_id, change)
             load 10 // input_asset_id
             load 24 // change
             callsub main__func__transfer_to_user
-          b l5_end
-          l5_end: // end
-      b l4_end
-      l4_else:
+          b l6_end
+          l6_end: // end
+      b l5_end
+      l5_else:
       // else:
         // error()
         err
-      l4_end: // end
+      l5_end: // end
     
     // log(concat("input_amount %i", itob(input_amount)))
     pushbytes "input_amount %i"
@@ -646,7 +707,7 @@ main:
       load 10 // input_asset_id
       load 2 // asset_1_id
       ==
-      bz l6_else
+      bz l7_else
       // then:
         // protocol_fees_asset_1 = protocol_fees_asset_1 + protocol_fee_amount
         load 8 // protocol_fees_asset_1
@@ -665,8 +726,8 @@ main:
         load 21 // output_amount
         -
         store 6 // asset_2_reserves
-      b l6_end
-      l6_else:
+      b l7_end
+      l7_else:
       // else:
         // protocol_fees_asset_2 = protocol_fees_asset_2 + protocol_fee_amount
         load 9 // protocol_fees_asset_2
@@ -685,7 +746,7 @@ main:
         load 21 // output_amount
         -
         store 5 // asset_1_reserves
-      l6_end: // end
+      l7_end: // end
     
     // transfer_to_user(output_asset_id, output_amount)
     load 11 // output_asset_id
@@ -764,7 +825,7 @@ main:
       load 3 // asset_2_id
       pushint 0
       ==
-      bz l7_else
+      bz l8_else
       // then:
         // assert(Gtxn[asset_2_txn_index].TypeEnum == Pay)
         load 12 // asset_2_txn_index
@@ -782,8 +843,8 @@ main:
         load 12 // asset_2_txn_index
         gtxns Amount
         store 13 // asset_2_amount
-      b l7_end
-      l7_else:
+      b l8_end
+      l8_else:
       // else:
         // assert(Gtxn[asset_2_txn_index].TypeEnum == Axfer)
         load 12 // asset_2_txn_index
@@ -807,14 +868,14 @@ main:
         load 12 // asset_2_txn_index
         gtxns AssetAmount
         store 13 // asset_2_amount
-      l7_end: // end
+      l8_end: // end
     
     // int pool_tokens_out [slot 14]
     // if issued_pool_tokens == 0:
       load 7 // issued_pool_tokens
       pushint 0
       ==
-      bz l8_else
+      bz l9_else
       // then:
         // Adding liquidity to the pool for the first time:
         // pool_tokens_out = sqrt(asset1_amount * asset2_amount) - LOCKED_POOL_TOKENS
@@ -838,8 +899,8 @@ main:
         // asset_2_reserves = asset_2_amount
         load 13 // asset_2_amount
         store 6 // asset_2_reserves
-      b l8_end
-      l8_else:
+      b l9_end
+      l9_else:
       // else:
         // Adding liquidity after it already has some liquidity
         // int a = btoi((itob(asset_1_amount) b* itob(issued_pool_tokens)) b/ itob(asset_1_reserves)) [slot 15]
@@ -869,7 +930,7 @@ main:
           load 15 // a
           load 16 // b
           >
-          bz l9_else
+          bz l10_else
           // then:
             // Less of asset 2 supplied. Pool tokens will be issued proportionally to asset_2_amount (b)
             // Calculate amount of asset 1 to return to user as change
@@ -896,8 +957,8 @@ main:
             load 2 // asset_1_id
             load 18 // change
             callsub main__func__transfer_to_user
-          b l9_end
-          l9_else:
+          b l10_end
+          l10_else:
           // else:
             // Less of asset 1 supplied. Pool tokens will be issued proportionally to asset_1_amount (a)
             // Calculate amount of asset 2 to return to user as change
@@ -924,7 +985,7 @@ main:
             load 3 // asset_2_id
             load 20 // change
             callsub main__func__transfer_to_user
-          l9_end: // end
+          l10_end: // end
         // issued_pool_tokens = issued_pool_tokens + pool_tokens_out
         load 7 // issued_pool_tokens
         load 14 // pool_tokens_out
@@ -940,7 +1001,7 @@ main:
         load 13 // asset_2_amount
         +
         store 6 // asset_2_reserves
-      l8_end: // end
+      l9_end: // end
     
     // Ensure calculated amount of pool tokens is > 0
     // assert(pool_tokens_out)
@@ -1046,7 +1107,7 @@ main:
       load 202 // asset_id
       pushint 0
       ==
-      bz l10_else
+      bz l11_else
       // then:
         // inner_txn:
         itxn_begin
@@ -1061,8 +1122,8 @@ main:
         pushint 0
         itxn_field Fee
         itxn_submit
-      b l10_end
-      l10_else:
+      b l11_end
+      l11_else:
       // else:
         // inner_txn:
         itxn_begin
@@ -1079,7 +1140,7 @@ main:
         pushint 0
         itxn_field Fee
         itxn_submit
-      l10_end: // end
+      l11_end: // end
   // return
   retsub
 
@@ -1234,7 +1295,7 @@ store 202 // account_idx
     load 201 // asset_id
     pushint 0
     ==
-    bz l11_else
+    bz l12_else
     // then:
       // balance = balance(account_idx) - min_balance(account_idx)
       load 202 // account_idx
@@ -1243,8 +1304,8 @@ store 202 // account_idx
       min_balance 
       -
       store 203 // balance
-    b l11_end
-    l11_else:
+    b l12_end
+    l12_else:
     // else:
       // _, balance = asset_holding_get(AssetBalance, account_idx, asset_id)
       load 202 // account_idx
@@ -1252,7 +1313,7 @@ store 202 // account_idx
       asset_holding_get AssetBalance
       pop // discarding value for _
       store 203 // balance
-    l11_end: // end
+    l12_end: // end
   // return balance
   load 203 // balance
   retsub

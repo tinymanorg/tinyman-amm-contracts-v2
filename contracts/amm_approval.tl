@@ -47,10 +47,28 @@ block bootstrap:
     # Ensure the same asset ids are included in Txn.ApplicationArgs and Txn.Assets
     int asset_1_id = btoi(Txn.ApplicationArgs[1])
     int asset_2_id = btoi(Txn.ApplicationArgs[2])
-    assert(asset_1_id == Txn.Assets[0])
-    assert(asset_2_id == Txn.Assets[1])
     assert(asset_1_id > asset_2_id)
+    assert(asset_1_id == Txn.Assets[0])
 
+    int asset_unit_name_exist = 0
+    byte asset_1_unit_name = ""
+    byte asset_2_unit_name = "ALGO"
+
+    asset_unit_name_exist, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
+    assert(asset_unit_name_exist)
+
+    if asset_2_id > 0:
+        assert(asset_2_id == Txn.Assets[1])
+        asset_unit_name_exist, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
+        assert(asset_unit_name_exist)
+    else:
+        # Asset 2 is Algo
+        assert(1 == Txn.NumAssets)
+    end
+
+    byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
+
+    # TODO: Validate fee_tier
     int fee_tier = btoi(Txn.ApplicationArgs[3])
 
     byte pool_address = Txn.Sender
@@ -83,9 +101,11 @@ block bootstrap:
     inner_txn:
         TypeEnum: Acfg
         Sender: Global.CurrentApplicationAddress
-        ConfigAssetName: "TinymanPool2.0"
+        ConfigAssetUnitName: "TMPOOL2"
+        ConfigAssetName: pool_token_asset_name
         ConfigAssetTotal: POOL_TOKEN_TOTAL_SUPPLY
-        # TODO: other fields
+        ConfigAssetDecimals: 6
+        ConfigAssetURL: "https://tinyman.org"
         Fee: 0
     end
 
