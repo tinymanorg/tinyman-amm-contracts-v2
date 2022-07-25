@@ -50,8 +50,6 @@ load 0 // asset_1_id
 txn Assets 0
 ==
 assert
-pushint 0
-store 2 // asset_unit_name_exist
 pushbytes ""
 store 3 // asset_1_unit_name
 pushbytes "ALGO"
@@ -64,8 +62,14 @@ load 2 // asset_unit_name_exist
 assert
 load 1 // asset_2_id
 pushint 0
->
+==
 bz l0_else
+pushint 1
+txn NumAssets
+==
+assert
+b l0_end
+l0_else:
 load 1 // asset_2_id
 txn Assets 1
 ==
@@ -75,12 +79,6 @@ asset_params_get AssetUnitName
 store 2 // asset_unit_name_exist
 store 4 // asset_2_unit_name
 load 2 // asset_unit_name_exist
-assert
-b l0_end
-l0_else:
-pushint 1
-txn NumAssets
-==
 assert
 l0_end: // end
 pushbytes "TinymanPool2.0 "
@@ -157,7 +155,7 @@ pushint 0
 itxn_field Fee
 itxn_submit
 itxn CreatedAssetID
-store 10 // pool_token_id
+store 10 // pool_token_asset_id
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
@@ -199,7 +197,7 @@ load 7 // pool_address
 itxn_field Sender
 load 7 // pool_address
 itxn_field AssetReceiver
-load 10 // pool_token_id
+load 10 // pool_token_asset_id
 itxn_field XferAsset
 pushint 0
 itxn_field Amount
@@ -213,7 +211,7 @@ global CurrentApplicationAddress
 itxn_field Sender
 load 7 // pool_address
 itxn_field AssetReceiver
-load 10 // pool_token_id
+load 10 // pool_token_asset_id
 itxn_field XferAsset
 pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
 itxn_field AssetAmount
@@ -225,8 +223,8 @@ store 11 // poolers_fee_share
 pushint 5
 store 12 // protocol_fee_share
 pushint 0
-pushbytes "pool_token_id"
-load 10 // pool_token_id
+pushbytes "pool_token_asset_id"
+load 10 // pool_token_asset_id
 app_local_put
 pushint 0
 pushbytes "asset_1_id"
@@ -295,6 +293,10 @@ pushint 1
 pushbytes "protocol_fees_asset_2"
 app_local_get
 store 9 // protocol_fees_asset_2
+txn RekeyTo
+global ZeroAddress
+==
+assert
 txn ApplicationArgs 0
 pushbytes "add_liquidity"
 ==
@@ -453,8 +455,6 @@ load 23 // total_input_amount
 -
 store 24 // change
 load 24 // change
-pushint 0
->
 bz l6_end
 load 10 // input_asset_id
 load 24 // change
@@ -658,6 +658,26 @@ itob
 b/
 btoi
 store 16 // b
+load 11 // asset_1_amount
+itob
+load 7 // issued_pool_tokens
+itob
+b*
+load 5 // asset_1_reserves
+itob
+b%
+btoi
+store 17 // remainder_a
+load 13 // asset_2_amount
+itob
+load 7 // issued_pool_tokens
+itob
+b*
+load 6 // asset_2_reserves
+itob
+b%
+btoi
+store 18 // remainder_b
 load 15 // a
 load 16 // b
 >
@@ -673,13 +693,23 @@ load 7 // issued_pool_tokens
 itob
 b/
 btoi
-store 17 // expected_asset_1_amount
+store 19 // expected_asset_1_amount
+load 18 // remainder_b
+bz l11_end
+load 19 // expected_asset_1_amount
+pushint 1
++
+store 19 // expected_asset_1_amount
+b l11_end
+l11_end: // end
 load 11 // asset_1_amount
-load 17 // expected_asset_1_amount
+load 19 // expected_asset_1_amount
 -
-store 18 // change
+store 20 // change
+load 19 // expected_asset_1_amount
+store 11 // asset_1_amount
 load 2 // asset_1_id
-load 18 // change
+load 20 // change
 callsub main__func__transfer_to_user
 b l10_end
 l10_else:
@@ -694,13 +724,23 @@ load 7 // issued_pool_tokens
 itob
 b/
 btoi
-store 19 // expected_asset_2_amount
+store 21 // expected_asset_2_amount
+load 17 // remainder_a
+bz l12_end
+load 21 // expected_asset_2_amount
+pushint 1
++
+store 21 // expected_asset_2_amount
+b l12_end
+l12_end: // end
 load 13 // asset_2_amount
-load 19 // expected_asset_2_amount
+load 21 // expected_asset_2_amount
 -
-store 20 // change
+store 22 // change
+load 21 // expected_asset_2_amount
+store 13 // asset_2_amount
 load 3 // asset_2_id
-load 20 // change
+load 22 // change
 callsub main__func__transfer_to_user
 l10_end: // end
 load 7 // issued_pool_tokens
@@ -766,7 +806,7 @@ store 202 // asset_id
 load 202 // asset_id
 pushint 0
 ==
-bz l11_else
+bz l13_else
 itxn_begin
 pushint 1 // Pay
 itxn_field TypeEnum
@@ -779,8 +819,8 @@ itxn_field Amount
 pushint 0
 itxn_field Fee
 itxn_submit
-b l11_end
-l11_else:
+b l13_end
+l13_else:
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
@@ -795,7 +835,7 @@ itxn_field XferAsset
 pushint 0
 itxn_field Fee
 itxn_submit
-l11_end: // end
+l13_end: // end
 retsub
 __func__calculate_fixed_input_fee_amounts:
 store 201 // input_amount
@@ -909,20 +949,20 @@ store 203 // balance
 load 201 // asset_id
 pushint 0
 ==
-bz l12_else
+bz l14_else
 load 202 // account_idx
 balance
 load 202 // account_idx
 min_balance
 -
 store 203 // balance
-b l12_end
-l12_else:
+b l14_end
+l14_else:
 load 202 // account_idx
 load 201 // asset_id
 asset_holding_get AssetBalance
 pop // discarding value for _
 store 203 // balance
-l12_end: // end
+l14_end: // end
 load 203 // balance
 retsub

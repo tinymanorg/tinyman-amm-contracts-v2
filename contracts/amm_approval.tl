@@ -50,20 +50,20 @@ block bootstrap:
     assert(asset_1_id > asset_2_id)
     assert(asset_1_id == Txn.Assets[0])
 
-    int asset_unit_name_exist = 0
+    int asset_unit_name_exist
     byte asset_1_unit_name = ""
     byte asset_2_unit_name = "ALGO"
 
     asset_unit_name_exist, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
     assert(asset_unit_name_exist)
 
-    if asset_2_id > 0:
+    if asset_2_id == 0:
+        # Asset 2 is Algo
+        assert(1 == Txn.NumAssets)
+    else:
         assert(asset_2_id == Txn.Assets[1])
         asset_unit_name_exist, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
         assert(asset_unit_name_exist)
-    else:
-        # Asset 2 is Algo
-        assert(1 == Txn.NumAssets)
     end
 
     byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
@@ -110,7 +110,7 @@ block bootstrap:
     end
 
     # Get the id of the asset just created
-    int pool_token_id = Itxn.CreatedAssetID
+    int pool_token_asset_id = Itxn.CreatedAssetID
 
     # itxn[2]: Optin Pool to Asset 1
     inner_txn:
@@ -139,7 +139,7 @@ block bootstrap:
         TypeEnum: Axfer
         Sender: pool_address
         AssetReceiver: pool_address
-        XferAsset: pool_token_id
+        XferAsset: pool_token_asset_id
         Amount: 0
         Fee: 0
     end
@@ -149,7 +149,7 @@ block bootstrap:
         TypeEnum: Axfer
         Sender: Global.CurrentApplicationAddress
         AssetReceiver: pool_address
-        XferAsset: pool_token_id
+        XferAsset: pool_token_asset_id
         AssetAmount: POOL_TOKEN_TOTAL_SUPPLY
         Fee: 0
     end
@@ -157,13 +157,13 @@ block bootstrap:
     int poolers_fee_share = 25
     int protocol_fee_share = 5
     # State updates
-    # [pool_token_id]
+    # [pool_token_asset_id]
     # [asset_1]
     # [asset_2]
     # [fee_tier]
     # [poolers_fee_share]
     # [protocol_fee_share]
-    app_local_put(0, "pool_token_id", pool_token_id)
+    app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
     app_local_put(0, "asset_1_id", asset_1_id)
     app_local_put(0, "asset_2_id", asset_2_id)
     app_local_put(0, "fee_tier", fee_tier)
@@ -174,6 +174,7 @@ end
 
 
 block main:
+    # TODO: Should we use Txn.ApplicationID == 0: instead?
     if Txn.NumAppArgs == 0:
         # create app
         exit(1)
@@ -181,6 +182,8 @@ block main:
 
     byte user_address = Txn.Sender
     byte pool_address = Txn.Accounts[1]
+
+    # These will fail if the account is not optted-in and only pool accounts can opt-in to the app.
     int asset_1_id = app_local_get(1, "asset_1_id")
     int asset_2_id = app_local_get(1, "asset_2_id")
     int pool_token_asset_id = app_local_get(1, "pool_token_asset_id")
@@ -189,6 +192,9 @@ block main:
     int issued_pool_tokens = app_local_get(1, "issued_pool_tokens")
     int protocol_fees_asset_1 = app_local_get(1, "protocol_fees_asset_1")
     int protocol_fees_asset_2 = app_local_get(1, "protocol_fees_asset_2")
+
+    # TODO: Should we check rekey in all transactions to protect users?
+    assert(Txn.RekeyTo == Global.ZeroAddress)
 
     switch Txn.ApplicationArgs[0]:
         "add_liquidity": add_liquidity        
@@ -254,7 +260,7 @@ block main:
             poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
             int total_input_amount = swap_amount + (poolers_fee_amount + protocol_fee_amount)
             int change = input_amount - total_input_amount
-            if change > 0:
+            if change:
                 transfer_to_user(input_asset_id, change)
             end
         else:
@@ -328,19 +334,31 @@ block main:
             int a = btoi((itob(asset_1_amount) b* itob(issued_pool_tokens)) b/ itob(asset_1_reserves))
             int b = btoi((itob(asset_2_amount) b* itob(issued_pool_tokens)) b/ itob(asset_2_reserves))
 
+            # TODO: We can re-use the intermediate results to reduce operations cost
+            int remainder_a = btoi((itob(asset_1_amount) b* itob(issued_pool_tokens)) b% itob(asset_1_reserves))
+            int remainder_b = btoi((itob(asset_2_amount) b* itob(issued_pool_tokens)) b% itob(asset_2_reserves))
+
             if a > b:
                 # Less of asset 2 supplied. Pool tokens will be issued proportionally to asset_2_amount (b)
                 # Calculate amount of asset 1 to return to user as change
                 pool_tokens_out = b
                 int expected_asset_1_amount = btoi((itob(pool_tokens_out) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
+                if remainder_b:
+                    expected_asset_1_amount = expected_asset_1_amount + 1
+                end
                 int change = asset_1_amount - expected_asset_1_amount
+                asset_1_amount = expected_asset_1_amount
                 transfer_to_user(asset_1_id, change)
             else:
                 # Less of asset 1 supplied. Pool tokens will be issued proportionally to asset_1_amount (a)
                 # Calculate amount of asset 2 to return to user as change
                 pool_tokens_out = a
                 int expected_asset_2_amount = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
+                if remainder_a:
+                    expected_asset_2_amount = expected_asset_2_amount + 1
+                end
                 int change = asset_2_amount - expected_asset_2_amount
+                asset_2_amount = expected_asset_2_amount
                 transfer_to_user(asset_2_id, change)
             end
             issued_pool_tokens = issued_pool_tokens + pool_tokens_out
@@ -359,7 +377,6 @@ block main:
         app_local_put(1, "issued_pool_tokens", issued_pool_tokens)
         exit(1)
     end
-
 
     block remove_liquidity:
         # Gtxn[0]: Transfer Pool Token to Pool from User

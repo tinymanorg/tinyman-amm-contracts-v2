@@ -91,9 +91,7 @@ bootstrap:
   ==
   assert 
   
-  // int asset_unit_name_exist = 0 [slot 2]
-  pushint 0
-  store 2 // asset_unit_name_exist
+  // int asset_unit_name_exist [slot 2]
   // byte asset_1_unit_name = ""
   pushbytes ""
   store 3 // asset_1_unit_name
@@ -110,12 +108,21 @@ bootstrap:
   load 2 // asset_unit_name_exist
   assert 
   
-  // if asset_2_id > 0:
+  // if asset_2_id == 0:
     load 1 // asset_2_id
     pushint 0
-    >
+    ==
     bz l0_else
     // then:
+      // Asset 2 is Algo
+      // assert(1 == Txn.NumAssets)
+      pushint 1
+      txn NumAssets
+      ==
+      assert 
+    b l0_end
+    l0_else:
+    // else:
       // assert(asset_2_id == Txn.Assets[1])
       load 1 // asset_2_id
       txn Assets 1
@@ -128,15 +135,6 @@ bootstrap:
       store 4 // asset_2_unit_name
       // assert(asset_unit_name_exist)
       load 2 // asset_unit_name_exist
-      assert 
-    b l0_end
-    l0_else:
-    // else:
-      // Asset 2 is Algo
-      // assert(1 == Txn.NumAssets)
-      pushint 1
-      txn NumAssets
-      ==
       assert 
     l0_end: // end
   
@@ -241,9 +239,9 @@ bootstrap:
   itxn_submit
   
   // Get the id of the asset just created
-  // int pool_token_id = Itxn.CreatedAssetID [slot 10]
+  // int pool_token_asset_id = Itxn.CreatedAssetID [slot 10]
   itxn CreatedAssetID
-  store 10 // pool_token_id
+  store 10 // pool_token_asset_id
   
   // itxn[2]: Optin Pool to Asset 1
   // inner_txn:
@@ -296,7 +294,7 @@ bootstrap:
   itxn_field Sender
   load 7 // pool_address
   itxn_field AssetReceiver
-  load 10 // pool_token_id
+  load 10 // pool_token_asset_id
   itxn_field XferAsset
   pushint 0
   itxn_field Amount
@@ -313,7 +311,7 @@ bootstrap:
   itxn_field Sender
   load 7 // pool_address
   itxn_field AssetReceiver
-  load 10 // pool_token_id
+  load 10 // pool_token_asset_id
   itxn_field XferAsset
   pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
   itxn_field AssetAmount
@@ -328,16 +326,16 @@ bootstrap:
   pushint 5
   store 12 // protocol_fee_share
   // State updates
-  // [pool_token_id]
+  // [pool_token_asset_id]
   // [asset_1]
   // [asset_2]
   // [fee_tier]
   // [poolers_fee_share]
   // [protocol_fee_share]
-  // app_local_put(0, "pool_token_id", pool_token_id)
+  // app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
   pushint 0
-  pushbytes "pool_token_id"
-  load 10 // pool_token_id
+  pushbytes "pool_token_asset_id"
+  load 10 // pool_token_asset_id
   app_local_put 
   // app_local_put(0, "asset_1_id", asset_1_id)
   pushint 0
@@ -371,6 +369,7 @@ bootstrap:
 
 // block main
 main:
+  // TODO: Should we use Txn.ApplicationID == 0: instead?
   // if Txn.NumAppArgs == 0:
     txn NumAppArgs
     pushint 0
@@ -390,6 +389,8 @@ main:
   // byte pool_address = Txn.Accounts[1]
   txn Accounts 1
   store 1 // pool_address
+  
+  // These will fail if the account is not optted-in and only pool accounts can opt-in to the app.
   // int asset_1_id = app_local_get(1, "asset_1_id") [slot 2]
   pushint 1
   pushbytes "asset_1_id"
@@ -430,6 +431,13 @@ main:
   pushbytes "protocol_fees_asset_2"
   app_local_get 
   store 9 // protocol_fees_asset_2
+  
+  // TODO: Should we check rekey in all transactions to protect users?
+  // assert(Txn.RekeyTo == Global.ZeroAddress)
+  txn RekeyTo
+  global ZeroAddress
+  ==
+  assert 
   
   // switch Txn.ApplicationArgs[0]:
   txn ApplicationArgs 0
@@ -647,10 +655,8 @@ main:
         load 23 // total_input_amount
         -
         store 24 // change
-        // if change > 0:
+        // if change:
           load 24 // change
-          pushint 0
-          >
           bz l6_end
           // then:
             // transfer_to_user(input_asset_id, change)
@@ -926,6 +932,30 @@ main:
         btoi 
         store 16 // b
         
+        // TODO: We can re-use the intermediate results to reduce operations cost
+        // int remainder_a = btoi((itob(asset_1_amount) b* itob(issued_pool_tokens)) b% itob(asset_1_reserves)) [slot 17]
+        load 11 // asset_1_amount
+        itob 
+        load 7 // issued_pool_tokens
+        itob 
+        b*
+        load 5 // asset_1_reserves
+        itob 
+        b%
+        btoi 
+        store 17 // remainder_a
+        // int remainder_b = btoi((itob(asset_2_amount) b* itob(issued_pool_tokens)) b% itob(asset_2_reserves)) [slot 18]
+        load 13 // asset_2_amount
+        itob 
+        load 7 // issued_pool_tokens
+        itob 
+        b*
+        load 6 // asset_2_reserves
+        itob 
+        b%
+        btoi 
+        store 18 // remainder_b
+        
         // if a > b:
           load 15 // a
           load 16 // b
@@ -937,7 +967,7 @@ main:
             // pool_tokens_out = b
             load 16 // b
             store 14 // pool_tokens_out
-            // int expected_asset_1_amount = btoi((itob(pool_tokens_out) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens)) [slot 17]
+            // int expected_asset_1_amount = btoi((itob(pool_tokens_out) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens)) [slot 19]
             load 14 // pool_tokens_out
             itob 
             load 5 // asset_1_reserves
@@ -947,15 +977,29 @@ main:
             itob 
             b/
             btoi 
-            store 17 // expected_asset_1_amount
-            // int change = asset_1_amount - expected_asset_1_amount [slot 18]
+            store 19 // expected_asset_1_amount
+            // if remainder_b:
+              load 18 // remainder_b
+              bz l11_end
+              // then:
+                // expected_asset_1_amount = expected_asset_1_amount + 1
+                load 19 // expected_asset_1_amount
+                pushint 1
+                +
+                store 19 // expected_asset_1_amount
+              b l11_end
+              l11_end: // end
+            // int change = asset_1_amount - expected_asset_1_amount [slot 20]
             load 11 // asset_1_amount
-            load 17 // expected_asset_1_amount
+            load 19 // expected_asset_1_amount
             -
-            store 18 // change
+            store 20 // change
+            // asset_1_amount = expected_asset_1_amount
+            load 19 // expected_asset_1_amount
+            store 11 // asset_1_amount
             // transfer_to_user(asset_1_id, change)
             load 2 // asset_1_id
-            load 18 // change
+            load 20 // change
             callsub main__func__transfer_to_user
           b l10_end
           l10_else:
@@ -965,7 +1009,7 @@ main:
             // pool_tokens_out = a
             load 15 // a
             store 14 // pool_tokens_out
-            // int expected_asset_2_amount = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens)) [slot 19]
+            // int expected_asset_2_amount = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens)) [slot 21]
             load 14 // pool_tokens_out
             itob 
             load 6 // asset_2_reserves
@@ -975,15 +1019,29 @@ main:
             itob 
             b/
             btoi 
-            store 19 // expected_asset_2_amount
-            // int change = asset_2_amount - expected_asset_2_amount [slot 20]
+            store 21 // expected_asset_2_amount
+            // if remainder_a:
+              load 17 // remainder_a
+              bz l12_end
+              // then:
+                // expected_asset_2_amount = expected_asset_2_amount + 1
+                load 21 // expected_asset_2_amount
+                pushint 1
+                +
+                store 21 // expected_asset_2_amount
+              b l12_end
+              l12_end: // end
+            // int change = asset_2_amount - expected_asset_2_amount [slot 22]
             load 13 // asset_2_amount
-            load 19 // expected_asset_2_amount
+            load 21 // expected_asset_2_amount
             -
-            store 20 // change
+            store 22 // change
+            // asset_2_amount = expected_asset_2_amount
+            load 21 // expected_asset_2_amount
+            store 13 // asset_2_amount
             // transfer_to_user(asset_2_id, change)
             load 3 // asset_2_id
-            load 20 // change
+            load 22 // change
             callsub main__func__transfer_to_user
           l10_end: // end
         // issued_pool_tokens = issued_pool_tokens + pool_tokens_out
@@ -1032,7 +1090,6 @@ main:
     // exit(1)
     pushint 1
     return
-  
   
   // block remove_liquidity
   main__remove_liquidity:
@@ -1107,7 +1164,7 @@ main:
       load 202 // asset_id
       pushint 0
       ==
-      bz l11_else
+      bz l13_else
       // then:
         // inner_txn:
         itxn_begin
@@ -1122,8 +1179,8 @@ main:
         pushint 0
         itxn_field Fee
         itxn_submit
-      b l11_end
-      l11_else:
+      b l13_end
+      l13_else:
       // else:
         // inner_txn:
         itxn_begin
@@ -1140,7 +1197,7 @@ main:
         pushint 0
         itxn_field Fee
         itxn_submit
-      l11_end: // end
+      l13_end: // end
   // return
   retsub
 
@@ -1295,7 +1352,7 @@ store 202 // account_idx
     load 201 // asset_id
     pushint 0
     ==
-    bz l12_else
+    bz l14_else
     // then:
       // balance = balance(account_idx) - min_balance(account_idx)
       load 202 // account_idx
@@ -1304,8 +1361,8 @@ store 202 // account_idx
       min_balance 
       -
       store 203 // balance
-    b l12_end
-    l12_else:
+    b l14_end
+    l14_else:
     // else:
       // _, balance = asset_holding_get(AssetBalance, account_idx, asset_id)
       load 202 // account_idx
@@ -1313,7 +1370,7 @@ store 202 // account_idx
       asset_holding_get AssetBalance
       pop // discarding value for _
       store 203 // balance
-    l12_end: // end
+    l14_end: // end
   // return balance
   load 203 // balance
   retsub
