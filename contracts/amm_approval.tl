@@ -174,9 +174,11 @@ end
 
 
 block main:
-    # TODO: Should we use Txn.ApplicationID == 0: instead?
-    if Txn.NumAppArgs == 0:
+    if Txn.ApplicationID == 0:
         # create app
+        app_global_put("fee_setter", Txn.Sender)
+        app_global_put("fee_collector", Txn.Sender)
+        app_global_put("fee_manager", Txn.Sender)
         exit(1)
     end
 
@@ -418,21 +420,26 @@ block main:
     end
 
     block claim_fees:
-        # Transfer accumulated fees from the pool to the Fee_Collector
+        # Transfer accumulated fees from the pool to the fee_collector
 
         # Gtxn[0]: AppCall from User
         
-        # itxn[0]: Transfer Asset 1 to Fee_Collector from Pool
-        # itxn[1]: Transfer Asset 2 to Fee_Collector from Pool
+        # itxn[0]: Transfer Asset 1 to fee_collector from Pool
+        # itxn[1]: Transfer Asset 2 to fee_collector from Pool
+
+        assert(user_address == app_global_get("fee_collector"))
+        assert(protocol_fees_asset_1 || protocol_fees_asset_2)
+        transfer_to_user(asset_1_id, protocol_fees_asset_1)
+        transfer_to_user(asset_2_id, protocol_fees_asset_2)
 
         # State updates
-        # [protocol_fees_asset_1]
-        # [protocol_fees_asset_2]
+        app_local_put(1, "protocol_fees_asset_1", 0)
+        app_local_put(1, "protocol_fees_asset_2", 0)
         exit(1)
     end
 
     block claim_extra:
-        # Transfer any extra donations to the Fee_Collector
+        # Transfer any extra donations to the fee_collector
 
         # Gtxn[0]: AppCall from User
         
@@ -440,8 +447,8 @@ block main:
         int asset_2_amount = get_balance(1, asset_2_id) - (asset_2_reserves + protocol_fees_asset_2)
         # Note: must account for min balance when asset_2 is algo
 
-        # itxn[0]: Transfer Asset 1 to Fee_Collector from Pool
-        # itxn[1]: Transfer Asset 2 to Fee_Collector from Pool
+        # itxn[0]: Transfer Asset 1 to fee_collector from Pool
+        # itxn[1]: Transfer Asset 2 to fee_collector from Pool
         exit(1)
     end
 

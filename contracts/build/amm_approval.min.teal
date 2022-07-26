@@ -249,10 +249,19 @@ app_local_put
 pushint 1
 return
 main:
-txn NumAppArgs
+txn ApplicationID
 pushint 0
 ==
 bz l2_end
+pushbytes "fee_setter"
+txn Sender
+app_global_put
+pushbytes "fee_collector"
+txn Sender
+app_global_put
+pushbytes "fee_manager"
+txn Sender
+app_global_put
 pushint 1
 return
 b l2_end
@@ -870,6 +879,29 @@ app_local_put
 pushint 1
 return
 main__claim_fees:
+load 0 // user_address
+pushbytes "fee_collector"
+app_global_get
+==
+assert
+load 8 // protocol_fees_asset_1
+load 9 // protocol_fees_asset_2
+||
+assert
+load 2 // asset_1_id
+load 8 // protocol_fees_asset_1
+callsub main__func__transfer_to_user
+load 3 // asset_2_id
+load 9 // protocol_fees_asset_2
+callsub main__func__transfer_to_user
+pushint 1
+pushbytes "protocol_fees_asset_1"
+pushint 0
+app_local_put
+pushint 1
+pushbytes "protocol_fees_asset_2"
+pushint 0
+app_local_put
 pushint 1
 return
 main__claim_extra:

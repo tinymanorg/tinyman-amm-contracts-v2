@@ -369,14 +369,25 @@ bootstrap:
 
 // block main
 main:
-  // TODO: Should we use Txn.ApplicationID == 0: instead?
-  // if Txn.NumAppArgs == 0:
-    txn NumAppArgs
+  // if Txn.ApplicationID == 0:
+    txn ApplicationID
     pushint 0
     ==
     bz l2_end
     // then:
       // create app
+      // app_global_put("fee_setter", Txn.Sender)
+      pushbytes "fee_setter"
+      txn Sender
+      app_global_put 
+      // app_global_put("fee_collector", Txn.Sender)
+      pushbytes "fee_collector"
+      txn Sender
+      app_global_put 
+      // app_global_put("fee_manager", Txn.Sender)
+      pushbytes "fee_manager"
+      txn Sender
+      app_global_put 
       // exit(1)
       pushint 1
       return
@@ -1225,23 +1236,51 @@ main:
   
   // block claim_fees
   main__claim_fees:
-    // Transfer accumulated fees from the pool to the Fee_Collector
+    // Transfer accumulated fees from the pool to the fee_collector
     
     // Gtxn[0]: AppCall from User
     
-    // itxn[0]: Transfer Asset 1 to Fee_Collector from Pool
-    // itxn[1]: Transfer Asset 2 to Fee_Collector from Pool
+    // itxn[0]: Transfer Asset 1 to fee_collector from Pool
+    // itxn[1]: Transfer Asset 2 to fee_collector from Pool
+    
+    // assert(user_address == app_global_get("fee_collector"))
+    load 0 // user_address
+    pushbytes "fee_collector"
+    app_global_get 
+    ==
+    assert 
+    // assert(protocol_fees_asset_1 || protocol_fees_asset_2)
+    load 8 // protocol_fees_asset_1
+    load 9 // protocol_fees_asset_2
+    ||
+    assert 
+    // transfer_to_user(asset_1_id, protocol_fees_asset_1)
+    load 2 // asset_1_id
+    load 8 // protocol_fees_asset_1
+    callsub main__func__transfer_to_user
+    // transfer_to_user(asset_2_id, protocol_fees_asset_2)
+    load 3 // asset_2_id
+    load 9 // protocol_fees_asset_2
+    callsub main__func__transfer_to_user
     
     // State updates
-    // [protocol_fees_asset_1]
-    // [protocol_fees_asset_2]
+    // app_local_put(1, "protocol_fees_asset_1", 0)
+    pushint 1
+    pushbytes "protocol_fees_asset_1"
+    pushint 0
+    app_local_put 
+    // app_local_put(1, "protocol_fees_asset_2", 0)
+    pushint 1
+    pushbytes "protocol_fees_asset_2"
+    pushint 0
+    app_local_put 
     // exit(1)
     pushint 1
     return
   
   // block claim_extra
   main__claim_extra:
-    // Transfer any extra donations to the Fee_Collector
+    // Transfer any extra donations to the fee_collector
     
     // Gtxn[0]: AppCall from User
     
@@ -1265,8 +1304,8 @@ main:
     store 11 // asset_2_amount
     // Note: must account for min balance when asset_2 is algo
     
-    // itxn[0]: Transfer Asset 1 to Fee_Collector from Pool
-    // itxn[1]: Transfer Asset 2 to Fee_Collector from Pool
+    // itxn[0]: Transfer Asset 1 to fee_collector from Pool
+    // itxn[1]: Transfer Asset 2 to fee_collector from Pool
     // exit(1)
     pushint 1
     return
