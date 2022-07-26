@@ -324,7 +324,7 @@ block main:
         int pool_tokens_out
         if issued_pool_tokens == 0:
             # Adding liquidity to the pool for the first time:
-            # pool_tokens_out = sqrt(asset1_amount * asset2_amount) - LOCKED_POOL_TOKENS
+            # pool_tokens_out = sqrt(asset_1_amount * asset_2_amount) - LOCKED_POOL_TOKENS
             issued_pool_tokens = btoi(bsqrt(itob(asset_1_amount) b* itob(asset_2_amount)))
             pool_tokens_out = issued_pool_tokens - LOCKED_POOL_TOKENS
             asset_1_reserves = asset_1_amount
@@ -385,10 +385,35 @@ block main:
         # itxn[0]: Transfer Asset 1 to User from Pool
         # itxn[1]: Transfer Asset 2 to User from Pool
 
+        int pool_token_txn_index = Txn.GroupIndex - 1
+        assert(Gtxn[pool_token_txn_index].TypeEnum == Axfer)
+        assert(Gtxn[pool_token_txn_index].AssetReceiver == pool_address)
+        assert(Gtxn[pool_token_txn_index].XferAsset == pool_token_asset_id)
+        int removed_pool_token_amount = Gtxn[pool_token_txn_index].AssetAmount
+
+        int asset_1_out
+        int asset_2_out
+        if (removed_pool_token_amount + LOCKED_POOL_TOKENS) == issued_pool_tokens:
+            asset_1_out = asset_1_reserves
+            asset_2_out = asset_2_reserves
+            removed_pool_token_amount = issued_pool_tokens
+        else:
+            asset_1_out = btoi((itob(removed_pool_token_amount) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
+            asset_2_out = btoi((itob(removed_pool_token_amount) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
+        end
+
+        assert(asset_1_out && asset_2_out)
+        transfer_to_user(asset_1_id, asset_1_out)
+        transfer_to_user(asset_2_id, asset_2_out)
+
+        issued_pool_tokens = issued_pool_tokens - removed_pool_token_amount
+        asset_1_reserves = asset_1_reserves - asset_1_out
+        asset_2_reserves = asset_2_reserves - asset_2_out
+
         # State updates
-        # [asset_1_reserves]
-        # [asset_2_reserves]
-        # [issued_pool_tokens]
+        app_local_put(1, "asset_1_reserves", asset_1_reserves)
+        app_local_put(1, "asset_2_reserves", asset_2_reserves)
+        app_local_put(1, "issued_pool_tokens", issued_pool_tokens)
         exit(1)
     end
 
@@ -413,7 +438,7 @@ block main:
         
         int asset_1_amount = get_balance(1, asset_1_id) - (asset_1_reserves + protocol_fees_asset_1)
         int asset_2_amount = get_balance(1, asset_2_id) - (asset_2_reserves + protocol_fees_asset_2)
-        # Note: must account for min balance when asset2 is algo
+        # Note: must account for min balance when asset_2 is algo
 
         # itxn[0]: Transfer Asset 1 to Fee_Collector from Pool
         # itxn[1]: Transfer Asset 2 to Fee_Collector from Pool

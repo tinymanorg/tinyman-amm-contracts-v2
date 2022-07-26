@@ -884,7 +884,7 @@ main:
       bz l9_else
       // then:
         // Adding liquidity to the pool for the first time:
-        // pool_tokens_out = sqrt(asset1_amount * asset2_amount) - LOCKED_POOL_TOKENS
+        // pool_tokens_out = sqrt(asset_1_amount * asset_2_amount) - LOCKED_POOL_TOKENS
         // issued_pool_tokens = btoi(bsqrt(itob(asset_1_amount) b* itob(asset_2_amount)))
         load 11 // asset_1_amount
         itob 
@@ -1099,10 +1099,126 @@ main:
     // itxn[0]: Transfer Asset 1 to User from Pool
     // itxn[1]: Transfer Asset 2 to User from Pool
     
+    // int pool_token_txn_index = Txn.GroupIndex - 1 [slot 10]
+    txn GroupIndex
+    pushint 1
+    -
+    store 10 // pool_token_txn_index
+    // assert(Gtxn[pool_token_txn_index].TypeEnum == Axfer)
+    load 10 // pool_token_txn_index
+    gtxns TypeEnum
+    pushint 4 // Axfer
+    ==
+    assert 
+    // assert(Gtxn[pool_token_txn_index].AssetReceiver == pool_address)
+    load 10 // pool_token_txn_index
+    gtxns AssetReceiver
+    load 1 // pool_address
+    ==
+    assert 
+    // assert(Gtxn[pool_token_txn_index].XferAsset == pool_token_asset_id)
+    load 10 // pool_token_txn_index
+    gtxns XferAsset
+    load 4 // pool_token_asset_id
+    ==
+    assert 
+    // int removed_pool_token_amount = Gtxn[pool_token_txn_index].AssetAmount [slot 11]
+    load 10 // pool_token_txn_index
+    gtxns AssetAmount
+    store 11 // removed_pool_token_amount
+    
+    // int asset_1_out [slot 12]
+    // int asset_2_out [slot 13]
+    // if (removed_pool_token_amount + LOCKED_POOL_TOKENS) == issued_pool_tokens:
+      load 11 // removed_pool_token_amount
+      pushint 1000 // LOCKED_POOL_TOKENS
+      +
+      load 7 // issued_pool_tokens
+      ==
+      bz l13_else
+      // then:
+        // asset_1_out = asset_1_reserves
+        load 5 // asset_1_reserves
+        store 12 // asset_1_out
+        // asset_2_out = asset_2_reserves
+        load 6 // asset_2_reserves
+        store 13 // asset_2_out
+        // removed_pool_token_amount = issued_pool_tokens
+        load 7 // issued_pool_tokens
+        store 11 // removed_pool_token_amount
+      b l13_end
+      l13_else:
+      // else:
+        // asset_1_out = btoi((itob(removed_pool_token_amount) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
+        load 11 // removed_pool_token_amount
+        itob 
+        load 5 // asset_1_reserves
+        itob 
+        b*
+        load 7 // issued_pool_tokens
+        itob 
+        b/
+        btoi 
+        store 12 // asset_1_out
+        // asset_2_out = btoi((itob(removed_pool_token_amount) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
+        load 11 // removed_pool_token_amount
+        itob 
+        load 6 // asset_2_reserves
+        itob 
+        b*
+        load 7 // issued_pool_tokens
+        itob 
+        b/
+        btoi 
+        store 13 // asset_2_out
+      l13_end: // end
+    
+    // assert(asset_1_out && asset_2_out)
+    load 12 // asset_1_out
+    load 13 // asset_2_out
+    &&
+    assert 
+    // transfer_to_user(asset_1_id, asset_1_out)
+    load 2 // asset_1_id
+    load 12 // asset_1_out
+    callsub main__func__transfer_to_user
+    // transfer_to_user(asset_2_id, asset_2_out)
+    load 3 // asset_2_id
+    load 13 // asset_2_out
+    callsub main__func__transfer_to_user
+    
+    // issued_pool_tokens = issued_pool_tokens - removed_pool_token_amount
+    load 7 // issued_pool_tokens
+    load 11 // removed_pool_token_amount
+    -
+    store 7 // issued_pool_tokens
+    // asset_1_reserves = asset_1_reserves - asset_1_out
+    load 5 // asset_1_reserves
+    load 12 // asset_1_out
+    -
+    store 5 // asset_1_reserves
+    // asset_2_reserves = asset_2_reserves - asset_2_out
+    load 6 // asset_2_reserves
+    load 13 // asset_2_out
+    -
+    store 6 // asset_2_reserves
+    
     // State updates
-    // [asset_1_reserves]
-    // [asset_2_reserves]
-    // [issued_pool_tokens]
+    // app_local_put(1, "asset_1_reserves", asset_1_reserves)
+    pushint 1
+    pushbytes "asset_1_reserves"
+    load 5 // asset_1_reserves
+    app_local_put 
+    // app_local_put(1, "asset_2_reserves", asset_2_reserves)
+    pushint 1
+    pushbytes "asset_2_reserves"
+    load 6 // asset_2_reserves
+    app_local_put 
+    // app_local_put(1, "issued_pool_tokens", issued_pool_tokens)
+    pushint 1
+    pushbytes "issued_pool_tokens"
+    load 7 // issued_pool_tokens
+    app_local_put 
     // exit(1)
     pushint 1
     return
@@ -1147,7 +1263,7 @@ main:
     +
     -
     store 11 // asset_2_amount
-    // Note: must account for min balance when asset2 is algo
+    // Note: must account for min balance when asset_2 is algo
     
     // itxn[0]: Transfer Asset 1 to Fee_Collector from Pool
     // itxn[1]: Transfer Asset 2 to Fee_Collector from Pool
@@ -1164,7 +1280,7 @@ main:
       load 202 // asset_id
       pushint 0
       ==
-      bz l13_else
+      bz l14_else
       // then:
         // inner_txn:
         itxn_begin
@@ -1179,8 +1295,8 @@ main:
         pushint 0
         itxn_field Fee
         itxn_submit
-      b l13_end
-      l13_else:
+      b l14_end
+      l14_else:
       // else:
         // inner_txn:
         itxn_begin
@@ -1197,7 +1313,7 @@ main:
         pushint 0
         itxn_field Fee
         itxn_submit
-      l13_end: // end
+      l14_end: // end
   // return
   retsub
 
@@ -1352,7 +1468,7 @@ store 202 // account_idx
     load 201 // asset_id
     pushint 0
     ==
-    bz l14_else
+    bz l15_else
     // then:
       // balance = balance(account_idx) - min_balance(account_idx)
       load 202 // account_idx
@@ -1361,8 +1477,8 @@ store 202 // account_idx
       min_balance 
       -
       store 203 // balance
-    b l14_end
-    l14_else:
+    b l15_end
+    l15_else:
     // else:
       // _, balance = asset_holding_get(AssetBalance, account_idx, asset_id)
       load 202 // account_idx
@@ -1370,7 +1486,7 @@ store 202 // account_idx
       asset_holding_get AssetBalance
       pop // discarding value for _
       store 203 // balance
-    l14_end: // end
+    l15_end: // end
   // return balance
   load 203 // balance
   retsub

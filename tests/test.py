@@ -1,7 +1,5 @@
 import unittest
 from decimal import Decimal
-from http.client import LOCKED
-from math import sqrt
 from unittest.mock import ANY
 
 from algojig import TealishProgram, get_suggested_params
@@ -20,6 +18,7 @@ approval_program = TealishProgram('contracts/amm_approval.tl')
 
 METHOD_BOOTSTRAP = "bootstrap"
 METHOD_ADD_LIQUIDITY = "add_liquidity"
+METHOD_REMOVE_LIQUIDITY = "remove_liquidity"
 METHOD_SWAP = "swap"
 POOLERS_FEE_SHARE = 25
 PROTOCOL_FEE_SHARE = 5
@@ -59,6 +58,17 @@ class BaseTestCase(unittest.TestCase):
     def opt_in_asset(self, address, asset_id):
         self.ledger.set_account_balance(address, 0, asset_id=asset_id)
 
+    def ledger_transfer(self, amount, asset_id=0, sender=None, receiver=None):
+        assert sender or receiver
+
+        if receiver:
+            receiver_balance, _ = self.ledger.accounts[receiver]['balances'].get(asset_id)
+            self.ledger.set_account_balance(receiver, receiver_balance + amount, asset_id=asset_id)
+
+        if sender:
+            sender_balance, _ = self.ledger.accounts[sender]['balances'].get(asset_id)
+            self.ledger.set_account_balance(sender, sender_balance - amount, asset_id=asset_id)
+
     def bootstrap_pool(self):
         asset_2_id = getattr(self, "asset_2_id", ALGO_ASSET_ID)
 
@@ -96,9 +106,10 @@ class BaseTestCase(unittest.TestCase):
             }
         )
 
-    def set_pool_liquidity(self, asset_1_reserves, asset_2_reserves, liquidity_provider_address=None):
+    def set_initial_pool_liquidity(self, asset_1_reserves, asset_2_reserves, liquidity_provider_address=None):
         issued_pool_token_amount = int(Decimal.sqrt(Decimal(asset_1_reserves) * Decimal(asset_2_reserves)))
         pool_token_out_amount = issued_pool_token_amount - LOCKED_POOL_TOKENS
+        assert pool_token_out_amount > 0
 
         # TODO: Add update_local_state method to AlgoJig
         self.ledger.set_local_state(
@@ -112,9 +123,67 @@ class BaseTestCase(unittest.TestCase):
             }
         )
 
-        self.ledger.set_account_balance(self.pool_address, POOL_TOKEN_TOTAL_SUPPLY - pool_token_out_amount, asset_id=self.pool_token_asset_id)
-        if liquidity_provider_address:
-            self.ledger.set_account_balance(liquidity_provider_address, pool_token_out_amount, asset_id=self.pool_token_asset_id)
+        self.ledger_transfer(sender=liquidity_provider_address, receiver=self.pool_address, amount=asset_1_reserves, asset_id=self.asset_1_id)
+        self.ledger_transfer(sender=liquidity_provider_address, receiver=self.pool_address, amount=asset_2_reserves, asset_id=self.asset_2_id)
+        self.ledger_transfer(sender=self.pool_address, receiver=liquidity_provider_address, amount=pool_token_out_amount, asset_id=self.pool_token_asset_id)
+
+    def get_add_liquidity_transactions(self, asset_1_amount, asset_2_amount, app_call_fee=None):
+        txn_group = [
+            transaction.AssetTransferTxn(
+                sender=addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=asset_1_amount,
+            ),
+            transaction.AssetTransferTxn(
+                sender=addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_2_id,
+                amt=asset_2_amount,
+            ) if self.asset_2_id else transaction.PaymentTxn(
+                sender=addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                amt=asset_2_amount,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_ADD_LIQUIDITY],
+                foreign_assets=[self.asset_1_id, self.asset_2_id, self.pool_token_asset_id] if self.asset_2_id else [self.asset_1_id, self.pool_token_asset_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[2].fee = app_call_fee or self.sp.fee
+        return txn_group
+
+    def get_remove_liquidity_transactions(self, liquidity_asset_amount, app_call_fee=None):
+        txn_group = [
+            transaction.AssetTransferTxn(
+                sender=addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.pool_token_asset_id,
+                amt=liquidity_asset_amount,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_REMOVE_LIQUIDITY],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[1].fee = app_call_fee or self.sp.fee
+        return txn_group
+
+    @classmethod
+    def sign_txns(cls, txns):
+        return [txn.sign(sk)for txn in txns]
 
 
 class TestBootstrap(BaseTestCase):
@@ -462,6 +531,7 @@ class TestBootstrapAlgoPair(BaseTestCase):
         cls.minimum_fee = 6000
         cls.sp.fee = cls.minimum_fee
         cls.asset_1_id = 5
+        cls.asset_2_id = ALGO_ASSET_ID
         cls.fee_tier = 3
         cls.pool_token_total_supply = 18446744073709551615
 
@@ -612,7 +682,7 @@ class TestAddLiquidity(BaseTestCase):
         cls.asset_2_id = 2
         cls.fee_tier = 3
 
-    def setUp(self):
+    def reset_ledger(self):
         self.ledger = JigLedger()
         self.ledger.create_app(app_id=APPLICATION_ID, approval_program=approval_program)
         self.ledger.set_account_balance(addr, 1_000_000)
@@ -623,6 +693,9 @@ class TestAddLiquidity(BaseTestCase):
         self.pool_address = lsig.address()
         self.bootstrap_pool()
         self.opt_in_asset(addr, self.pool_token_asset_id)
+
+    def setUp(self):
+        self.reset_ledger()
 
     def test_initial_add_liqiudity(self):
         test_cases = [
@@ -702,40 +775,12 @@ class TestAddLiquidity(BaseTestCase):
 
         for test_case in test_cases:
             with self.subTest(**test_case):
+                self.reset_ledger()
+
                 inputs = test_case["inputs"]
-
-                txn_group = [
-                    transaction.AssetTransferTxn(
-                        sender=addr,
-                        sp=self.sp,
-                        receiver=self.pool_address,
-                        index=self.asset_1_id,
-                        amt=inputs["asset_1_added_liquidity_amount"],
-                    ),
-                    transaction.AssetTransferTxn(
-                        sender=addr,
-                        sp=self.sp,
-                        receiver=self.pool_address,
-                        index=self.asset_2_id,
-                        amt=inputs["asset_2_added_liquidity_amount"],
-                    ),
-                    transaction.ApplicationNoOpTxn(
-                        sender=addr,
-                        sp=self.sp,
-                        index=APPLICATION_ID,
-                        app_args=[METHOD_ADD_LIQUIDITY, self.asset_1_id, self.asset_2_id],
-                        foreign_assets=[self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
-                        accounts=[self.pool_address],
-                    )
-                ]
-                txn_group[2].fee = self.sp.fee * 2
-
+                txn_group = self.get_add_liquidity_transactions(asset_1_amount=inputs["asset_1_added_liquidity_amount"], asset_2_amount=inputs["asset_2_added_liquidity_amount"], app_call_fee=2_000)
                 txn_group = transaction.assign_group_id(txn_group)
-                stxns = [
-                    txn_group[0].sign(sk),
-                    txn_group[1].sign(sk),
-                    txn_group[2].sign(sk)
-                ]
+                stxns = self.sign_txns(txn_group)
 
                 if exception := test_case.get("exception"):
                     with self.assertRaises(LogicEvalError) as e:
@@ -791,7 +836,7 @@ class TestAddLiquidity(BaseTestCase):
                     self.assertDictEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'add_liquidity', self.asset_1_id.to_bytes(8, "big"), self.asset_2_id.to_bytes(8, "big")],
+                            b'apaa': [b'add_liquidity'],
                             b'apas': [self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
@@ -894,12 +939,12 @@ class TestAddLiquidity(BaseTestCase):
                     issued_pool_token_amount=LOCKED_POOL_TOKENS + 1,
                 ),
                 inputs=dict(
-                    asset_1_added_liquidity_amount=MAX_ASSET_AMOUNT - (LOCKED_POOL_TOKENS),
+                    asset_1_added_liquidity_amount=MAX_ASSET_AMOUNT - (LOCKED_POOL_TOKENS + 1),
                     asset_2_added_liquidity_amount=MAX_ASSET_AMOUNT - (LOCKED_POOL_TOKENS + 1),
                 ),
                 outputs=dict(
-                    asset_1_change_amount=1,
-                    asset_2_change_amount=None,
+                    asset_1_change_amount=None,
+                    asset_2_change_amount=0,
                     pool_tokens_out_amount=MAX_ASSET_AMOUNT - (LOCKED_POOL_TOKENS + 1)
                 )
             ),
@@ -969,56 +1014,25 @@ class TestAddLiquidity(BaseTestCase):
 
         for test_case in test_cases:
             with self.subTest(**test_case):
+                self.reset_ledger()
                 initials = test_case["initials"]
                 inputs = test_case["inputs"]
 
-                self.set_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"])
+                self.set_initial_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"])
                 self.assertEqual(initials["issued_pool_token_amount"], self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
-                txn_group = [
-                    transaction.AssetTransferTxn(
-                        sender=addr,
-                        sp=self.sp,
-                        receiver=self.pool_address,
-                        index=self.asset_1_id,
-                        amt=inputs["asset_1_added_liquidity_amount"],
-                    ),
-                    transaction.AssetTransferTxn(
-                        sender=addr,
-                        sp=self.sp,
-                        receiver=self.pool_address,
-                        index=self.asset_2_id,
-                        amt=inputs["asset_2_added_liquidity_amount"],
-                    ),
-                    transaction.ApplicationNoOpTxn(
-                        sender=addr,
-                        sp=self.sp,
-                        index=APPLICATION_ID,
-                        app_args=[METHOD_ADD_LIQUIDITY, self.asset_1_id, self.asset_2_id],
-                        foreign_assets=[self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
-                        accounts=[self.pool_address],
-                    )
-                ]
-                txn_group[2].fee = self.sp.fee * 3
-
+                txn_group = self.get_add_liquidity_transactions(asset_1_amount=inputs["asset_1_added_liquidity_amount"], asset_2_amount=inputs["asset_2_added_liquidity_amount"], app_call_fee=3_000)
                 txn_group = transaction.assign_group_id(txn_group)
-                stxns = [
-                    txn_group[0].sign(sk),
-                    txn_group[1].sign(sk),
-                    txn_group[2].sign(sk)
-                ]
+                stxns = self.sign_txns(txn_group)
 
                 if exception := test_case.get("exception"):
                     with self.assertRaises(LogicEvalError) as e:
                         block = self.ledger.eval_transactions(stxns)
-                    
+
                     self.assertEqual(e.exception.source['line'], exception.get("source_line"))
-                
+
                 else:
                     outputs = test_case["outputs"]
-                    # asset_1_change_amount = test_case["outputs"]["asset_1_change_amount"]
-                    # asset_2_change_amount = test_case["outputs"]["asset_2_change_amount"]
-                    # pool_tokens_out_amount = test_case["outputs"]["pool_tokens_out_amount"]
                     assert outputs["asset_1_change_amount"] is None or outputs["asset_2_change_amount"] is None
 
                     self.assertEqual(
@@ -1076,7 +1090,7 @@ class TestAddLiquidity(BaseTestCase):
                     self.assertDictEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'add_liquidity', self.asset_1_id.to_bytes(8, "big"), self.asset_2_id.to_bytes(8, "big")],
+                            b'apaa': [b'add_liquidity'],
                             b'apas': [self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
@@ -1152,38 +1166,10 @@ class TestAddLiquidity(BaseTestCase):
         asset_1_added_liquidity_amount = 10_000
         asset_2_added_liquidity_amount = 15_000
 
-        txn_group = [
-            transaction.AssetTransferTxn(
-                sender=addr,
-                sp=self.sp,
-                receiver=self.pool_address,
-                index=self.asset_1_id,
-                amt=asset_1_added_liquidity_amount,
-            ),
-            transaction.AssetTransferTxn(
-                sender=addr,
-                sp=self.sp,
-                receiver=self.pool_address,
-                index=self.asset_2_id,
-                amt=asset_2_added_liquidity_amount,
-            ),
-            transaction.ApplicationNoOpTxn(
-                sender=addr,
-                sp=self.sp,
-                index=APPLICATION_ID,
-                app_args=[METHOD_ADD_LIQUIDITY, self.asset_1_id, self.asset_2_id],
-                foreign_assets=[self.asset_1_id, self.asset_2_id],
-                accounts=[addr],
-            )
-        ]
-        txn_group[2].fee = self.sp.fee * 2
-
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[2].accounts = [addr]
         txn_group = transaction.assign_group_id(txn_group)
-        stxns = [
-            txn_group[0].sign(sk),
-            txn_group[1].sign(sk),
-            txn_group[2].sign(sk)
-        ]
+        stxns = self.sign_txns(txn_group)
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
@@ -1202,6 +1188,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
     def setUpClass(cls):
         cls.sp = get_suggested_params()
         cls.asset_1_id = 5
+        cls.asset_2_id = ALGO_ASSET_ID
         cls.fee_tier = 3
 
     def setUp(self):
@@ -1221,37 +1208,9 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         issued_pool_token_amount = 12247    # int(sqrt(10_000 * 15_000))
         pool_tokens_out_amount = issued_pool_token_amount - LOCKED_POOL_TOKENS
 
-        txn_group = [
-            transaction.AssetTransferTxn(
-                sender=addr,
-                sp=self.sp,
-                receiver=self.pool_address,
-                index=self.asset_1_id,
-                amt=asset_1_added_liquidity_amount,
-            ),
-            transaction.PaymentTxn(
-                sender=addr,
-                sp=self.sp,
-                receiver=self.pool_address,
-                amt=asset_2_added_liquidity_amount,
-            ),
-            transaction.ApplicationNoOpTxn(
-                sender=addr,
-                sp=self.sp,
-                index=APPLICATION_ID,
-                app_args=[METHOD_ADD_LIQUIDITY, self.asset_1_id, ALGO_ASSET_ID],
-                foreign_assets=[self.asset_1_id, self.pool_token_asset_id],
-                accounts=[self.pool_address],
-            )
-        ]
-        txn_group[2].fee = self.sp.fee * 2
-
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, app_call_fee=2_000)
         txn_group = transaction.assign_group_id(txn_group)
-        stxns = [
-            txn_group[0].sign(sk),
-            txn_group[1].sign(sk),
-            txn_group[2].sign(sk)
-        ]
+        stxns = self.sign_txns(txn_group)
 
         block = self.ledger.eval_transactions(stxns)
         block_txns = block[b'txns']
@@ -1297,7 +1256,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         self.assertDictEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'add_liquidity', self.asset_1_id.to_bytes(8, "big"), ALGO_ASSET_ID.to_bytes(8, "big")],
+                b'apaa': [b'add_liquidity'],
                 b'apas': [self.asset_1_id, self.pool_token_asset_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
@@ -1338,6 +1297,202 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
                 b'issued_pool_tokens': {b'at': 2, b'ui': issued_pool_token_amount}
             }
         )
+
+
+class TestRemoveLiquidity(BaseTestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.sp = get_suggested_params()
+        cls.asset_1_id = 5
+        cls.asset_2_id = 2
+        cls.fee_tier = 3
+
+    def reset_ledger(self):
+        self.ledger = JigLedger()
+        self.ledger.create_app(app_id=APPLICATION_ID, approval_program=approval_program)
+        self.ledger.set_account_balance(addr, 1_000_000)
+        self.ledger.set_account_balance(addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
+
+        lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
+        self.pool_address = lsig.address()
+        self.bootstrap_pool()
+        self.opt_in_asset(addr, self.pool_token_asset_id)
+
+    def setUp(self):
+        self.reset_ledger()
+
+    def test_remove_liquidity(self):
+        test_cases = [
+            dict(
+                msg="Test basic remove liquidity.",
+                initials=dict(
+                    asset_1_reserves=1_000_000,
+                    asset_2_reserves=1_000_000,
+                    issued_pool_token_amount=1_000_000,
+                ),
+                inputs=dict(
+                    removed_pool_token_amount=5_000,
+                ),
+                outputs=dict(
+                    asset_1_out=5_000,
+                    asset_2_out=5_000,
+                    local_state_delta={
+                        b'asset_1_reserves': {b'at': 2, b'ui': 1_000_000 - 5_000},
+                        b'asset_2_reserves': {b'at': 2, b'ui': 1_000_000 - 5_000},
+                        b'issued_pool_tokens': {b'at': 2, b'ui': 1_000_000 - 5_000},
+                    }
+                )
+            ),
+            dict(
+                msg="Test removing 0 pool token. It should fail beacaue asset out amounts are 0.",
+                initials=dict(
+                    asset_1_reserves=1_000_000,
+                    asset_2_reserves=1_000_000,
+                    issued_pool_token_amount=1_000_000,
+                ),
+                inputs=dict(
+                    removed_pool_token_amount=0,
+                ),
+                exception=dict(
+                    source_line='assert(asset_1_out && asset_2_out)'
+                )
+            ),
+            dict(
+                msg="One of the asset out is 0 and asset out amounts are rounded down.",
+                initials=dict(
+                    asset_1_reserves=100_000_000,
+                    asset_2_reserves=1,
+                    issued_pool_token_amount=10_000,
+                ),
+                inputs=dict(
+                    removed_pool_token_amount=500,
+                ),
+                exception=dict(
+                    source_line='assert(asset_1_out && asset_2_out)'
+                )
+            ),
+            dict(
+                msg="Remove mistakenly added NFT (Remove all circulating pool tokens).",
+                initials=dict(
+                    asset_1_reserves=100_000_000,
+                    asset_2_reserves=1,
+                    issued_pool_token_amount=10_000,
+                ),
+                inputs=dict(
+                    removed_pool_token_amount=10_000 - LOCKED_POOL_TOKENS,
+                ),
+                outputs=dict(
+                    asset_1_out=100_000_000,
+                    asset_2_out=1,
+                    local_state_delta={
+                        b'asset_1_reserves': {b'at': 2},
+                        b'asset_2_reserves': {b'at': 2},
+                        b'issued_pool_tokens': {b'at': 2},
+                    }
+                )
+            )
+        ]
+
+        for test_case in test_cases:
+            with self.subTest(**test_case):
+                initials = test_case["initials"]
+                inputs = test_case["inputs"]
+
+                self.reset_ledger()
+                self.set_initial_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"], liquidity_provider_address=addr)
+                self.assertEqual(initials["issued_pool_token_amount"], self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
+
+                txn_group = self.get_remove_liquidity_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], app_call_fee=3_000)
+                txn_group = transaction.assign_group_id(txn_group)
+                stxns = self.sign_txns(txn_group)
+
+                if exception := test_case.get("exception"):
+                    with self.assertRaises(LogicEvalError) as e:
+                        block = self.ledger.eval_transactions(stxns)
+
+                    self.assertEqual(e.exception.source['line'], exception.get("source_line"))
+
+                else:
+                    outputs = test_case["outputs"]
+
+                    block = self.ledger.eval_transactions(stxns)
+                    block_txns = block[b'txns']
+
+                    # outer transactions
+                    self.assertEqual(len(block_txns), 2)
+
+                    # outer transactions [0]
+                    txn = block_txns[0]
+                    self.assertEqual(
+                        txn[b'txn'],
+                        {
+                            b'aamt': inputs["removed_pool_token_amount"],
+                            b'arcv': decode_address(self.pool_address),
+                            b'fee': self.sp.fee,
+                            b'fv': self.sp.first,
+                            b'grp': ANY,
+                            b'lv': self.sp.last,
+                            b'snd': decode_address(addr),
+                            b'type': b'axfer',
+                            b'xaid': self.pool_token_asset_id
+                        }
+                    )
+
+                    # outer transactions [1]
+                    txn = block_txns[1]
+                    self.assertEqual(
+                        txn[b'txn'],
+                        {
+                            b'apaa': [b'remove_liquidity'],
+                            b'apas': [self.asset_1_id, self.asset_2_id],
+                            b'apat': [decode_address(self.pool_address)],
+                            b'apid': APPLICATION_ID,
+                            b'fee': self.sp.fee * 3,
+                            b'fv': self.sp.first,
+                            b'grp': ANY,
+                            b'lv': self.sp.last,
+                            b'snd': decode_address(addr),
+                            b'type': b'appl'
+                        }
+                    )
+
+                    # inner transactions
+                    inner_transactions = txn[b'dt'][b'itx']
+                    self.assertEqual(len(inner_transactions), 2)
+
+                    # inner transactions - [0]
+                    self.assertDictEqual(
+                        inner_transactions[0][b'txn'],
+                        {
+                            b'aamt': outputs["asset_1_out"],
+                            b'arcv': decode_address(addr),
+                            b'fv': self.sp.first,
+                            b'lv': self.sp.last,
+                            b'snd': decode_address(self.pool_address),
+                            b'type': b'axfer',
+                            b'xaid': self.asset_1_id
+                        }
+                    )
+
+                    # inner transactions - [1]
+                    self.assertDictEqual(
+                        inner_transactions[1][b'txn'],
+                        {
+                            b'aamt': outputs["asset_2_out"],
+                            b'arcv': decode_address(addr),
+                            b'fv': self.sp.first,
+                            b'lv': self.sp.last,
+                            b'snd': decode_address(self.pool_address),
+                            b'type': b'axfer',
+                            b'xaid': self.asset_2_id
+                        }
+                    )
+
+                    # local state delta
+                    pool_local_state_delta = txn[b'dt'][b'ld'][1]
+                    self.assertDictEqual(pool_local_state_delta, outputs["local_state_delta"])
 
 
 class TestSwap(BaseTestCase):

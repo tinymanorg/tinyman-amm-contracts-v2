@@ -776,6 +776,97 @@ app_local_put
 pushint 1
 return
 main__remove_liquidity:
+txn GroupIndex
+pushint 1
+-
+store 10 // pool_token_txn_index
+load 10 // pool_token_txn_index
+gtxns TypeEnum
+pushint 4 // Axfer
+==
+assert
+load 10 // pool_token_txn_index
+gtxns AssetReceiver
+load 1 // pool_address
+==
+assert
+load 10 // pool_token_txn_index
+gtxns XferAsset
+load 4 // pool_token_asset_id
+==
+assert
+load 10 // pool_token_txn_index
+gtxns AssetAmount
+store 11 // removed_pool_token_amount
+load 11 // removed_pool_token_amount
+pushint 1000 // LOCKED_POOL_TOKENS
++
+load 7 // issued_pool_tokens
+==
+bz l13_else
+load 5 // asset_1_reserves
+store 12 // asset_1_out
+load 6 // asset_2_reserves
+store 13 // asset_2_out
+load 7 // issued_pool_tokens
+store 11 // removed_pool_token_amount
+b l13_end
+l13_else:
+load 11 // removed_pool_token_amount
+itob
+load 5 // asset_1_reserves
+itob
+b*
+load 7 // issued_pool_tokens
+itob
+b/
+btoi
+store 12 // asset_1_out
+load 11 // removed_pool_token_amount
+itob
+load 6 // asset_2_reserves
+itob
+b*
+load 7 // issued_pool_tokens
+itob
+b/
+btoi
+store 13 // asset_2_out
+l13_end: // end
+load 12 // asset_1_out
+load 13 // asset_2_out
+&&
+assert
+load 2 // asset_1_id
+load 12 // asset_1_out
+callsub main__func__transfer_to_user
+load 3 // asset_2_id
+load 13 // asset_2_out
+callsub main__func__transfer_to_user
+load 7 // issued_pool_tokens
+load 11 // removed_pool_token_amount
+-
+store 7 // issued_pool_tokens
+load 5 // asset_1_reserves
+load 12 // asset_1_out
+-
+store 5 // asset_1_reserves
+load 6 // asset_2_reserves
+load 13 // asset_2_out
+-
+store 6 // asset_2_reserves
+pushint 1
+pushbytes "asset_1_reserves"
+load 5 // asset_1_reserves
+app_local_put
+pushint 1
+pushbytes "asset_2_reserves"
+load 6 // asset_2_reserves
+app_local_put
+pushint 1
+pushbytes "issued_pool_tokens"
+load 7 // issued_pool_tokens
+app_local_put
 pushint 1
 return
 main__claim_fees:
@@ -806,7 +897,7 @@ store 202 // asset_id
 load 202 // asset_id
 pushint 0
 ==
-bz l13_else
+bz l14_else
 itxn_begin
 pushint 1 // Pay
 itxn_field TypeEnum
@@ -819,8 +910,8 @@ itxn_field Amount
 pushint 0
 itxn_field Fee
 itxn_submit
-b l13_end
-l13_else:
+b l14_end
+l14_else:
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
@@ -835,7 +926,7 @@ itxn_field XferAsset
 pushint 0
 itxn_field Fee
 itxn_submit
-l13_end: // end
+l14_end: // end
 retsub
 __func__calculate_fixed_input_fee_amounts:
 store 201 // input_amount
@@ -949,20 +1040,20 @@ store 203 // balance
 load 201 // asset_id
 pushint 0
 ==
-bz l14_else
+bz l15_else
 load 202 // account_idx
 balance
 load 202 // account_idx
 min_balance
 -
 store 203 // balance
-b l14_end
-l14_else:
+b l15_end
+l15_else:
 load 202 // account_idx
 load 201 // asset_id
 asset_holding_get AssetBalance
 pop // discarding value for _
 store 203 // balance
-l14_end: // end
+l15_end: // end
 load 203 // balance
 retsub
