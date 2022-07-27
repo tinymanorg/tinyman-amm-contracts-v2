@@ -61,7 +61,6 @@ bootstrap:
   // itxn[5]: Transfer Pool Token total supply to Pool Account
   
   // Should fail if:
-  // fee_tier is not a valid choice
   // Pool Address (Sender) != SHA512_256("program" + bytes from template and args)
   // Address already opted in to app
   
@@ -148,47 +147,36 @@ bootstrap:
   concat 
   store 5 // pool_token_asset_name
   
-  // TODO: Validate fee_tier
-  // int fee_tier = btoi(Txn.ApplicationArgs[3]) [slot 6]
-  txn ApplicationArgs 3
-  btoi 
-  store 6 // fee_tier
-  
   // byte pool_address = Txn.Sender
   txn Sender
-  store 7 // pool_address
+  store 6 // pool_address
   
   // Ensure pool_address == SHA512_256("program" + bytes from template and args)
   // byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
-  pushbytes "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
+  pushbytes "\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
   global CurrentApplicationID
   itob 
   replace2 3
-  store 8 // program
+  store 7 // program
   // program = replace2(11, program, Txn.ApplicationArgs[1])
-  load 8 // program
+  load 7 // program
   txn ApplicationArgs 1
   replace2 11
-  store 8 // program
+  store 7 // program
   // program = replace2(19, program, Txn.ApplicationArgs[2])
-  load 8 // program
+  load 7 // program
   txn ApplicationArgs 2
   replace2 19
-  store 8 // program
-  // program = replace2(27, program, Txn.ApplicationArgs[3])
-  load 8 // program
-  txn ApplicationArgs 3
-  replace2 27
-  store 8 // program
+  store 7 // program
   // byte hash = sha512_256(concat("Program", program))
   pushbytes "Program"
-  load 8 // program
+  load 7 // program
   concat 
   sha512_256 
-  store 9 // hash
-  // assert(hash == Txn.Sender)
-  load 9 // hash
-  txn Sender
+  store 8 // hash
+  // assert(hash == pool_address)
+  load 8 // hash
+  load 6 // pool_address
   ==
   assert 
   
@@ -207,7 +195,7 @@ bootstrap:
   itxn_begin
   pushint 1 // Pay
   itxn_field TypeEnum
-  load 7 // pool_address
+  load 6 // pool_address
   itxn_field Sender
   global CurrentApplicationAddress
   itxn_field Receiver
@@ -239,18 +227,18 @@ bootstrap:
   itxn_submit
   
   // Get the id of the asset just created
-  // int pool_token_asset_id = Itxn.CreatedAssetID [slot 10]
+  // int pool_token_asset_id = Itxn.CreatedAssetID [slot 9]
   itxn CreatedAssetID
-  store 10 // pool_token_asset_id
+  store 9 // pool_token_asset_id
   
   // itxn[2]: Optin Pool to Asset 1
   // inner_txn:
   itxn_begin
   pushint 4 // Axfer
   itxn_field TypeEnum
-  load 7 // pool_address
+  load 6 // pool_address
   itxn_field Sender
-  load 7 // pool_address
+  load 6 // pool_address
   itxn_field AssetReceiver
   load 0 // asset_1_id
   itxn_field XferAsset
@@ -271,9 +259,9 @@ bootstrap:
       itxn_begin
       pushint 4 // Axfer
       itxn_field TypeEnum
-      load 7 // pool_address
+      load 6 // pool_address
       itxn_field Sender
-      load 7 // pool_address
+      load 6 // pool_address
       itxn_field AssetReceiver
       load 1 // asset_2_id
       itxn_field XferAsset
@@ -290,11 +278,11 @@ bootstrap:
   itxn_begin
   pushint 4 // Axfer
   itxn_field TypeEnum
-  load 7 // pool_address
+  load 6 // pool_address
   itxn_field Sender
-  load 7 // pool_address
+  load 6 // pool_address
   itxn_field AssetReceiver
-  load 10 // pool_token_asset_id
+  load 9 // pool_token_asset_id
   itxn_field XferAsset
   pushint 0
   itxn_field Amount
@@ -309,9 +297,9 @@ bootstrap:
   itxn_field TypeEnum
   global CurrentApplicationAddress
   itxn_field Sender
-  load 7 // pool_address
+  load 6 // pool_address
   itxn_field AssetReceiver
-  load 10 // pool_token_asset_id
+  load 9 // pool_token_asset_id
   itxn_field XferAsset
   pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
   itxn_field AssetAmount
@@ -319,12 +307,12 @@ bootstrap:
   itxn_field Fee
   itxn_submit
   
-  // int poolers_fee_share = 25 [slot 11]
+  // int poolers_fee_share = 25 [slot 10]
   pushint 25
-  store 11 // poolers_fee_share
-  // int protocol_fee_share = 5 [slot 12]
+  store 10 // poolers_fee_share
+  // int protocol_fee_share = 5 [slot 11]
   pushint 5
-  store 12 // protocol_fee_share
+  store 11 // protocol_fee_share
   // State updates
   // [pool_token_asset_id]
   // [asset_1]
@@ -335,7 +323,7 @@ bootstrap:
   // app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
   pushint 0
   pushbytes "pool_token_asset_id"
-  load 10 // pool_token_asset_id
+  load 9 // pool_token_asset_id
   app_local_put 
   // app_local_put(0, "asset_1_id", asset_1_id)
   pushint 0
@@ -347,20 +335,21 @@ bootstrap:
   pushbytes "asset_2_id"
   load 1 // asset_2_id
   app_local_put 
-  // app_local_put(0, "fee_tier", fee_tier)
+  // app_local_put(0, "fee_tier", app_global_get("initial_fee_tier"))
   pushint 0
   pushbytes "fee_tier"
-  load 6 // fee_tier
+  pushbytes "initial_fee_tier"
+  app_global_get 
   app_local_put 
   // app_local_put(0, "poolers_fee_share", poolers_fee_share)
   pushint 0
   pushbytes "poolers_fee_share"
-  load 11 // poolers_fee_share
+  load 10 // poolers_fee_share
   app_local_put 
   // app_local_put(0, "protocol_fee_share", protocol_fee_share)
   pushint 0
   pushbytes "protocol_fee_share"
-  load 12 // protocol_fee_share
+  load 11 // protocol_fee_share
   app_local_put 
   // exit(1)
   pushint 1
@@ -387,6 +376,10 @@ main:
       // app_global_put("fee_manager", Txn.Sender)
       pushbytes "fee_manager"
       txn Sender
+      app_global_put 
+      // app_global_put("initial_fee_tier", 3)
+      pushbytes "initial_fee_tier"
+      pushint 3
       app_global_put 
       // exit(1)
       pushint 1

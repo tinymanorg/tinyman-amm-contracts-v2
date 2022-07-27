@@ -89,35 +89,28 @@ load 4 // asset_2_unit_name
 concat
 concat
 store 5 // pool_token_asset_name
-txn ApplicationArgs 3
-btoi
-store 6 // fee_tier
 txn Sender
-store 7 // pool_address
-pushbytes "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
+store 6 // pool_address
+pushbytes "\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
 global CurrentApplicationID
 itob
 replace2 3
-store 8 // program
-load 8 // program
+store 7 // program
+load 7 // program
 txn ApplicationArgs 1
 replace2 11
-store 8 // program
-load 8 // program
+store 7 // program
+load 7 // program
 txn ApplicationArgs 2
 replace2 19
-store 8 // program
-load 8 // program
-txn ApplicationArgs 3
-replace2 27
-store 8 // program
+store 7 // program
 pushbytes "Program"
-load 8 // program
+load 7 // program
 concat
 sha512_256
-store 9 // hash
-load 9 // hash
-txn Sender
+store 8 // hash
+load 8 // hash
+load 6 // pool_address
 ==
 assert
 txn RekeyTo
@@ -127,7 +120,7 @@ assert
 itxn_begin
 pushint 1 // Pay
 itxn_field TypeEnum
-load 7 // pool_address
+load 6 // pool_address
 itxn_field Sender
 global CurrentApplicationAddress
 itxn_field Receiver
@@ -155,13 +148,13 @@ pushint 0
 itxn_field Fee
 itxn_submit
 itxn CreatedAssetID
-store 10 // pool_token_asset_id
+store 9 // pool_token_asset_id
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 7 // pool_address
+load 6 // pool_address
 itxn_field Sender
-load 7 // pool_address
+load 6 // pool_address
 itxn_field AssetReceiver
 load 0 // asset_1_id
 itxn_field XferAsset
@@ -177,9 +170,9 @@ bz l1_end
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 7 // pool_address
+load 6 // pool_address
 itxn_field Sender
-load 7 // pool_address
+load 6 // pool_address
 itxn_field AssetReceiver
 load 1 // asset_2_id
 itxn_field XferAsset
@@ -193,11 +186,11 @@ l1_end: // end
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 7 // pool_address
+load 6 // pool_address
 itxn_field Sender
-load 7 // pool_address
+load 6 // pool_address
 itxn_field AssetReceiver
-load 10 // pool_token_asset_id
+load 9 // pool_token_asset_id
 itxn_field XferAsset
 pushint 0
 itxn_field Amount
@@ -209,9 +202,9 @@ pushint 4 // Axfer
 itxn_field TypeEnum
 global CurrentApplicationAddress
 itxn_field Sender
-load 7 // pool_address
+load 6 // pool_address
 itxn_field AssetReceiver
-load 10 // pool_token_asset_id
+load 9 // pool_token_asset_id
 itxn_field XferAsset
 pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
 itxn_field AssetAmount
@@ -219,12 +212,12 @@ pushint 0
 itxn_field Fee
 itxn_submit
 pushint 25
-store 11 // poolers_fee_share
+store 10 // poolers_fee_share
 pushint 5
-store 12 // protocol_fee_share
+store 11 // protocol_fee_share
 pushint 0
 pushbytes "pool_token_asset_id"
-load 10 // pool_token_asset_id
+load 9 // pool_token_asset_id
 app_local_put
 pushint 0
 pushbytes "asset_1_id"
@@ -236,15 +229,16 @@ load 1 // asset_2_id
 app_local_put
 pushint 0
 pushbytes "fee_tier"
-load 6 // fee_tier
+pushbytes "initial_fee_tier"
+app_global_get
 app_local_put
 pushint 0
 pushbytes "poolers_fee_share"
-load 11 // poolers_fee_share
+load 10 // poolers_fee_share
 app_local_put
 pushint 0
 pushbytes "protocol_fee_share"
-load 12 // protocol_fee_share
+load 11 // protocol_fee_share
 app_local_put
 pushint 1
 return
@@ -261,6 +255,9 @@ txn Sender
 app_global_put
 pushbytes "fee_manager"
 txn Sender
+app_global_put
+pushbytes "initial_fee_tier"
+pushint 3
 app_global_put
 pushint 1
 return

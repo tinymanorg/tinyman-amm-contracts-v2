@@ -38,7 +38,6 @@ block bootstrap:
     # itxn[5]: Transfer Pool Token total supply to Pool Account
 
     # Should fail if:
-    # fee_tier is not a valid choice
     # Pool Address (Sender) != SHA512_256("program" + bytes from template and args)
     # Address already opted in to app
 
@@ -68,19 +67,15 @@ block bootstrap:
 
     byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
 
-    # TODO: Validate fee_tier
-    int fee_tier = btoi(Txn.ApplicationArgs[3])
-
     byte pool_address = Txn.Sender
 
     # Ensure pool_address == SHA512_256("program" + bytes from template and args)
-    const byte TEMPLATE = "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
+    const byte TEMPLATE = "\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
     byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
     program = replace2(11, program, Txn.ApplicationArgs[1])
     program = replace2(19, program, Txn.ApplicationArgs[2])
-    program = replace2(27, program, Txn.ApplicationArgs[3])
     byte hash = sha512_256(concat("Program", program))
-    assert(hash == Txn.Sender)
+    assert(hash == pool_address)
 
     # Ensure Txn includes rekey to application address
     assert(Txn.RekeyTo == Global.CurrentApplicationAddress)
@@ -166,7 +161,7 @@ block bootstrap:
     app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
     app_local_put(0, "asset_1_id", asset_1_id)
     app_local_put(0, "asset_2_id", asset_2_id)
-    app_local_put(0, "fee_tier", fee_tier)
+    app_local_put(0, "fee_tier", app_global_get("initial_fee_tier"))
     app_local_put(0, "poolers_fee_share", poolers_fee_share)
     app_local_put(0, "protocol_fee_share", protocol_fee_share)
     exit(1)
@@ -179,6 +174,7 @@ block main:
         app_global_put("fee_setter", Txn.Sender)
         app_global_put("fee_collector", Txn.Sender)
         app_global_put("fee_manager", Txn.Sender)
+        app_global_put("initial_fee_tier", 3)
         exit(1)
     end
 

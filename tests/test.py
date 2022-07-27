@@ -37,9 +37,9 @@ APPLICATION_ADDRESS = get_application_address(APPLICATION_ID)
 print('App Address:', APPLICATION_ADDRESS)
 
 
-def get_pool_logicsig_bytecode(asset_1_id, asset_2_id, fee_tier=3):
+def get_pool_logicsig_bytecode(asset_1_id, asset_2_id):
     # These are the bytes of the logicsig template. This needs to be updated if the logicsig is updated.
-    template = b'\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x00\x00\x00\x00\x00\x00\x00\x01\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C'
+    template = b'\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C'
     program = bytearray(logicsig.bytecode)
 
     # Algo SDK doesn't support teal version 6 at the moment
@@ -49,7 +49,6 @@ def get_pool_logicsig_bytecode(asset_1_id, asset_2_id, fee_tier=3):
     program[3:11] = (APPLICATION_ID).to_bytes(8, 'big')
     program[11:19] = asset_1_id.to_bytes(8, 'big')
     program[19:27] = asset_2_id.to_bytes(8, 'big')
-    program[27:35] = fee_tier.to_bytes(8, 'big')
     return transaction.LogicSigAccount(program)
 
 
@@ -84,7 +83,7 @@ class BaseTestCase(unittest.TestCase):
             }
         )
 
-    def create_amm_app(self):
+    def create_amm_app(self, initial_fee_tier=3):
         if app_creator_address not in self.ledger.accounts:
             self.ledger.set_account_balance(app_creator_address, 1_000_000)
 
@@ -94,7 +93,8 @@ class BaseTestCase(unittest.TestCase):
             {
                 b'fee_collector': decode_address(app_creator_address),
                 b'fee_manager': decode_address(app_creator_address),
-                b'fee_setter': decode_address(app_creator_address)
+                b'fee_setter': decode_address(app_creator_address),
+                b'initial_fee_tier': initial_fee_tier,
             }
         )
 
@@ -273,7 +273,7 @@ class TestCreateApp(BaseTestCase):
             on_complete=transaction.OnComplete.NoOpOC,
             approval_program=approval_program.bytecode,
             clear_program=clear_state_program.bytecode,
-            global_schema=transaction.StateSchema(num_uints=0, num_byte_slices=3),
+            global_schema=transaction.StateSchema(num_uints=1, num_byte_slices=3),
             local_schema=transaction.StateSchema(num_uints=11, num_byte_slices=0),
             extra_pages=extra_pages,
         )
@@ -306,7 +306,8 @@ class TestCreateApp(BaseTestCase):
             {
                 b'fee_collector': {b'at': 1, b'bs': decode_address(app_creator_address)},
                 b'fee_manager': {b'at': 1, b'bs': decode_address(app_creator_address)},
-                b'fee_setter': {b'at': 1, b'bs': decode_address(app_creator_address)}
+                b'fee_setter': {b'at': 1, b'bs': decode_address(app_creator_address)},
+                b'initial_fee_tier': {b'at': 2, b'ui': 3}
             }
         )
 
@@ -540,7 +541,7 @@ class TestBootstrap(BaseTestCase):
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(transactions)
-        self.assertEqual(e.exception.source['line'], 'assert(hash == Txn.Sender)')
+        self.assertEqual(e.exception.source['line'], 'assert(hash == pool_address)')
 
     def test_fail_wrong_asset_order(self):
         lsig = get_pool_logicsig_bytecode(self.asset_2_id, self.asset_1_id)
