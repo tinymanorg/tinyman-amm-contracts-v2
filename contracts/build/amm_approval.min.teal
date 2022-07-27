@@ -814,9 +814,9 @@ load 7 // issued_pool_tokens
 ==
 bz l13_else
 load 5 // asset_1_reserves
-store 12 // asset_1_out
+store 12 // asset_1_amount
 load 6 // asset_2_reserves
-store 13 // asset_2_out
+store 13 // asset_2_amount
 load 7 // issued_pool_tokens
 store 11 // removed_pool_token_amount
 b l13_end
@@ -830,7 +830,7 @@ load 7 // issued_pool_tokens
 itob
 b/
 btoi
-store 12 // asset_1_out
+store 12 // asset_1_amount
 load 11 // removed_pool_token_amount
 itob
 load 6 // asset_2_reserves
@@ -840,41 +840,35 @@ load 7 // issued_pool_tokens
 itob
 b/
 btoi
-store 13 // asset_2_out
+store 13 // asset_2_amount
 l13_end: // end
-load 12 // asset_1_out
-load 13 // asset_2_out
+load 12 // asset_1_amount
+load 13 // asset_2_amount
 &&
 assert
 load 2 // asset_1_id
-load 12 // asset_1_out
+load 12 // asset_1_amount
 callsub main__func__transfer_to_user
 load 3 // asset_2_id
-load 13 // asset_2_out
+load 13 // asset_2_amount
 callsub main__func__transfer_to_user
-load 7 // issued_pool_tokens
-load 11 // removed_pool_token_amount
--
-store 7 // issued_pool_tokens
-load 5 // asset_1_reserves
-load 12 // asset_1_out
--
-store 5 // asset_1_reserves
-load 6 // asset_2_reserves
-load 13 // asset_2_out
--
-store 6 // asset_2_reserves
 pushint 1
 pushbytes "asset_1_reserves"
 load 5 // asset_1_reserves
+load 12 // asset_1_amount
+-
 app_local_put
 pushint 1
 pushbytes "asset_2_reserves"
 load 6 // asset_2_reserves
+load 13 // asset_2_amount
+-
 app_local_put
 pushint 1
 pushbytes "issued_pool_tokens"
 load 7 // issued_pool_tokens
+load 11 // removed_pool_token_amount
+-
 app_local_put
 pushint 1
 return
@@ -905,6 +899,11 @@ app_local_put
 pushint 1
 return
 main__claim_extra:
+load 0 // user_address
+pushbytes "fee_collector"
+app_global_get
+==
+assert
 pushint 1
 load 2 // asset_1_id
 callsub __func__get_balance
@@ -921,6 +920,16 @@ load 9 // protocol_fees_asset_2
 +
 -
 store 11 // asset_2_amount
+load 10 // asset_1_amount
+load 11 // asset_2_amount
+||
+assert
+load 2 // asset_1_id
+load 10 // asset_1_amount
+callsub main__func__transfer_to_user
+load 3 // asset_2_id
+load 11 // asset_2_amount
+callsub main__func__transfer_to_user
 pushint 1
 return
 main__func__transfer_to_user:

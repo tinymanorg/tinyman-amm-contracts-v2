@@ -23,6 +23,7 @@ METHOD_ADD_LIQUIDITY = "add_liquidity"
 METHOD_REMOVE_LIQUIDITY = "remove_liquidity"
 METHOD_SWAP = "swap"
 METHOD_CLAIM_FEES = "claim_fees"
+METHOD_CLAIM_EXTRA = "claim_extra"
 
 POOLERS_FEE_SHARE = 25
 PROTOCOL_FEE_SHARE = 5
@@ -99,9 +100,10 @@ class BaseTestCase(unittest.TestCase):
 
     def bootstrap_pool(self):
         asset_2_id = getattr(self, "asset_2_id", ALGO_ASSET_ID)
+        minimum_balance = 500_000 if asset_2_id else 400_000
 
         # Set Algo balance
-        self.ledger.set_account_balance(self.pool_address, 1_000_000)
+        self.ledger.set_account_balance(self.pool_address, minimum_balance)
 
         # Rekey to application address
         self.ledger.set_auth_addr(self.pool_address, APPLICATION_ADDRESS)
@@ -214,7 +216,7 @@ class BaseTestCase(unittest.TestCase):
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_REMOVE_LIQUIDITY],
-                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                foreign_assets=[self.asset_1_id, self.asset_2_id] if self.asset_2_id else [self.asset_1_id],
                 accounts=[self.pool_address],
             )
         ]
@@ -228,7 +230,21 @@ class BaseTestCase(unittest.TestCase):
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_CLAIM_FEES],
-                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                foreign_assets=[self.asset_1_id, self.asset_2_id] if self.asset_2_id else [self.asset_1_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = app_call_fee or self.sp.fee
+        return txn_group
+
+    def get_claim_extra_transactions(self, fee_collector, app_call_fee=None):
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=fee_collector,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_CLAIM_EXTRA],
+                foreign_assets=[self.asset_1_id, self.asset_2_id] if self.asset_2_id else [self.asset_1_id],
                 accounts=[self.pool_address],
             )
         ]
@@ -1465,7 +1481,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     removed_pool_token_amount=0,
                 ),
                 exception=dict(
-                    source_line='assert(asset_1_out && asset_2_out)'
+                    source_line='assert(asset_1_amount && asset_2_amount)'
                 )
             ),
             dict(
@@ -1479,7 +1495,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     removed_pool_token_amount=500,
                 ),
                 exception=dict(
-                    source_line='assert(asset_1_out && asset_2_out)'
+                    source_line='assert(asset_1_amount && asset_2_amount)'
                 )
             ),
             dict(
@@ -2179,7 +2195,7 @@ class TestClaimFeesAlgoPair(BaseTestCase):
             txn[b'txn'],
             {
                 b'apaa': [b'claim_fees'],
-                b'apas': [self.asset_1_id, self.asset_2_id],
+                b'apas': [self.asset_1_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
@@ -2229,6 +2245,356 @@ class TestClaimFeesAlgoPair(BaseTestCase):
                 b'protocol_fees_asset_1': {b'at': 2},   # -> 0
                 b'protocol_fees_asset_2': {b'at': 2}    # -> 0
             }
+        )
+
+
+class TestClaimExtra(BaseTestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sp = get_suggested_params()
+        cls.asset_1_id = 5
+        cls.asset_2_id = 2
+        cls.fee_tier = 3
+
+    def setUp(self):
+        self.ledger = JigLedger()
+        self.create_amm_app()
+        self.ledger.set_account_balance(user_addr, 1_000_000)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
+
+        lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
+        self.pool_address = lsig.address()
+        self.bootstrap_pool()
+        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=user_addr)
+
+    def test_pass(self):
+        fee_collector = app_creator_address
+        fee_collector_sk = app_creator_sk
+        self.ledger.set_account_balance(fee_collector, 1_000_000)
+        self.opt_in_asset(fee_collector, self.asset_1_id)
+        self.opt_in_asset(fee_collector, self.asset_2_id)
+
+        asset_1_extra = 5_000
+        asset_2_extra = 10_000
+        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+
+        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, fee_collector_sk)
+
+        block = self.ledger.eval_transactions(stxns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 1)
+        txn = block_txns[0]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'claim_extra'],
+                b'apas': [self.asset_1_id, self.asset_2_id],
+                b'apat': [decode_address(self.pool_address)],
+                b'apid': APPLICATION_ID,
+                b'fee': ANY,
+                b'fv': ANY,
+                b'grp': ANY,
+                b'lv': ANY,
+                b'snd': decode_address(fee_collector),
+                b'type': b'appl'
+            }
+        )
+
+        inner_transactions = txn[b'dt'][b'itx']
+        self.assertEqual(len(inner_transactions), 2)
+
+        # inner transactions - [0]
+        self.assertDictEqual(
+            inner_transactions[0][b'txn'],
+            {
+                b'aamt': asset_1_extra,
+                b'arcv': decode_address(fee_collector),
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.pool_address),
+                b'type': b'axfer',
+                b'xaid': self.asset_1_id
+            },
+        )
+
+        # inner transactions - [1]
+        self.assertDictEqual(
+            inner_transactions[1][b'txn'],
+            {
+                b'aamt': asset_2_extra,
+                b'arcv': decode_address(fee_collector),
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.pool_address),
+                b'type': b'axfer',
+                b'xaid': self.asset_2_id
+            },
+        )
+
+    def test_fail_sender_is_not_fee_collector(self):
+        asset_1_extra = 0
+        asset_2_extra = 0
+        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+
+        txn_group = self.get_claim_extra_transactions(fee_collector=user_addr, app_call_fee=3_000)
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(user_address == app_global_get("fee_collector"))')
+
+    def test_pass_only_one_of_the_asset_has_extra(self):
+        fee_collector = app_creator_address
+        fee_collector_sk = app_creator_sk
+        self.ledger.set_account_balance(fee_collector, 1_000_000)
+        self.opt_in_asset(fee_collector, self.asset_1_id)
+        self.opt_in_asset(fee_collector, self.asset_2_id)
+
+        asset_1_extra = 0
+        asset_2_extra = 5_000
+        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+
+        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, fee_collector_sk)
+
+        block = self.ledger.eval_transactions(stxns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 1)
+
+        txn = block_txns[0]
+        inner_transactions = txn[b'dt'][b'itx']
+        self.assertEqual(len(inner_transactions), 2)
+
+        # inner transactions - [0]
+        self.assertDictEqual(
+            inner_transactions[0][b'txn'],
+            {
+                b'arcv': decode_address(fee_collector),
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.pool_address),
+                b'type': b'axfer',
+                b'xaid': self.asset_1_id
+            },
+        )
+
+        # inner transactions - [1]
+        self.assertDictEqual(
+            inner_transactions[1][b'txn'],
+            {
+                b'aamt': asset_2_extra,
+                b'arcv': decode_address(fee_collector),
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.pool_address),
+                b'type': b'axfer',
+                b'xaid': self.asset_2_id
+            },
+        )
+
+    def test_fail_there_is_no_extra(self):
+        fee_collector = app_creator_address
+        fee_collector_sk = app_creator_sk
+        self.ledger.set_account_balance(fee_collector, 1_000_000)
+        self.opt_in_asset(fee_collector, self.asset_1_id)
+        self.opt_in_asset(fee_collector, self.asset_2_id)
+
+        asset_1_extra = 0
+        asset_2_extra = 0
+        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+
+        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, fee_collector_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(asset_1_amount || asset_2_amount)')
+
+    def test_fail_fee_collector_did_not_opt_in(self):
+        fee_collector = app_creator_address
+        fee_collector_sk = app_creator_sk
+        self.ledger.set_account_balance(fee_collector, 1_000_000)
+
+        asset_1_extra = 5_000
+        asset_2_extra = 10_000
+        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+
+        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, fee_collector_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'inner_txn:')
+
+
+class TestClaimExtraAlgoPair(BaseTestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sp = get_suggested_params()
+        cls.asset_1_id = 5
+        cls.asset_2_id = ALGO_ASSET_ID
+        cls.fee_tier = 3
+
+    def setUp(self):
+        self.ledger = JigLedger()
+        self.create_amm_app()
+        self.ledger.set_account_balance(user_addr, 100_000_000)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
+
+        lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
+        self.pool_address = lsig.address()
+        self.bootstrap_pool()
+        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=user_addr)
+
+    def test_pass(self):
+        fee_collector = app_creator_address
+        fee_collector_sk = app_creator_sk
+        self.ledger.set_account_balance(fee_collector, 1_000_000)
+        self.opt_in_asset(fee_collector, self.asset_1_id)
+
+        asset_1_extra = 5_000
+        asset_2_extra = 10_000
+        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+
+        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, fee_collector_sk)
+
+        block = self.ledger.eval_transactions(stxns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 1)
+        txn = block_txns[0]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'claim_extra'],
+                b'apas': [self.asset_1_id],
+                b'apat': [decode_address(self.pool_address)],
+                b'apid': APPLICATION_ID,
+                b'fee': ANY,
+                b'fv': ANY,
+                b'grp': ANY,
+                b'lv': ANY,
+                b'snd': decode_address(fee_collector),
+                b'type': b'appl'
+            }
+        )
+
+        inner_transactions = txn[b'dt'][b'itx']
+        self.assertEqual(len(inner_transactions), 2)
+
+        # inner transactions - [0]
+        self.assertDictEqual(
+            inner_transactions[0][b'txn'],
+            {
+                b'aamt': asset_1_extra,
+                b'arcv': decode_address(fee_collector),
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.pool_address),
+                b'type': b'axfer',
+                b'xaid': self.asset_1_id
+            },
+        )
+
+        # inner transactions - [1]
+        self.assertDictEqual(
+            inner_transactions[1][b'txn'],
+            {
+                b'amt': asset_2_extra,
+                b'rcv': decode_address(fee_collector),
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.pool_address),
+                b'type': b'pay',
+            },
+        )
+
+    def test_pass_there_is_no_algo_extra(self):
+        fee_collector = app_creator_address
+        fee_collector_sk = app_creator_sk
+        self.ledger.set_account_balance(fee_collector, 1_000_000)
+        self.opt_in_asset(fee_collector, self.asset_1_id)
+
+        asset_1_extra = 5_000
+        asset_2_extra = 0
+        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+
+        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, fee_collector_sk)
+
+        block = self.ledger.eval_transactions(stxns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 1)
+        txn = block_txns[0]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'claim_extra'],
+                b'apas': [self.asset_1_id],
+                b'apat': [decode_address(self.pool_address)],
+                b'apid': APPLICATION_ID,
+                b'fee': ANY,
+                b'fv': ANY,
+                b'grp': ANY,
+                b'lv': ANY,
+                b'snd': decode_address(fee_collector),
+                b'type': b'appl'
+            }
+        )
+
+        inner_transactions = txn[b'dt'][b'itx']
+        self.assertEqual(len(inner_transactions), 2)
+
+        # inner transactions - [0]
+        self.assertDictEqual(
+            inner_transactions[0][b'txn'],
+            {
+                b'aamt': asset_1_extra,
+                b'arcv': decode_address(fee_collector),
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.pool_address),
+                b'type': b'axfer',
+                b'xaid': self.asset_1_id
+            },
+        )
+
+        # inner transactions - [1]
+        self.assertDictEqual(
+            inner_transactions[1][b'txn'],
+            {
+                b'rcv': decode_address(fee_collector),
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.pool_address),
+                b'type': b'pay',
+            },
         )
 
 

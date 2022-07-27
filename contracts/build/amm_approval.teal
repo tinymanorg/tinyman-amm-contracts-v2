@@ -1138,8 +1138,8 @@ main:
     gtxns AssetAmount
     store 11 // removed_pool_token_amount
     
-    // int asset_1_out [slot 12]
-    // int asset_2_out [slot 13]
+    // int asset_1_amount [slot 12]
+    // int asset_2_amount [slot 13]
     // if (removed_pool_token_amount + LOCKED_POOL_TOKENS) == issued_pool_tokens:
       load 11 // removed_pool_token_amount
       pushint 1000 // LOCKED_POOL_TOKENS
@@ -1148,19 +1148,19 @@ main:
       ==
       bz l13_else
       // then:
-        // asset_1_out = asset_1_reserves
+        // asset_1_amount = asset_1_reserves
         load 5 // asset_1_reserves
-        store 12 // asset_1_out
-        // asset_2_out = asset_2_reserves
+        store 12 // asset_1_amount
+        // asset_2_amount = asset_2_reserves
         load 6 // asset_2_reserves
-        store 13 // asset_2_out
+        store 13 // asset_2_amount
         // removed_pool_token_amount = issued_pool_tokens
         load 7 // issued_pool_tokens
         store 11 // removed_pool_token_amount
       b l13_end
       l13_else:
       // else:
-        // asset_1_out = btoi((itob(removed_pool_token_amount) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
+        // asset_1_amount = btoi((itob(removed_pool_token_amount) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
         load 11 // removed_pool_token_amount
         itob 
         load 5 // asset_1_reserves
@@ -1170,8 +1170,8 @@ main:
         itob 
         b/
         btoi 
-        store 12 // asset_1_out
-        // asset_2_out = btoi((itob(removed_pool_token_amount) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
+        store 12 // asset_1_amount
+        // asset_2_amount = btoi((itob(removed_pool_token_amount) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
         load 11 // removed_pool_token_amount
         itob 
         load 6 // asset_2_reserves
@@ -1181,54 +1181,44 @@ main:
         itob 
         b/
         btoi 
-        store 13 // asset_2_out
+        store 13 // asset_2_amount
       l13_end: // end
     
-    // assert(asset_1_out && asset_2_out)
-    load 12 // asset_1_out
-    load 13 // asset_2_out
+    // assert(asset_1_amount && asset_2_amount)
+    load 12 // asset_1_amount
+    load 13 // asset_2_amount
     &&
     assert 
-    // transfer_to_user(asset_1_id, asset_1_out)
+    // transfer_to_user(asset_1_id, asset_1_amount)
     load 2 // asset_1_id
-    load 12 // asset_1_out
+    load 12 // asset_1_amount
     callsub main__func__transfer_to_user
-    // transfer_to_user(asset_2_id, asset_2_out)
+    // transfer_to_user(asset_2_id, asset_2_amount)
     load 3 // asset_2_id
-    load 13 // asset_2_out
+    load 13 // asset_2_amount
     callsub main__func__transfer_to_user
-    
-    // issued_pool_tokens = issued_pool_tokens - removed_pool_token_amount
-    load 7 // issued_pool_tokens
-    load 11 // removed_pool_token_amount
-    -
-    store 7 // issued_pool_tokens
-    // asset_1_reserves = asset_1_reserves - asset_1_out
-    load 5 // asset_1_reserves
-    load 12 // asset_1_out
-    -
-    store 5 // asset_1_reserves
-    // asset_2_reserves = asset_2_reserves - asset_2_out
-    load 6 // asset_2_reserves
-    load 13 // asset_2_out
-    -
-    store 6 // asset_2_reserves
     
     // State updates
-    // app_local_put(1, "asset_1_reserves", asset_1_reserves)
+    // app_local_put(1, "asset_1_reserves", asset_1_reserves - asset_1_amount)
     pushint 1
     pushbytes "asset_1_reserves"
     load 5 // asset_1_reserves
+    load 12 // asset_1_amount
+    -
     app_local_put 
-    // app_local_put(1, "asset_2_reserves", asset_2_reserves)
+    // app_local_put(1, "asset_2_reserves", asset_2_reserves - asset_2_amount)
     pushint 1
     pushbytes "asset_2_reserves"
     load 6 // asset_2_reserves
+    load 13 // asset_2_amount
+    -
     app_local_put 
-    // app_local_put(1, "issued_pool_tokens", issued_pool_tokens)
+    // app_local_put(1, "issued_pool_tokens", issued_pool_tokens - removed_pool_token_amount)
     pushint 1
     pushbytes "issued_pool_tokens"
     load 7 // issued_pool_tokens
+    load 11 // removed_pool_token_amount
+    -
     app_local_put 
     // exit(1)
     pushint 1
@@ -1283,7 +1273,17 @@ main:
     // Transfer any extra donations to the fee_collector
     
     // Gtxn[0]: AppCall from User
+    // Note: must account for min balance when asset_2 is algo
     
+    // itxn[0]: Transfer Asset 1 to fee_collector from Pool
+    // itxn[1]: Transfer Asset 2 to fee_collector from Pool
+    
+    // assert(user_address == app_global_get("fee_collector"))
+    load 0 // user_address
+    pushbytes "fee_collector"
+    app_global_get 
+    ==
+    assert 
     // int asset_1_amount = get_balance(1, asset_1_id) - (asset_1_reserves + protocol_fees_asset_1) [slot 10]
     pushint 1
     load 2 // asset_1_id
@@ -1302,10 +1302,20 @@ main:
     +
     -
     store 11 // asset_2_amount
-    // Note: must account for min balance when asset_2 is algo
     
-    // itxn[0]: Transfer Asset 1 to fee_collector from Pool
-    // itxn[1]: Transfer Asset 2 to fee_collector from Pool
+    // assert(asset_1_amount || asset_2_amount)
+    load 10 // asset_1_amount
+    load 11 // asset_2_amount
+    ||
+    assert 
+    // transfer_to_user(asset_1_id, asset_1_amount)
+    load 2 // asset_1_id
+    load 10 // asset_1_amount
+    callsub main__func__transfer_to_user
+    // transfer_to_user(asset_2_id, asset_2_amount)
+    load 3 // asset_2_id
+    load 11 // asset_2_amount
+    callsub main__func__transfer_to_user
     // exit(1)
     pushint 1
     return

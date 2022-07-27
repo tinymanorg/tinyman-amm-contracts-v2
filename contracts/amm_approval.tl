@@ -393,29 +393,25 @@ block main:
         assert(Gtxn[pool_token_txn_index].XferAsset == pool_token_asset_id)
         int removed_pool_token_amount = Gtxn[pool_token_txn_index].AssetAmount
 
-        int asset_1_out
-        int asset_2_out
+        int asset_1_amount
+        int asset_2_amount
         if (removed_pool_token_amount + LOCKED_POOL_TOKENS) == issued_pool_tokens:
-            asset_1_out = asset_1_reserves
-            asset_2_out = asset_2_reserves
+            asset_1_amount = asset_1_reserves
+            asset_2_amount = asset_2_reserves
             removed_pool_token_amount = issued_pool_tokens
         else:
-            asset_1_out = btoi((itob(removed_pool_token_amount) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
-            asset_2_out = btoi((itob(removed_pool_token_amount) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
+            asset_1_amount = btoi((itob(removed_pool_token_amount) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
+            asset_2_amount = btoi((itob(removed_pool_token_amount) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
         end
 
-        assert(asset_1_out && asset_2_out)
-        transfer_to_user(asset_1_id, asset_1_out)
-        transfer_to_user(asset_2_id, asset_2_out)
-
-        issued_pool_tokens = issued_pool_tokens - removed_pool_token_amount
-        asset_1_reserves = asset_1_reserves - asset_1_out
-        asset_2_reserves = asset_2_reserves - asset_2_out
+        assert(asset_1_amount && asset_2_amount)
+        transfer_to_user(asset_1_id, asset_1_amount)
+        transfer_to_user(asset_2_id, asset_2_amount)
 
         # State updates
-        app_local_put(1, "asset_1_reserves", asset_1_reserves)
-        app_local_put(1, "asset_2_reserves", asset_2_reserves)
-        app_local_put(1, "issued_pool_tokens", issued_pool_tokens)
+        app_local_put(1, "asset_1_reserves", asset_1_reserves - asset_1_amount)
+        app_local_put(1, "asset_2_reserves", asset_2_reserves - asset_2_amount)
+        app_local_put(1, "issued_pool_tokens", issued_pool_tokens - removed_pool_token_amount)
         exit(1)
     end
 
@@ -442,13 +438,18 @@ block main:
         # Transfer any extra donations to the fee_collector
 
         # Gtxn[0]: AppCall from User
-        
-        int asset_1_amount = get_balance(1, asset_1_id) - (asset_1_reserves + protocol_fees_asset_1)
-        int asset_2_amount = get_balance(1, asset_2_id) - (asset_2_reserves + protocol_fees_asset_2)
         # Note: must account for min balance when asset_2 is algo
-
+        
         # itxn[0]: Transfer Asset 1 to fee_collector from Pool
         # itxn[1]: Transfer Asset 2 to fee_collector from Pool
+
+        assert(user_address == app_global_get("fee_collector"))
+        int asset_1_amount = get_balance(1, asset_1_id) - (asset_1_reserves + protocol_fees_asset_1)
+        int asset_2_amount = get_balance(1, asset_2_id) - (asset_2_reserves + protocol_fees_asset_2)
+
+        assert(asset_1_amount || asset_2_amount)
+        transfer_to_user(asset_1_id, asset_1_amount)
+        transfer_to_user(asset_2_id, asset_2_amount)
         exit(1)
     end
 
