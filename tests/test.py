@@ -24,6 +24,10 @@ METHOD_REMOVE_LIQUIDITY = "remove_liquidity"
 METHOD_SWAP = "swap"
 METHOD_CLAIM_FEES = "claim_fees"
 METHOD_CLAIM_EXTRA = "claim_extra"
+METHOD_SET_FEE = "set_fee"
+METHOD_SET_FEE_COLLECTOR = "set_fee_collector"
+METHOD_SET_FEE_SETTER = "set_fee_setter"
+METHOD_SET_FEE_MANAGER = "set_fee_manager"
 
 POOLERS_FEE_SHARE = 25
 PROTOCOL_FEE_SHARE = 5
@@ -73,17 +77,23 @@ class BaseTestCase(unittest.TestCase):
             sender_balance, _ = self.ledger.accounts[sender]['balances'].get(asset_id)
             self.ledger.set_account_balance(sender, sender_balance - amount, asset_id=asset_id)
 
-    def ledger_update_local_state(self, address, app_id, state):
+    def ledger_update_local_state(self, address, app_id, state_delta):
         self.ledger.set_local_state(
             address=address,
             app_id=app_id,
             state={
                 **self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID],
-                **state
+                **state_delta
             }
         )
 
-    def create_amm_app(self, initial_fee_tier=3):
+    def ledger_update_global_state(self, app_id, state_delta):
+        self.ledger.global_states[app_id] = {
+                **self.ledger.global_states[app_id],
+                **state_delta
+        }
+
+    def create_amm_app(self):
         if app_creator_address not in self.ledger.accounts:
             self.ledger.set_account_balance(app_creator_address, 1_000_000)
 
@@ -94,7 +104,6 @@ class BaseTestCase(unittest.TestCase):
                 b'fee_collector': decode_address(app_creator_address),
                 b'fee_manager': decode_address(app_creator_address),
                 b'fee_setter': decode_address(app_creator_address),
-                b'initial_fee_tier': initial_fee_tier,
             }
         )
 
@@ -129,7 +138,6 @@ class BaseTestCase(unittest.TestCase):
             state={
                 b'asset_1_id': self.asset_1_id,
                 b'asset_2_id': asset_2_id,
-                b'fee_tier': self.fee_tier,
                 b'pool_token_asset_id': self.pool_token_asset_id,
                 b'poolers_fee_share': POOLERS_FEE_SHARE,
                 b'protocol_fee_share': PROTOCOL_FEE_SHARE,
@@ -145,7 +153,7 @@ class BaseTestCase(unittest.TestCase):
         self.ledger_update_local_state(
             address=self.pool_address,
             app_id=APPLICATION_ID,
-            state={
+            state_delta={
                 b'asset_1_reserves': asset_1_reserves,
                 b'asset_2_reserves': asset_2_reserves,
                 b'issued_pool_tokens': issued_pool_token_amount
@@ -160,7 +168,7 @@ class BaseTestCase(unittest.TestCase):
         self.ledger_update_local_state(
             address=self.pool_address,
             app_id=APPLICATION_ID,
-            state={
+            state_delta={
                 b'protocol_fees_asset_1': protocol_fees_asset_1,
                 b'protocol_fees_asset_2': protocol_fees_asset_2,
             }
@@ -307,7 +315,6 @@ class TestCreateApp(BaseTestCase):
                 b'fee_collector': {b'at': 1, b'bs': decode_address(app_creator_address)},
                 b'fee_manager': {b'at': 1, b'bs': decode_address(app_creator_address)},
                 b'fee_setter': {b'at': 1, b'bs': decode_address(app_creator_address)},
-                b'initial_fee_tier': {b'at': 2, b'ui': 3}
             }
         )
 
@@ -321,7 +328,6 @@ class TestBootstrap(BaseTestCase):
         cls.sp.fee = cls.minimum_fee
         cls.asset_1_id = 5
         cls.asset_2_id = 2
-        cls.fee_tier = 3
         cls.pool_token_total_supply = 18446744073709551615
 
     def setUp(self):
@@ -343,7 +349,7 @@ class TestBootstrap(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id, self.fee_tier],
+                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id],
                     foreign_assets=[self.asset_1_id, self.asset_2_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -360,7 +366,7 @@ class TestBootstrap(BaseTestCase):
         self.assertEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'bootstrap', self.asset_1_id.to_bytes(8, "big"), self.asset_2_id.to_bytes(8, "big"), self.fee_tier.to_bytes(8, "big")],
+                b'apaa': [b'bootstrap', self.asset_1_id.to_bytes(8, "big"), self.asset_2_id.to_bytes(8, "big")],
                 b'apan': transaction.OnComplete.OptInOC,
                 b'apas': [self.asset_1_id, self.asset_2_id],
                 b'apid': APPLICATION_ID,
@@ -470,7 +476,6 @@ class TestBootstrap(BaseTestCase):
             {
                 b'asset_1_id': {b'at': 2, b'ui': self.asset_1_id},
                 b'asset_2_id': {b'at': 2, b'ui': self.asset_2_id},
-                b'fee_tier': {b'at': 2, b'ui': self.fee_tier},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE}
@@ -490,7 +495,7 @@ class TestBootstrap(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id, self.fee_tier],
+                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id],
                     foreign_assets=[self.asset_1_id, self.asset_2_id],
                 ),
                 lsig
@@ -508,7 +513,7 @@ class TestBootstrap(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id, self.fee_tier],
+                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id],
                     foreign_assets=[self.asset_1_id, self.asset_2_id],
                     rekey_to=generate_account()[1],
                 ),
@@ -531,7 +536,7 @@ class TestBootstrap(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id, self.fee_tier],
+                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id],
                     foreign_assets=[self.asset_1_id, self.asset_2_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -553,7 +558,7 @@ class TestBootstrap(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_2_id, self.asset_1_id, self.fee_tier],
+                    app_args=[METHOD_BOOTSTRAP, self.asset_2_id, self.asset_1_id],
                     foreign_assets=[self.asset_2_id, self.asset_1_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -575,7 +580,7 @@ class TestBootstrap(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id, self.fee_tier],
+                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id],
                     foreign_assets=[self.asset_1_id + 9999, self.asset_2_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -592,7 +597,7 @@ class TestBootstrap(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id, self.fee_tier],
+                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id],
                     foreign_assets=[self.asset_1_id, self.asset_2_id + 9999],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -613,7 +618,7 @@ class TestBootstrap(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id, self.fee_tier],
+                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id],
                     foreign_assets=[self.asset_1_id, self.asset_2_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -636,7 +641,7 @@ class TestBootstrap(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=["invalid", self.asset_1_id, self.asset_2_id, self.fee_tier],
+                    app_args=["invalid", self.asset_1_id, self.asset_2_id],
                     foreign_assets=[self.asset_1_id, self.asset_2_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -658,7 +663,6 @@ class TestBootstrapAlgoPair(BaseTestCase):
         cls.sp.fee = cls.minimum_fee
         cls.asset_1_id = 5
         cls.asset_2_id = ALGO_ASSET_ID
-        cls.fee_tier = 3
         cls.pool_token_total_supply = 18446744073709551615
 
     def setUp(self):
@@ -678,7 +682,7 @@ class TestBootstrapAlgoPair(BaseTestCase):
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, ALGO_ASSET_ID, self.fee_tier],
+                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, ALGO_ASSET_ID],
                     foreign_assets=[self.asset_1_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -695,7 +699,7 @@ class TestBootstrapAlgoPair(BaseTestCase):
         self.assertEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'bootstrap', self.asset_1_id.to_bytes(8, "big"), ALGO_ASSET_ID.to_bytes(8, "big"), self.fee_tier.to_bytes(8, "big")],
+                b'apaa': [b'bootstrap', self.asset_1_id.to_bytes(8, "big"), ALGO_ASSET_ID.to_bytes(8, "big")],
                 b'apan': transaction.OnComplete.OptInOC,
                 b'apas': [self.asset_1_id],
                 b'apid': APPLICATION_ID,
@@ -791,7 +795,6 @@ class TestBootstrapAlgoPair(BaseTestCase):
             {
                 b'asset_1_id': {b'at': 2, b'ui': self.asset_1_id},
                 b'asset_2_id': {b'at': 2},      # b'ui': ALGO_ASSET_ID
-                b'fee_tier': {b'at': 2, b'ui': self.fee_tier},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE}
@@ -806,7 +809,6 @@ class TestAddLiquidity(BaseTestCase):
         cls.sp = get_suggested_params()
         cls.asset_1_id = 5
         cls.asset_2_id = 2
-        cls.fee_tier = 3
 
     def reset_ledger(self):
         self.ledger = JigLedger()
@@ -1315,7 +1317,6 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         cls.sp = get_suggested_params()
         cls.asset_1_id = 5
         cls.asset_2_id = ALGO_ASSET_ID
-        cls.fee_tier = 3
 
     def setUp(self):
         self.ledger = JigLedger()
@@ -1432,7 +1433,6 @@ class TestRemoveLiquidity(BaseTestCase):
         cls.sp = get_suggested_params()
         cls.asset_1_id = 5
         cls.asset_2_id = 2
-        cls.fee_tier = 3
 
     def reset_ledger(self):
         self.ledger = JigLedger()
@@ -1628,7 +1628,6 @@ class TestSwap(BaseTestCase):
         cls.sp = get_suggested_params()
         cls.asset_1_id = 5
         cls.asset_2_id = 2
-        cls.fee_tier = 3
 
     def setUp(self):
         self.ledger = JigLedger()
@@ -1948,7 +1947,6 @@ class TestClaimFees(BaseTestCase):
         cls.sp = get_suggested_params()
         cls.asset_1_id = 5
         cls.asset_2_id = 2
-        cls.fee_tier = 3
 
     def setUp(self):
         self.ledger = JigLedger()
@@ -2158,7 +2156,6 @@ class TestClaimFeesAlgoPair(BaseTestCase):
         cls.sp = get_suggested_params()
         cls.asset_1_id = 5
         cls.asset_2_id = ALGO_ASSET_ID
-        cls.fee_tier = 3
 
     def setUp(self):
         self.ledger = JigLedger()
@@ -2255,7 +2252,6 @@ class TestClaimExtra(BaseTestCase):
         cls.sp = get_suggested_params()
         cls.asset_1_id = 5
         cls.asset_2_id = 2
-        cls.fee_tier = 3
 
     def setUp(self):
         self.ledger = JigLedger()
@@ -2451,7 +2447,6 @@ class TestClaimExtraAlgoPair(BaseTestCase):
         cls.sp = get_suggested_params()
         cls.asset_1_id = 5
         cls.asset_2_id = ALGO_ASSET_ID
-        cls.fee_tier = 3
 
     def setUp(self):
         self.ledger = JigLedger()
@@ -2596,6 +2591,570 @@ class TestClaimExtraAlgoPair(BaseTestCase):
                 b'snd': decode_address(self.pool_address),
                 b'type': b'pay',
             },
+        )
+
+
+class TestSetFeeManager(BaseTestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sp = get_suggested_params()
+        cls.asset_1_id = 5
+        cls.asset_2_id = 2
+
+    def setUp(self):
+        self.ledger = JigLedger()
+        self.create_amm_app()
+        self.ledger.set_account_balance(user_addr, 1_000_000)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
+
+        lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
+        self.pool_address = lsig.address()
+        self.bootstrap_pool()
+        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+
+    def test_pass(self):
+        fee_manager_1_sk, fee_manager_1 = generate_account()
+        _, fee_manager_2 = generate_account()
+        self.ledger.set_account_balance(app_creator_address, 1_000_000)
+        self.ledger.set_account_balance(fee_manager_1, 1_000_000)
+        self.ledger.set_account_balance(fee_manager_2, 1_000_000)
+
+        # Group is not required.
+        # Creator sets fee_manager to fee_manager_1
+        # fee_manager_1 sets fee_manager to fee_manager_2
+        txns = [
+            transaction.ApplicationNoOpTxn(
+                sender=app_creator_address,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SET_FEE_MANAGER],
+                accounts=[fee_manager_1],
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=fee_manager_1,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SET_FEE_MANAGER],
+                accounts=[fee_manager_2],
+            )
+        ]
+        stxns = [
+            txns[0].sign(app_creator_sk),
+            txns[1].sign(fee_manager_1_sk)
+        ]
+
+        block = self.ledger.eval_transactions(stxns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 2)
+
+        # outer transactions[0]
+        txn = block_txns[0]
+        # there is no inner transaction
+        self.assertIsNone(txn[b'dt'].get(b'itx'))
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'set_fee_manager'],
+                b'apat': [decode_address(fee_manager_1)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(app_creator_address),
+                b'type': b'appl'
+            }
+        )
+        # outer transactions[0] - Global Delta
+        self.assertDictEqual(
+            txn[b'dt'][b'gd'],
+            {
+                b'fee_manager': {b'at': 1, b'bs': decode_address(fee_manager_1)}
+            }
+        )
+
+        # outer transactions[1]
+        txn = block_txns[1]
+        # there is no inner transaction
+        self.assertIsNone(txn[b'dt'].get(b'itx'))
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'set_fee_manager'],
+                b'apat': [decode_address(fee_manager_2)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(fee_manager_1),
+                b'type': b'appl'
+            }
+        )
+
+        # outer transactions[1] - Global Delta
+        self.assertDictEqual(
+            txn[b'dt'][b'gd'],
+            {
+                b'fee_manager': {b'at': 1, b'bs': decode_address(fee_manager_2)}
+            }
+        )
+
+    def test_fail_sender_is_not_fee_manager(self):
+        invalid_account_sk, invalid_account_address = generate_account()
+        self.ledger.set_account_balance(app_creator_address, 1_000_000)
+        self.ledger.set_account_balance(invalid_account_address, 1_000_000)
+
+        stxn = transaction.ApplicationNoOpTxn(
+            sender=invalid_account_address,
+            sp=self.sp,
+            index=APPLICATION_ID,
+            app_args=[METHOD_SET_FEE_MANAGER],
+            accounts=[invalid_account_address],
+        ).sign(invalid_account_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions([stxn])
+        self.assertEqual(e.exception.source['line'], 'assert(user_address == app_global_get("fee_manager"))')
+
+
+class TestSetFeeSetter(BaseTestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sp = get_suggested_params()
+        cls.asset_1_id = 5
+        cls.asset_2_id = 2
+
+    def setUp(self):
+        self.ledger = JigLedger()
+        self.create_amm_app()
+        self.ledger.set_account_balance(user_addr, 1_000_000)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
+
+        lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
+        self.pool_address = lsig.address()
+        self.bootstrap_pool()
+        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+
+    def test_pass(self):
+        fee_manager_sk, fee_manager = app_creator_sk, app_creator_address
+        _, fee_setter_1 = generate_account()
+        _, fee_setter_2 = generate_account()
+        self.ledger.set_account_balance(fee_manager, 1_000_000)
+        self.ledger.set_account_balance(fee_setter_1, 1_000_000)
+        self.ledger.set_account_balance(fee_setter_2, 1_000_000)
+
+        # Group is not required.
+        # Creator sets fee_setter to fee_setter_1
+        # fee_setter_1 sets fee_setter to fee_setter_2
+        txns = [
+            transaction.ApplicationNoOpTxn(
+                sender=fee_manager,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SET_FEE_SETTER],
+                accounts=[fee_setter_1],
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=fee_manager,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SET_FEE_SETTER],
+                accounts=[fee_setter_2],
+            )
+        ]
+        stxns = [
+            txns[0].sign(fee_manager_sk),
+            txns[1].sign(fee_manager_sk)
+        ]
+
+        block = self.ledger.eval_transactions(stxns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 2)
+
+        # outer transactions[0]
+        txn = block_txns[0]
+        # there is no inner transaction
+        self.assertIsNone(txn[b'dt'].get(b'itx'))
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'set_fee_setter'],
+                b'apat': [decode_address(fee_setter_1)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(fee_manager),
+                b'type': b'appl'
+            }
+        )
+        # outer transactions[0] - Global Delta
+        self.assertDictEqual(
+            txn[b'dt'][b'gd'],
+            {
+                b'fee_setter': {b'at': 1, b'bs': decode_address(fee_setter_1)}
+            }
+        )
+
+        # outer transactions[1]
+        txn = block_txns[1]
+        # there is no inner transaction
+        self.assertIsNone(txn[b'dt'].get(b'itx'))
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'set_fee_setter'],
+                b'apat': [decode_address(fee_setter_2)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(fee_manager),
+                b'type': b'appl'
+            }
+        )
+
+        # outer transactions[1] - Global Delta
+        self.assertDictEqual(
+            txn[b'dt'][b'gd'],
+            {
+                b'fee_setter': {b'at': 1, b'bs': decode_address(fee_setter_2)}
+            }
+        )
+
+    def test_fail_sender_is_not_fee_setter(self):
+        invalid_account_sk, invalid_account_address = generate_account()
+        self.ledger.set_account_balance(app_creator_address, 1_000_000)
+        self.ledger.set_account_balance(invalid_account_address, 1_000_000)
+
+        stxn = transaction.ApplicationNoOpTxn(
+            sender=invalid_account_address,
+            sp=self.sp,
+            index=APPLICATION_ID,
+            app_args=[METHOD_SET_FEE_SETTER],
+            accounts=[invalid_account_address],
+        ).sign(invalid_account_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions([stxn])
+        self.assertEqual(e.exception.source['line'], 'assert(user_address == app_global_get("fee_manager"))')
+
+
+class TestSetFeeCollector(BaseTestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sp = get_suggested_params()
+        cls.asset_1_id = 5
+        cls.asset_2_id = 2
+
+    def setUp(self):
+        self.ledger = JigLedger()
+        self.create_amm_app()
+        self.ledger.set_account_balance(user_addr, 1_000_000)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
+
+        lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
+        self.pool_address = lsig.address()
+        self.bootstrap_pool()
+        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+
+    def test_pass(self):
+        fee_manager_sk, fee_manager = app_creator_sk, app_creator_address
+        _, fee_collector_1 = generate_account()
+        _, fee_collector_2 = generate_account()
+        self.ledger.set_account_balance(fee_manager, 1_000_000)
+        self.ledger.set_account_balance(fee_collector_1, 1_000_000)
+        self.ledger.set_account_balance(fee_collector_2, 1_000_000)
+
+        # Group is not required.
+        # Creator sets fee_collector to fee_collector_1
+        # fee_collector_1 sets fee_collector to fee_collector_2
+        txns = [
+            transaction.ApplicationNoOpTxn(
+                sender=fee_manager,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SET_FEE_COLLECTOR],
+                accounts=[fee_collector_1],
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=fee_manager,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SET_FEE_COLLECTOR],
+                accounts=[fee_collector_2],
+            )
+        ]
+        stxns = [
+            txns[0].sign(fee_manager_sk),
+            txns[1].sign(fee_manager_sk)
+        ]
+
+        block = self.ledger.eval_transactions(stxns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 2)
+
+        # outer transactions[0]
+        txn = block_txns[0]
+        # there is no inner transaction
+        self.assertIsNone(txn[b'dt'].get(b'itx'))
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'set_fee_collector'],
+                b'apat': [decode_address(fee_collector_1)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(fee_manager),
+                b'type': b'appl'
+            }
+        )
+        # outer transactions[0] - Global Delta
+        self.assertDictEqual(
+            txn[b'dt'][b'gd'],
+            {
+                b'fee_collector': {b'at': 1, b'bs': decode_address(fee_collector_1)}
+            }
+        )
+
+        # outer transactions[1]
+        txn = block_txns[1]
+        # there is no inner transaction
+        self.assertIsNone(txn[b'dt'].get(b'itx'))
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'set_fee_collector'],
+                b'apat': [decode_address(fee_collector_2)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(fee_manager),
+                b'type': b'appl'
+            }
+        )
+
+        # outer transactions[1] - Global Delta
+        self.assertDictEqual(
+            txn[b'dt'][b'gd'],
+            {
+                b'fee_collector': {b'at': 1, b'bs': decode_address(fee_collector_2)}
+            }
+        )
+
+    def test_fail_sender_is_not_fee_collector(self):
+        invalid_account_sk, invalid_account_address = generate_account()
+        self.ledger.set_account_balance(app_creator_address, 1_000_000)
+        self.ledger.set_account_balance(invalid_account_address, 1_000_000)
+
+        stxn = transaction.ApplicationNoOpTxn(
+            sender=invalid_account_address,
+            sp=self.sp,
+            index=APPLICATION_ID,
+            app_args=[METHOD_SET_FEE_COLLECTOR],
+            accounts=[invalid_account_address],
+        ).sign(invalid_account_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions([stxn])
+        self.assertEqual(e.exception.source['line'], 'assert(user_address == app_global_get("fee_manager"))')
+
+
+class TestSetFee(BaseTestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sp = get_suggested_params()
+        cls.asset_1_id = 5
+        cls.asset_2_id = 2
+
+    def setUp(self):
+        self.ledger = JigLedger()
+        self.create_amm_app()
+        self.ledger.set_account_balance(user_addr, 1_000_000)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
+
+        lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
+        self.pool_address = lsig.address()
+        self.bootstrap_pool()
+        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+
+    def test_set_fee(self):
+        test_cases = [
+            dict(
+                msg="Test maks.",
+                inputs=dict(
+                    poolers_fee_share=50,
+                    protocol_fee_share=10
+                ),
+            ),
+            dict(
+                msg="Test mins.",
+                inputs=dict(
+                    poolers_fee_share=0,
+                    protocol_fee_share=0
+                ),
+            ),
+            dict(
+                msg="Protocol fee is 0.",
+                inputs=dict(
+                    poolers_fee_share=10,
+                    protocol_fee_share=0
+                ),
+            ),
+            dict(
+                msg="Test invalid poolers share.",
+                inputs=dict(
+                    poolers_fee_share=51,
+                    protocol_fee_share=10
+                ),
+                exception=dict(
+                    source_line='assert(poolers_fee_share <= 50)',
+                )
+            ),
+            dict(
+                msg="Test invalid protocol share.",
+                inputs=dict(
+                    poolers_fee_share=50,
+                    protocol_fee_share=11
+                ),
+                exception=dict(
+                    source_line='assert(protocol_fee_share <= 10)',
+                )
+            ),
+            dict(
+                msg="Tes invalid ratio.",
+                inputs=dict(
+                    poolers_fee_share=14,
+                    protocol_fee_share=3
+                ),
+                exception=dict(
+                    source_line='assert(poolers_fee_share >= (protocol_fee_share * 5))',
+                )
+            ),
+        ]
+
+        for test_case in test_cases:
+            with self.subTest(**test_case):
+                inputs = test_case["inputs"]
+
+                stxns = [
+                    transaction.ApplicationNoOpTxn(
+                        sender=app_creator_address,
+                        sp=self.sp,
+                        index=APPLICATION_ID,
+                        app_args=[METHOD_SET_FEE, inputs["poolers_fee_share"], inputs["protocol_fee_share"]],
+                        accounts=[self.pool_address],
+                    ).sign(app_creator_sk)
+                ]
+
+                if exception := test_case.get("exception"):
+                    with self.assertRaises(LogicEvalError) as e:
+                        block = self.ledger.eval_transactions(stxns)
+
+                    self.assertEqual(e.exception.source['line'], exception.get("source_line"))
+
+                else:
+                    block = self.ledger.eval_transactions(stxns)
+                    block_txns = block[b'txns']
+
+                    # outer transactions
+                    self.assertEqual(len(block_txns), 1)
+
+                    # outer transactions[0]
+                    txn = block_txns[0]
+                    # there is no inner transaction
+                    self.assertIsNone(txn[b'dt'].get(b'itx'))
+                    self.assertDictEqual(
+                        txn[b'txn'],
+                        {
+                            b'apaa': [b'set_fee', inputs["poolers_fee_share"].to_bytes(8, 'big'), inputs["protocol_fee_share"].to_bytes(8, 'big')],
+                            b'apat': [decode_address(self.pool_address)],
+                            b'apid': APPLICATION_ID,
+                            b'fee': self.sp.fee,
+                            b'fv': self.sp.first,
+                            b'lv': self.sp.last,
+                            b'snd': decode_address(app_creator_address),
+                            b'type': b'appl'
+                        }
+                    )
+
+                    # outer transactions[0] - Pool State Delta
+                    self.assertDictEqual(
+                        txn[b'dt'][b'ld'],
+                        {
+                            1: {
+                                b'poolers_fee_share': {b'at': 2, **({b'ui': inputs["poolers_fee_share"]} if inputs["poolers_fee_share"] else {})},
+                                b'protocol_fee_share': {b'at': 2, **({b'ui': inputs["protocol_fee_share"]} if inputs["protocol_fee_share"] else {})}
+                            }
+                        }
+                    )
+
+    def test_sender(self):
+        self.ledger.set_account_balance(app_creator_address, 1_000_000)
+
+        # Sender is not fee setter (app creator default)
+        new_account_sk, new_account_address = generate_account()
+        self.ledger.set_account_balance(new_account_address, 1_000_000)
+        stxns = [
+            transaction.ApplicationNoOpTxn(
+                sender=new_account_address,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SET_FEE, 10, 2],
+                accounts=[self.pool_address],
+            ).sign(new_account_sk)
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(user_address == app_global_get("fee_setter"))')
+
+        self.ledger_update_global_state(app_id=APPLICATION_ID, state_delta={b"fee_setter": decode_address(new_account_address)})
+        block = self.ledger.eval_transactions(stxns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 1)
+
+        # outer transactions[0]
+        txn = block_txns[0]
+        # there is no inner transaction
+        self.assertIsNone(txn[b'dt'].get(b'itx'))
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [b'set_fee', (10).to_bytes(8, 'big'), (2).to_bytes(8, 'big')],
+                b'apat': [decode_address(self.pool_address)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(new_account_address),
+                b'type': b'appl'
+            }
+        )
+
+        # outer transactions[0] - Pool State Delta
+        self.assertDictEqual(
+            txn[b'dt'][b'ld'],
+            {
+                1: {
+                    b'poolers_fee_share': {b'at': 2, b'ui': 10},
+                    b'protocol_fee_share': {b'at': 2, b'ui': 2}
+                }
+            }
         )
 
 
