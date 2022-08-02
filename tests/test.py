@@ -63,36 +63,6 @@ def get_pool_logicsig_bytecode(asset_1_id, asset_2_id):
 class BaseTestCase(unittest.TestCase):
     maxDiff = None
 
-    def opt_in_asset(self, address, asset_id):
-        self.ledger.set_account_balance(address, 0, asset_id=asset_id)
-
-    def ledger_transfer(self, amount, asset_id=0, sender=None, receiver=None):
-        assert sender or receiver
-
-        if receiver:
-            receiver_balance, _ = self.ledger.accounts[receiver]['balances'].get(asset_id)
-            self.ledger.set_account_balance(receiver, receiver_balance + amount, asset_id=asset_id)
-
-        if sender:
-            sender_balance, _ = self.ledger.accounts[sender]['balances'].get(asset_id)
-            self.ledger.set_account_balance(sender, sender_balance - amount, asset_id=asset_id)
-
-    def ledger_update_local_state(self, address, app_id, state_delta):
-        self.ledger.set_local_state(
-            address=address,
-            app_id=app_id,
-            state={
-                **self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID],
-                **state_delta
-            }
-        )
-
-    def ledger_update_global_state(self, app_id, state_delta):
-        self.ledger.global_states[app_id] = {
-                **self.ledger.global_states[app_id],
-                **state_delta
-        }
-
     def create_amm_app(self):
         if app_creator_address not in self.ledger.accounts:
             self.ledger.set_account_balance(app_creator_address, 1_000_000)
@@ -149,8 +119,7 @@ class BaseTestCase(unittest.TestCase):
         pool_token_out_amount = issued_pool_token_amount - LOCKED_POOL_TOKENS
         assert pool_token_out_amount > 0
 
-        # TODO: Add update_local_state method to AlgoJig
-        self.ledger_update_local_state(
+        self.ledger.update_local_state(
             address=self.pool_address,
             app_id=APPLICATION_ID,
             state_delta={
@@ -160,12 +129,12 @@ class BaseTestCase(unittest.TestCase):
             }
         )
 
-        self.ledger_transfer(sender=liquidity_provider_address, receiver=self.pool_address, amount=asset_1_reserves, asset_id=self.asset_1_id)
-        self.ledger_transfer(sender=liquidity_provider_address, receiver=self.pool_address, amount=asset_2_reserves, asset_id=self.asset_2_id)
-        self.ledger_transfer(sender=self.pool_address, receiver=liquidity_provider_address, amount=pool_token_out_amount, asset_id=self.pool_token_asset_id)
+        self.ledger.move(sender=liquidity_provider_address, receiver=self.pool_address, amount=asset_1_reserves, asset_id=self.asset_1_id)
+        self.ledger.move(sender=liquidity_provider_address, receiver=self.pool_address, amount=asset_2_reserves, asset_id=self.asset_2_id)
+        self.ledger.move(sender=self.pool_address, receiver=liquidity_provider_address, amount=pool_token_out_amount, asset_id=self.pool_token_asset_id)
 
     def set_pool_protocol_fees(self, protocol_fees_asset_1, protocol_fees_asset_2):
-        self.ledger_update_local_state(
+        self.ledger.update_local_state(
             address=self.pool_address,
             app_id=APPLICATION_ID,
             state_delta={
@@ -174,8 +143,8 @@ class BaseTestCase(unittest.TestCase):
             }
         )
 
-        self.ledger_transfer(receiver=self.pool_address, amount=protocol_fees_asset_1, asset_id=self.asset_1_id)
-        self.ledger_transfer(receiver=self.pool_address, amount=protocol_fees_asset_2, asset_id=self.asset_1_id)
+        self.ledger.move(receiver=self.pool_address, amount=protocol_fees_asset_1, asset_id=self.asset_1_id)
+        self.ledger.move(receiver=self.pool_address, amount=protocol_fees_asset_2, asset_id=self.asset_1_id)
 
     def get_add_liquidity_transactions(self, asset_1_amount, asset_2_amount, app_call_fee=None):
         txn_group = [
@@ -820,7 +789,7 @@ class TestAddLiquidity(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
 
     def setUp(self):
         self.reset_ledger()
@@ -1327,7 +1296,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, ALGO_ASSET_ID)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
 
     def test_pass_initial_add_liqiudity(self):
         asset_1_added_liquidity_amount = 10_000
@@ -1444,7 +1413,7 @@ class TestRemoveLiquidity(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
 
     def setUp(self):
         self.reset_ledger()
@@ -1958,15 +1927,15 @@ class TestClaimFees(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
         self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=user_addr)
 
     def test_pass(self):
         fee_collector = app_creator_address
         fee_collector_sk = app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
-        self.opt_in_asset(fee_collector, self.asset_1_id)
-        self.opt_in_asset(fee_collector, self.asset_2_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_2_id)
 
         asset_1_fee_amount = 5_000
         asset_2_fee_amount = 10_000
@@ -2056,8 +2025,8 @@ class TestClaimFees(BaseTestCase):
         fee_collector = app_creator_address
         fee_collector_sk = app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
-        self.opt_in_asset(fee_collector, self.asset_1_id)
-        self.opt_in_asset(fee_collector, self.asset_2_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_2_id)
 
         asset_1_fee_amount = 5_000
         asset_2_fee_amount = 0
@@ -2117,8 +2086,8 @@ class TestClaimFees(BaseTestCase):
         fee_collector = app_creator_address
         fee_collector_sk = app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
-        self.opt_in_asset(fee_collector, self.asset_1_id)
-        self.opt_in_asset(fee_collector, self.asset_2_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_2_id)
 
         asset_1_fee_amount = 0
         asset_2_fee_amount = 0
@@ -2166,14 +2135,14 @@ class TestClaimFeesAlgoPair(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
         self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=user_addr)
 
     def test_pass(self):
         fee_collector = app_creator_address
         fee_collector_sk = app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
-        self.opt_in_asset(fee_collector, self.asset_1_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
 
         asset_1_fee_amount = 5_000
         asset_2_fee_amount = 10_000
@@ -2263,20 +2232,20 @@ class TestClaimExtra(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
         self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=user_addr)
 
     def test_pass(self):
         fee_collector = app_creator_address
         fee_collector_sk = app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
-        self.opt_in_asset(fee_collector, self.asset_1_id)
-        self.opt_in_asset(fee_collector, self.asset_2_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_2_id)
 
         asset_1_extra = 5_000
         asset_2_extra = 10_000
-        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
-        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+        self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
         txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
@@ -2338,8 +2307,8 @@ class TestClaimExtra(BaseTestCase):
     def test_fail_sender_is_not_fee_collector(self):
         asset_1_extra = 0
         asset_2_extra = 0
-        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
-        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+        self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
         txn_group = self.get_claim_extra_transactions(fee_collector=user_addr, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
@@ -2353,13 +2322,13 @@ class TestClaimExtra(BaseTestCase):
         fee_collector = app_creator_address
         fee_collector_sk = app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
-        self.opt_in_asset(fee_collector, self.asset_1_id)
-        self.opt_in_asset(fee_collector, self.asset_2_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_2_id)
 
         asset_1_extra = 0
         asset_2_extra = 5_000
-        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
-        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+        self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
         txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
@@ -2406,13 +2375,13 @@ class TestClaimExtra(BaseTestCase):
         fee_collector = app_creator_address
         fee_collector_sk = app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
-        self.opt_in_asset(fee_collector, self.asset_1_id)
-        self.opt_in_asset(fee_collector, self.asset_2_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_2_id)
 
         asset_1_extra = 0
         asset_2_extra = 0
-        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
-        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+        self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
         txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
@@ -2429,8 +2398,8 @@ class TestClaimExtra(BaseTestCase):
 
         asset_1_extra = 5_000
         asset_2_extra = 10_000
-        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
-        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+        self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
         txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
@@ -2457,19 +2426,19 @@ class TestClaimExtraAlgoPair(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
         self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=user_addr)
 
     def test_pass(self):
         fee_collector = app_creator_address
         fee_collector_sk = app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
-        self.opt_in_asset(fee_collector, self.asset_1_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
 
         asset_1_extra = 5_000
         asset_2_extra = 10_000
-        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
-        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+        self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
         txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
@@ -2531,12 +2500,12 @@ class TestClaimExtraAlgoPair(BaseTestCase):
         fee_collector = app_creator_address
         fee_collector_sk = app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
-        self.opt_in_asset(fee_collector, self.asset_1_id)
+        self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
 
         asset_1_extra = 5_000
         asset_2_extra = 0
-        self.ledger_transfer(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
-        self.ledger_transfer(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
+        self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
+        self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
         txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
@@ -2611,7 +2580,7 @@ class TestSetFeeManager(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
 
     def test_pass(self):
         fee_manager_1_sk, fee_manager_1 = generate_account()
@@ -2736,7 +2705,7 @@ class TestSetFeeSetter(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
 
     def test_pass(self):
         fee_manager_sk, fee_manager = app_creator_sk, app_creator_address
@@ -2862,7 +2831,7 @@ class TestSetFeeCollector(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
 
     def test_pass(self):
         fee_manager_sk, fee_manager = app_creator_sk, app_creator_address
@@ -2978,7 +2947,7 @@ class TestSetFee(BaseTestCase):
         cls.asset_1_id = 5
         cls.asset_2_id = 2
 
-    def setUp(self):
+    def reset_ledger(self):
         self.ledger = JigLedger()
         self.create_amm_app()
         self.ledger.set_account_balance(user_addr, 1_000_000)
@@ -2988,7 +2957,10 @@ class TestSetFee(BaseTestCase):
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
-        self.opt_in_asset(user_addr, self.pool_token_asset_id)
+        self.ledger.opt_in_asset(user_addr, self.pool_token_asset_id)
+
+    def setUp(self):
+        self.reset_ledger()
 
     def test_set_fee(self):
         test_cases = [
@@ -3047,6 +3019,7 @@ class TestSetFee(BaseTestCase):
 
         for test_case in test_cases:
             with self.subTest(**test_case):
+                self.reset_ledger()
                 inputs = test_case["inputs"]
 
                 stxns = [
@@ -3121,7 +3094,7 @@ class TestSetFee(BaseTestCase):
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], 'assert(user_address == app_global_get("fee_setter"))')
 
-        self.ledger_update_global_state(app_id=APPLICATION_ID, state_delta={b"fee_setter": decode_address(new_account_address)})
+        self.ledger.update_global_state(app_id=APPLICATION_ID, state_delta={b"fee_setter": decode_address(new_account_address)})
         block = self.ledger.eval_transactions(stxns)
         block_txns = block[b'txns']
 
