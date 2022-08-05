@@ -3,6 +3,14 @@
 const int POOL_TOKEN_TOTAL_SUPPLY = 18446744073709551615
 const int LOCKED_POOL_TOKENS = 1000
 
+if Txn.ApplicationID == 0:
+    # create app
+    app_global_put("fee_setter", Txn.Sender)
+    app_global_put("fee_collector", Txn.Sender)
+    app_global_put("fee_manager", Txn.Sender)
+    exit(1)
+end
+
 switch Txn.OnCompletion:
     NoOp: main
     OptIn: bootstrap
@@ -167,13 +175,8 @@ end
 
 
 block main:
-    if Txn.ApplicationID == 0:
-        # create app
-        app_global_put("fee_setter", Txn.Sender)
-        app_global_put("fee_collector", Txn.Sender)
-        app_global_put("fee_manager", Txn.Sender)
-        exit(1)
-    end
+    # Protect the user from malicious clients that might hide a rekey in a swap call
+    assert(Txn.RekeyTo == Global.ZeroAddress)
 
     byte user_address = Txn.Sender
     switch Txn.ApplicationArgs[0]:
@@ -230,9 +233,6 @@ block main:
         int issued_pool_tokens = app_local_get(1, "issued_pool_tokens")
         int protocol_fees_asset_1 = app_local_get(1, "protocol_fees_asset_1")
         int protocol_fees_asset_2 = app_local_get(1, "protocol_fees_asset_2")
-
-        # TODO: Should we check rekey in all transactions to protect users?
-        assert(Txn.RekeyTo == Global.ZeroAddress)
 
         switch Txn.ApplicationArgs[0]:
             "add_liquidity": add_liquidity
@@ -491,25 +491,25 @@ block main:
         end
 
         block set_fee:
-        # Set a new fee collector, only fee setter can call this method
-        # Txn: AppCall from fee_setter
-        assert(user_address == app_global_get("fee_setter"))
+            # Set a new fee collector, only fee setter can call this method
+            # Txn: AppCall from fee_setter
+            assert(user_address == app_global_get("fee_setter"))
 
-        int poolers_fee_share = btoi(Txn.ApplicationArgs[1])
-        int protocol_fee_share = btoi(Txn.ApplicationArgs[2])
+            int poolers_fee_share = btoi(Txn.ApplicationArgs[1])
+            int protocol_fee_share = btoi(Txn.ApplicationArgs[2])
 
-        # TODO: Dummy validation for now
-        assert(poolers_fee_share <= 50)
-        assert(protocol_fee_share <= 10)
-        assert(poolers_fee_share >= protocol_fee_share)
-        assert(poolers_fee_share >= (protocol_fee_share * 5))
+            # TODO: Dummy validation for now
+            assert(poolers_fee_share <= 50)
+            assert(protocol_fee_share <= 10)
+            assert(poolers_fee_share >= protocol_fee_share)
+            assert(poolers_fee_share >= (protocol_fee_share * 5))
 
-        # State updates
-        # [poolers_fee_share]
-        # [protocol_fee_share]
-        app_local_put(1, "poolers_fee_share", poolers_fee_share)
-        app_local_put(1, "protocol_fee_share", protocol_fee_share)
-        exit(1)
+            # State updates
+            # [poolers_fee_share]
+            # [protocol_fee_share]
+            app_local_put(1, "poolers_fee_share", poolers_fee_share)
+            app_local_put(1, "protocol_fee_share", protocol_fee_share)
+            exit(1)
         end
 
         func transfer_to_user(asset_id: int, amount: int):
