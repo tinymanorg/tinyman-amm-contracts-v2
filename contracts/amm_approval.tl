@@ -183,43 +183,43 @@ block main:
         "set_fee_collector": set_fee_collector
         "set_fee_setter": set_fee_setter
         "set_fee_manager": set_fee_manager
-    else: amm
+        else: amm
     end
 
     block set_fee_collector:
-    # Set a new fee collector, only fee manager can call this method
-    # Txn: AppCall from fee_manager
+        # Set a new fee collector, only fee manager can call this method
+        # Txn: AppCall from fee_manager
 
-    assert(user_address == app_global_get("fee_manager"))
+        assert(user_address == app_global_get("fee_manager"))
 
-    # State updates
-    # [fee_collector]
-    app_global_put("fee_collector", Txn.Accounts[1])
-    exit(1)
+        # State updates
+        # [fee_collector]
+        app_global_put("fee_collector", Txn.Accounts[1])
+        exit(1)
     end
 
     block set_fee_setter:
-    # Set a new fee setter, only fee manager can call this method
-    # Txn: AppCall from fee_manager
+        # Set a new fee setter, only fee manager can call this method
+        # Txn: AppCall from fee_manager
 
-    assert(user_address == app_global_get("fee_manager"))
-    
-    # State updates
-    # [fee_setter]
-    app_global_put("fee_setter", Txn.Accounts[1])
-    exit(1)
+        assert(user_address == app_global_get("fee_manager"))
+
+        # State updates
+        # [fee_setter]
+        app_global_put("fee_setter", Txn.Accounts[1])
+        exit(1)
     end
 
     block set_fee_manager:
-    # Set a new fee manager, only fee manager can call this method
-    # Txn: AppCall from fee_manager
+        # Set a new fee manager, only fee manager can call this method
+        # Txn: AppCall from fee_manager
 
-    assert(user_address == app_global_get("fee_manager"))
-    
-    # State updates
-    # [fee_manager]
-    app_global_put("fee_manager", Txn.Accounts[1])
-    exit(1)
+        assert(user_address == app_global_get("fee_manager"))
+
+        # State updates
+        # [fee_manager]
+        app_global_put("fee_manager", Txn.Accounts[1])
+        exit(1)
     end
 
     block amm:
@@ -282,7 +282,7 @@ block main:
             else:
                 error()
             end
-        
+
             int poolers_fee_amount
             int protocol_fee_amount
             int swap_amount
@@ -305,7 +305,7 @@ block main:
             else:
                 error()
             end
-            
+
             log(concat("input_amount %i", itob(input_amount)))
             log(concat("poolers_fee_amount %i", itob(poolers_fee_amount)))
             log(concat("protocol_fee_amount %i", itob(protocol_fee_amount)))
@@ -456,7 +456,7 @@ block main:
             # Transfer accumulated fees from the pool to the fee_collector
 
             # Gtxn[0]: AppCall from User
-            
+
             # itxn[0]: Transfer Asset 1 to fee_collector from Pool
             # itxn[1]: Transfer Asset 2 to fee_collector from Pool
 
@@ -476,7 +476,7 @@ block main:
 
             # Gtxn[0]: AppCall from User
             # Note: must account for min balance when asset_2 is algo
-            
+
             # itxn[0]: Transfer Asset 1 to fee_collector from Pool
             # itxn[1]: Transfer Asset 2 to fee_collector from Pool
 
