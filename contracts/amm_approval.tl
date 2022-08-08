@@ -2,6 +2,7 @@
 
 const int POOL_TOKEN_TOTAL_SUPPLY = 18446744073709551615
 const int LOCKED_POOL_TOKENS = 1000
+const int ASSET_MIN_TOTAL = 10000
 
 if Txn.ApplicationID == 0:
     # create app
@@ -57,20 +58,29 @@ block bootstrap:
     assert(asset_1_id > asset_2_id)
     assert(asset_1_id == Txn.Assets[0])
 
-    int asset_unit_name_exist
+    int exists
     byte asset_1_unit_name = ""
     byte asset_2_unit_name = "ALGO"
+    int asset_total
 
-    asset_unit_name_exist, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
-    assert(asset_unit_name_exist)
+    exists, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
+    assert(exists)
+
+    # Ensure Asset 1 has total supply >= ASSET_MIN_TOTAL
+    exists, asset_total = asset_params_get(AssetTotal, asset_1_id)
+    assert(exists && (asset_total >= ASSET_MIN_TOTAL))
+
 
     if asset_2_id == 0:
         # Asset 2 is Algo
         assert(1 == Txn.NumAssets)
     else:
         assert(asset_2_id == Txn.Assets[1])
-        asset_unit_name_exist, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
-        assert(asset_unit_name_exist)
+        exists, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
+        assert(exists)
+        # Ensure Asset 2 has total supply >= ASSET_MIN_TOTAL
+        exists, asset_total = asset_params_get(AssetTotal, asset_2_id)
+        assert(exists && (asset_total >= ASSET_MIN_TOTAL))
     end
 
     byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
@@ -531,9 +541,9 @@ block main:
                     Fee: 0
                 end
             end
+            return
         end
     end
-    return
 end
 
 
