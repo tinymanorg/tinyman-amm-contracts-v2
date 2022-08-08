@@ -647,7 +647,7 @@ class TestBootstrap(BaseTestCase):
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(transactions)
-        self.assertEqual(e.exception.source['line'], 'assert(exists && (asset_total > ASSET_MIN_TOTAL_SUPPLY))')
+        self.assertEqual(e.exception.source['line'], 'assert(exists && (asset_total >= ASSET_MIN_TOTAL))')
 
     def test_fail_bad_asset_2_total(self):
         self.ledger.create_asset(self.asset_1_id, params=dict(unit_name="USDC"))
@@ -672,7 +672,7 @@ class TestBootstrap(BaseTestCase):
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(transactions)
-        self.assertEqual(e.exception.source['line'], 'assert(exists && (asset_total > ASSET_MIN_TOTAL_SUPPLY))')
+        self.assertEqual(e.exception.source['line'], 'assert(exists && (asset_total >= ASSET_MIN_TOTAL))')
 
 
 class TestBootstrapAlgoPair(BaseTestCase):
