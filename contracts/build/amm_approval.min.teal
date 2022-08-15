@@ -1,4 +1,21 @@
 #pragma version 7
+txn ApplicationID
+pushint 0
+==
+bz l0_end
+pushbytes "fee_setter"
+txn Sender
+app_global_put
+pushbytes "fee_collector"
+txn Sender
+app_global_put
+pushbytes "fee_manager"
+txn Sender
+app_global_put
+pushint 1
+return
+b l0_end
+l0_end: // end
 txn OnCompletion
 pushint 0 // NoOp
 ==
@@ -56,31 +73,51 @@ pushbytes "ALGO"
 store 4 // asset_2_unit_name
 load 0 // asset_1_id
 asset_params_get AssetUnitName
-store 2 // asset_unit_name_exist
+store 2 // exists
 store 3 // asset_1_unit_name
-load 2 // asset_unit_name_exist
+load 2 // exists
+assert
+load 0 // asset_1_id
+asset_params_get AssetTotal
+store 2 // exists
+store 5 // asset_total
+load 2 // exists
+load 5 // asset_total
+pushint 10000 // ASSET_MIN_TOTAL
+>=
+&&
 assert
 load 1 // asset_2_id
 pushint 0
 ==
-bz l0_else
+bz l1_else
 pushint 1
 txn NumAssets
 ==
 assert
-b l0_end
-l0_else:
+b l1_end
+l1_else:
 load 1 // asset_2_id
 txn Assets 1
 ==
 assert
 load 1 // asset_2_id
 asset_params_get AssetUnitName
-store 2 // asset_unit_name_exist
+store 2 // exists
 store 4 // asset_2_unit_name
-load 2 // asset_unit_name_exist
+load 2 // exists
 assert
-l0_end: // end
+load 1 // asset_2_id
+asset_params_get AssetTotal
+store 2 // exists
+store 5 // asset_total
+load 2 // exists
+load 5 // asset_total
+pushint 10000 // ASSET_MIN_TOTAL
+>=
+&&
+assert
+l1_end: // end
 pushbytes "TinymanPool2.0 "
 load 3 // asset_1_unit_name
 pushbytes "-"
@@ -88,29 +125,29 @@ concat
 load 4 // asset_2_unit_name
 concat
 concat
-store 5 // pool_token_asset_name
+store 6 // pool_token_asset_name
 txn Sender
-store 6 // pool_address
+store 7 // pool_address
 pushbytes "\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
 global CurrentApplicationID
 itob
 replace2 3
-store 7 // program
-load 7 // program
+store 8 // program
+load 8 // program
 txn ApplicationArgs 1
 replace2 11
-store 7 // program
-load 7 // program
+store 8 // program
+load 8 // program
 txn ApplicationArgs 2
 replace2 19
-store 7 // program
+store 8 // program
 pushbytes "Program"
-load 7 // program
+load 8 // program
 concat
 sha512_256
-store 8 // hash
-load 8 // hash
-load 6 // pool_address
+store 9 // hash
+load 9 // hash
+load 7 // pool_address
 ==
 assert
 txn RekeyTo
@@ -120,7 +157,7 @@ assert
 itxn_begin
 pushint 1 // Pay
 itxn_field TypeEnum
-load 6 // pool_address
+load 7 // pool_address
 itxn_field Sender
 global CurrentApplicationAddress
 itxn_field Receiver
@@ -136,7 +173,7 @@ global CurrentApplicationAddress
 itxn_field Sender
 pushbytes "TMPOOL2"
 itxn_field ConfigAssetUnitName
-load 5 // pool_token_asset_name
+load 6 // pool_token_asset_name
 itxn_field ConfigAssetName
 pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
 itxn_field ConfigAssetTotal
@@ -148,13 +185,13 @@ pushint 0
 itxn_field Fee
 itxn_submit
 itxn CreatedAssetID
-store 9 // pool_token_asset_id
+store 10 // pool_token_asset_id
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 6 // pool_address
+load 7 // pool_address
 itxn_field Sender
-load 6 // pool_address
+load 7 // pool_address
 itxn_field AssetReceiver
 load 0 // asset_1_id
 itxn_field XferAsset
@@ -166,13 +203,13 @@ itxn_submit
 load 1 // asset_2_id
 pushint 0
 >
-bz l1_end
+bz l2_end
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 6 // pool_address
+load 7 // pool_address
 itxn_field Sender
-load 6 // pool_address
+load 7 // pool_address
 itxn_field AssetReceiver
 load 1 // asset_2_id
 itxn_field XferAsset
@@ -181,16 +218,16 @@ itxn_field Amount
 pushint 0
 itxn_field Fee
 itxn_submit
-b l1_end
-l1_end: // end
+b l2_end
+l2_end: // end
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 6 // pool_address
+load 7 // pool_address
 itxn_field Sender
-load 6 // pool_address
+load 7 // pool_address
 itxn_field AssetReceiver
-load 9 // pool_token_asset_id
+load 10 // pool_token_asset_id
 itxn_field XferAsset
 pushint 0
 itxn_field Amount
@@ -202,9 +239,9 @@ pushint 4 // Axfer
 itxn_field TypeEnum
 global CurrentApplicationAddress
 itxn_field Sender
-load 6 // pool_address
+load 7 // pool_address
 itxn_field AssetReceiver
-load 9 // pool_token_asset_id
+load 10 // pool_token_asset_id
 itxn_field XferAsset
 pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
 itxn_field AssetAmount
@@ -212,12 +249,12 @@ pushint 0
 itxn_field Fee
 itxn_submit
 pushint 25
-store 10 // poolers_fee_share
+store 11 // poolers_fee_share
 pushint 5
-store 11 // protocol_fee_share
+store 12 // protocol_fee_share
 pushint 0
 pushbytes "pool_token_asset_id"
-load 9 // pool_token_asset_id
+load 10 // pool_token_asset_id
 app_local_put
 pushint 0
 pushbytes "asset_1_id"
@@ -229,32 +266,51 @@ load 1 // asset_2_id
 app_local_put
 pushint 0
 pushbytes "poolers_fee_share"
-load 10 // poolers_fee_share
+load 11 // poolers_fee_share
 app_local_put
 pushint 0
 pushbytes "protocol_fee_share"
-load 11 // protocol_fee_share
+load 12 // protocol_fee_share
+app_local_put
+pushint 0
+pushbytes "asset_1_reserves"
+pushint 0
+app_local_put
+pushint 0
+pushbytes "asset_2_reserves"
+pushint 0
+app_local_put
+pushint 0
+pushbytes "issued_pool_tokens"
+pushint 0
+app_local_put
+pushint 0
+pushbytes "protocol_fees_asset_1"
+pushint 0
+app_local_put
+pushint 0
+pushbytes "protocol_fees_asset_2"
+pushint 0
+app_local_put
+pushint 0
+pushbytes "cumulative_asset_1_price"
+pushbytes "\x00\x00\x00\x00\x00\x00\x00\x00" // BYTE_ZERO
+app_local_put
+pushint 0
+pushbytes "cumulative_asset_2_price"
+pushbytes "\x00\x00\x00\x00\x00\x00\x00\x00" // BYTE_ZERO
+app_local_put
+pushint 0
+pushbytes "cumulative_price_update_timestamp"
+global LatestTimestamp
 app_local_put
 pushint 1
 return
 main:
-txn ApplicationID
-pushint 0
+txn RekeyTo
+global ZeroAddress
 ==
-bz l2_end
-pushbytes "fee_setter"
-txn Sender
-app_global_put
-pushbytes "fee_collector"
-txn Sender
-app_global_put
-pushbytes "fee_manager"
-txn Sender
-app_global_put
-pushint 1
-return
-b l2_end
-l2_end: // end
+assert
 txn Sender
 store 0 // user_address
 txn ApplicationArgs 0
@@ -338,10 +394,6 @@ pushint 1
 pushbytes "protocol_fees_asset_2"
 app_local_get
 store 9 // protocol_fees_asset_2
-txn RekeyTo
-global ZeroAddress
-==
-assert
 txn ApplicationArgs 0
 pushbytes "add_liquidity"
 ==
@@ -368,6 +420,7 @@ pushbytes "set_fee"
 bnz main__amm__set_fee
 err // unexpected value
 main__amm__swap:
+callsub main__amm__func__update_price_oracle
 txn ApplicationArgs 1
 btoi
 store 10 // input_asset_id
@@ -666,27 +719,7 @@ gtxns AssetAmount
 store 13 // asset_2_amount
 l8_end: // end
 load 7 // issued_pool_tokens
-pushint 0
-==
 bz l9_else
-load 11 // asset_1_amount
-itob
-load 13 // asset_2_amount
-itob
-b*
-bsqrt
-btoi
-store 7 // issued_pool_tokens
-load 7 // issued_pool_tokens
-pushint 1000 // LOCKED_POOL_TOKENS
--
-store 14 // pool_tokens_out
-load 11 // asset_1_amount
-store 5 // asset_1_reserves
-load 13 // asset_2_amount
-store 6 // asset_2_reserves
-b l9_end
-l9_else:
 load 11 // asset_1_amount
 itob
 load 7 // issued_pool_tokens
@@ -803,6 +836,24 @@ store 5 // asset_1_reserves
 load 6 // asset_2_reserves
 load 13 // asset_2_amount
 +
+store 6 // asset_2_reserves
+b l9_end
+l9_else:
+load 11 // asset_1_amount
+itob
+load 13 // asset_2_amount
+itob
+b*
+bsqrt
+btoi
+store 7 // issued_pool_tokens
+load 7 // issued_pool_tokens
+pushint 1000 // LOCKED_POOL_TOKENS
+-
+store 14 // pool_tokens_out
+load 11 // asset_1_amount
+store 5 // asset_1_reserves
+load 13 // asset_2_amount
 store 6 // asset_2_reserves
 l9_end: // end
 load 14 // pool_tokens_out
@@ -1049,6 +1100,70 @@ itxn_field Fee
 itxn_submit
 l14_end: // end
 retsub
+main__amm__func__update_price_oracle:
+pushint 1
+pushbytes "cumulative_asset_1_price"
+app_local_get
+store 201 // cumulative_asset_1_price
+pushint 1
+pushbytes "cumulative_asset_2_price"
+app_local_get
+store 202 // cumulative_asset_2_price
+global LatestTimestamp
+pushint 1
+pushbytes "cumulative_price_update_timestamp"
+app_local_get
+-
+store 203 // time_delta
+load 7 // issued_pool_tokens
+load 203 // time_delta
+&&
+bz l15_end
+load 6 // asset_2_reserves
+itob
+pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
+b*
+load 5 // asset_1_reserves
+itob
+b/
+store 204 // asset_1_price
+load 5 // asset_1_reserves
+itob
+pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
+b*
+load 6 // asset_2_reserves
+itob
+b/
+store 205 // asset_2_price
+load 201 // cumulative_asset_1_price
+load 204 // asset_1_price
+load 203 // time_delta
+itob
+b*
+b+
+store 201 // cumulative_asset_1_price
+load 202 // cumulative_asset_2_price
+load 205 // asset_2_price
+load 203 // time_delta
+itob
+b*
+b+
+store 202 // cumulative_asset_2_price
+pushint 1
+pushbytes "cumulative_asset_1_price"
+load 201 // cumulative_asset_1_price
+app_local_put
+pushint 1
+pushbytes "cumulative_asset_2_price"
+load 202 // cumulative_asset_2_price
+app_local_put
+pushint 1
+pushbytes "cumulative_price_update_timestamp"
+global LatestTimestamp
+app_local_put
+b l15_end
+l15_end: // end
+retsub
 __func__calculate_fixed_input_fee_amounts:
 store 201 // input_amount
 pushint 1
@@ -1161,20 +1276,20 @@ store 203 // balance
 load 201 // asset_id
 pushint 0
 ==
-bz l15_else
+bz l16_else
 load 202 // account_idx
 balance
 load 202 // account_idx
 min_balance
 -
 store 203 // balance
-b l15_end
-l15_else:
+b l16_end
+l16_else:
 load 202 // account_idx
 load 201 // asset_id
 asset_holding_get AssetBalance
 pop // discarding value for _
 store 203 // balance
-l15_end: // end
+l16_end: // end
 load 203 // balance
 retsub

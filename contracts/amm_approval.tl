@@ -3,6 +3,9 @@
 const int POOL_TOKEN_TOTAL_SUPPLY = 18446744073709551615
 const int LOCKED_POOL_TOKENS = 1000
 const int ASSET_MIN_TOTAL = 10000
+const byte BYTE_ZERO = "\x00\x00\x00\x00\x00\x00\x00\x00"
+const byte TWO_TO_THE_64 = "\x01\x00\x00\x00\x00\x00\x00\x00\x00"
+
 
 if Txn.ApplicationID == 0:
     # create app
@@ -180,6 +183,15 @@ block bootstrap:
     app_local_put(0, "asset_2_id", asset_2_id)
     app_local_put(0, "poolers_fee_share", poolers_fee_share)
     app_local_put(0, "protocol_fee_share", protocol_fee_share)
+    # Set all remaining keys with initials values
+    app_local_put(0, "asset_1_reserves", 0)
+    app_local_put(0, "asset_2_reserves", 0)
+    app_local_put(0, "issued_pool_tokens", 0)
+    app_local_put(0, "protocol_fees_asset_1", 0)
+    app_local_put(0, "protocol_fees_asset_2", 0)
+    app_local_put(0, "cumulative_asset_1_price", BYTE_ZERO)
+    app_local_put(0, "cumulative_asset_2_price", BYTE_ZERO)
+    app_local_put(0, "cumulative_price_update_timestamp", Global.LatestTimestamp)
     exit(1)
 end
 
@@ -255,6 +267,7 @@ block main:
 
 
         block swap:
+            update_price_oracle()
             # Gtxn[0]: Transfer Asset1 to Pool from User
             # Gtxn[1]: AppCall from User
 
@@ -371,14 +384,7 @@ block main:
             end
 
             int pool_tokens_out
-            if issued_pool_tokens == 0:
-                # Adding liquidity to the pool for the first time:
-                # pool_tokens_out = sqrt(asset_1_amount * asset_2_amount) - LOCKED_POOL_TOKENS
-                issued_pool_tokens = btoi(bsqrt(itob(asset_1_amount) b* itob(asset_2_amount)))
-                pool_tokens_out = issued_pool_tokens - LOCKED_POOL_TOKENS
-                asset_1_reserves = asset_1_amount
-                asset_2_reserves = asset_2_amount
-            else:
+            if issued_pool_tokens:
                 # Adding liquidity after it already has some liquidity
                 int a = btoi((itob(asset_1_amount) b* itob(issued_pool_tokens)) b/ itob(asset_1_reserves))
                 int b = btoi((itob(asset_2_amount) b* itob(issued_pool_tokens)) b/ itob(asset_2_reserves))
@@ -413,6 +419,13 @@ block main:
                 issued_pool_tokens = issued_pool_tokens + pool_tokens_out
                 asset_1_reserves = asset_1_reserves + asset_1_amount
                 asset_2_reserves = asset_2_reserves + asset_2_amount
+            else:
+                # Adding liquidity to the pool for the first time:
+                # pool_tokens_out = sqrt(asset_1_amount * asset_2_amount) - LOCKED_POOL_TOKENS
+                issued_pool_tokens = btoi(bsqrt(itob(asset_1_amount) b* itob(asset_2_amount)))
+                pool_tokens_out = issued_pool_tokens - LOCKED_POOL_TOKENS
+                asset_1_reserves = asset_1_amount
+                asset_2_reserves = asset_2_amount
             end
 
             # Ensure calculated amount of pool tokens is > 0
@@ -540,6 +553,26 @@ block main:
                     XferAsset: asset_id
                     Fee: 0
                 end
+            end
+            return
+        end
+
+        func update_price_oracle():
+            byte cumulative_asset_1_price = app_local_get(1, "cumulative_asset_1_price")
+            byte cumulative_asset_2_price = app_local_get(1, "cumulative_asset_2_price")
+            int time_delta = Global.LatestTimestamp - app_local_get(1, "cumulative_price_update_timestamp")
+
+            # TODO: Test same block (time_delta=0)
+            # TODO: Test with existing cumulative prices
+            if (issued_pool_tokens && time_delta):
+                # TODO: Test read the value with another contract
+                byte asset_1_price = (itob(asset_2_reserves) b* TWO_TO_THE_64) b/ itob(asset_1_reserves)
+                byte asset_2_price = (itob(asset_1_reserves) b* TWO_TO_THE_64) b/ itob(asset_2_reserves)
+                cumulative_asset_1_price = cumulative_asset_1_price b+ (asset_1_price b* itob(time_delta))
+                cumulative_asset_2_price = cumulative_asset_2_price b+ (asset_2_price b* itob(time_delta))
+                app_local_put(1, "cumulative_asset_1_price", cumulative_asset_1_price)
+                app_local_put(1, "cumulative_asset_2_price", cumulative_asset_2_price)
+                app_local_put(1, "cumulative_price_update_timestamp", Global.LatestTimestamp)
             end
             return
         end

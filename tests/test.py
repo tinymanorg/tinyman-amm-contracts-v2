@@ -1,5 +1,5 @@
 import unittest
-from decimal import Decimal
+from decimal import ROUND_UP, Decimal
 from unittest.mock import ANY
 
 from algojig import TealishProgram, get_suggested_params
@@ -32,6 +32,9 @@ METHOD_SET_FEE_MANAGER = "set_fee_manager"
 POOLERS_FEE_SHARE = 25
 PROTOCOL_FEE_SHARE = 5
 LOCKED_POOL_TOKENS = 1_000
+PRICE_SCALE_FACTOR = 18446744073709551616
+BLOCK_TIME_DELTA = 1000
+BYTE_ZERO = b'\x00\x00\x00\x00\x00\x00\x00\x00'
 
 MAX_ASSET_AMOUNT = 18446744073709551615
 POOL_TOKEN_TOTAL_SUPPLY = MAX_ASSET_AMOUNT
@@ -41,6 +44,11 @@ APPLICATION_ADDRESS = get_application_address(APPLICATION_ID)
 print('App Address:', APPLICATION_ADDRESS)
 
 PROXY_APP_ID = 10
+
+
+def int_to_bytes_without_zero_padding(value):
+    length = int((Decimal(value.bit_length()) / 8).quantize(Decimal('1.'), rounding=ROUND_UP))
+    return value.to_bytes(length, "big")
 
 
 def get_pool_logicsig_bytecode(asset_1_id, asset_2_id):
@@ -111,8 +119,20 @@ class BaseTestCase(unittest.TestCase):
                 b'asset_1_id': self.asset_1_id,
                 b'asset_2_id': asset_2_id,
                 b'pool_token_asset_id': self.pool_token_asset_id,
+
                 b'poolers_fee_share': POOLERS_FEE_SHARE,
                 b'protocol_fee_share': PROTOCOL_FEE_SHARE,
+
+                b'asset_1_reserves': 0,
+                b'asset_2_reserves': 0,
+                b'issued_pool_tokens': 0,
+
+                b'cumulative_asset_1_price': BYTE_ZERO,
+                b'cumulative_asset_2_price': BYTE_ZERO,
+                b'cumulative_price_update_timestamp': 0,
+
+                b'protocol_fees_asset_1': 0,
+                b'protocol_fees_asset_2': 0
             }
         )
 
@@ -127,7 +147,9 @@ class BaseTestCase(unittest.TestCase):
             state_delta={
                 b'asset_1_reserves': asset_1_reserves,
                 b'asset_2_reserves': asset_2_reserves,
-                b'issued_pool_tokens': issued_pool_token_amount
+                b'issued_pool_tokens': issued_pool_token_amount,
+                b'cumulative_asset_1_price': BYTE_ZERO,
+                b'cumulative_asset_2_price': BYTE_ZERO,
             }
         )
 
@@ -305,8 +327,8 @@ class TestBootstrap(BaseTestCase):
         self.ledger = JigLedger()
         self.create_amm_app()
         self.ledger.set_account_balance(user_addr, 1_000_000)
-        self.ledger.create_asset(self.asset_1_id, params=dict(unit_name="USD"))
-        self.ledger.create_asset(self.asset_2_id, params=dict(unit_name="BTC"))
+        self.asset_2_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="BTC"))
+        self.asset_1_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="USD"))
         self.ledger.set_account_balance(user_addr, 0, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(user_addr, 0, asset_id=self.asset_2_id)
 
@@ -446,10 +468,18 @@ class TestBootstrap(BaseTestCase):
             pool_delta,
             {
                 b'asset_1_id': {b'at': 2, b'ui': self.asset_1_id},
+                b'asset_1_reserves': {b'at': 2},
                 b'asset_2_id': {b'at': 2, b'ui': self.asset_2_id},
+                b'asset_2_reserves': {b'at': 2},
+                b'cumulative_asset_1_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'cumulative_asset_2_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
+                b'issued_pool_tokens': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
-                b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE}
+                b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
+                b'protocol_fees_asset_1': {b'at': 2},
+                b'protocol_fees_asset_2': {b'at': 2}
             }
         )
 
@@ -625,8 +655,8 @@ class TestBootstrap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], f'assert(Txn.ApplicationArgs[0] == "{METHOD_BOOTSTRAP}")')
 
     def test_fail_bad_asset_1_total(self):
-        self.ledger.create_asset(self.asset_1_id, params=dict(unit_name="NFT", total=100))
-        self.ledger.create_asset(self.asset_2_id, params=dict(unit_name="BTC"))
+        self.asset_2_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="NFT", total=100))
+        self.asset_1_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="BTC"))
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
         self.ledger.set_account_balance(pool_address, 2_000_000)
@@ -650,8 +680,8 @@ class TestBootstrap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], 'assert(exists && (asset_total >= ASSET_MIN_TOTAL))')
 
     def test_fail_bad_asset_2_total(self):
-        self.ledger.create_asset(self.asset_1_id, params=dict(unit_name="USDC"))
-        self.ledger.create_asset(self.asset_2_id, params=dict(unit_name="NFT", total=1))
+        self.asset_2_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="USDC"))
+        self.asset_1_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="NFT", total=1))
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
         self.ledger.set_account_balance(pool_address, 2_000_000)
@@ -815,10 +845,18 @@ class TestBootstrapAlgoPair(BaseTestCase):
             pool_delta,
             {
                 b'asset_1_id': {b'at': 2, b'ui': self.asset_1_id},
+                b'asset_1_reserves': {b'at': 2},
                 b'asset_2_id': {b'at': 2},      # b'ui': ALGO_ASSET_ID
+                b'asset_2_reserves': {b'at': 2},
+                b'cumulative_asset_1_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'cumulative_asset_2_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
+                b'issued_pool_tokens': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
-                b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE}
+                b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
+                b'protocol_fees_asset_1': {b'at': 2},
+                b'protocol_fees_asset_2': {b'at': 2}
             }
         )
 
@@ -1043,7 +1081,7 @@ class TestAddLiquidity(BaseTestCase):
                 outputs=dict(
                     asset_1_change_amount=None,
                     asset_2_change_amount=2_500,
-                    pool_tokens_out_amount=11_180,
+                    pool_tokens_out_amount=11_180
                 )
             ),
             dict(
@@ -1659,25 +1697,22 @@ class TestSwap(BaseTestCase):
 
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
-        self.ledger.set_account_balance(self.pool_address, 1_000_000)
-        self.ledger.set_auth_addr(self.pool_address, APPLICATION_ADDRESS)
+        self.bootstrap_pool()
 
     def test_fixed_input_pass(self):
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.set_local_state(
+        self.ledger.update_local_state(
             address=self.pool_address,
             app_id=APPLICATION_ID,
-            state={
-                b'asset_1_id': self.asset_1_id,
-                b'asset_2_id': self.asset_2_id,
+            state_delta={
                 b'asset_1_reserves': 1_000_000,
                 b'asset_2_reserves': 1_000_000,
-                b'poolers_fee_share': POOLERS_FEE_SHARE,
-                b'protocol_fee_share': PROTOCOL_FEE_SHARE,
+                b'issued_pool_tokens': 1_000_000,
             }
         )
 
+        min_output = 9000
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=user_addr,
@@ -1690,7 +1725,7 @@ class TestSwap(BaseTestCase):
                 sender=user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, 9000, "fixed-input"],
+                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, min_output, "fixed-input"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -1704,24 +1739,96 @@ class TestSwap(BaseTestCase):
         ]
 
         block = self.ledger.eval_transactions(stxns)
-        txns = block[b'txns']
-        itxn0 = txns[1][b'dt'][b'itx'][0][b'txn']
-        self.assertEqual(itxn0[b'aamt'], 9872)
-        self.assertEqual(itxn0[b'arcv'], decode_address(user_addr))
-        self.assertEqual(itxn0[b'xaid'], self.asset_2_id)
-        self.assertEqual(itxn0[b'snd'], decode_address(self.pool_address))
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 2)
+
+        # outer transactions - [0]
+        txn = block_txns[0]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'aamt': 10000,
+                b'arcv': decode_address(self.pool_address),
+                b'fee': ANY,
+                b'fv': ANY,
+                b'lv': ANY,
+                b'grp': ANY,
+                b'snd': decode_address(user_addr),
+                b'type': b'axfer',
+                b'xaid': self.asset_1_id
+            }
+        )
+
+        # outer transactions - [1]
+        txn = block_txns[1]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [
+                    b'swap',
+                    self.asset_1_id.to_bytes(8, 'big'),
+                    self.asset_2_id.to_bytes(8, 'big'),
+                    min_output.to_bytes(8, 'big'),
+                    b'fixed-input'
+                ],
+                b'apas': [self.asset_1_id, self.asset_2_id],
+                b'apat': [decode_address(self.pool_address)],
+                b'apid': APPLICATION_ID,
+                b'fee': 2000,
+                b'fv': ANY,
+                b'lv': ANY,
+                b'grp': ANY,
+                b'snd': decode_address(user_addr),
+                b'type': b'appl'
+            }
+        )
+
+        inner_transactions = txn[b'dt'][b'itx']
+        self.assertEqual(len(inner_transactions), 1)
+
+        # inner transactions - [0]
+        self.assertDictEqual(
+            inner_transactions[0][b'txn'],
+            {
+                b'aamt': 9872,
+                b'arcv': decode_address(user_addr),
+                b'fv': ANY,
+                b'lv': ANY,
+                b'snd': decode_address(self.pool_address),
+                b'type': b'axfer',
+                b'xaid': self.asset_2_id
+            }
+        )
+
+        # local state delta
+        pool_local_state_delta = txn[b'dt'][b'ld'][1]
+        self.assertDictEqual(
+            pool_local_state_delta,
+            {
+                b'asset_1_reserves': {b'at': 2, b'ui': 1009995},
+                b'asset_2_reserves': {b'at': 2, b'ui': 990128},
+                b'protocol_fees_asset_1': {b'at': 2, b'ui': 5},
+                b'cumulative_asset_1_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA)},
+                b'cumulative_asset_2_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA)},
+                b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
+            }
+        )
 
     def test_fixed_output_pass(self):
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.set_local_state(self.pool_address, APPLICATION_ID, {
-            b'asset_1_id': self.asset_1_id,
-            b'asset_2_id': self.asset_2_id,
-            b'asset_1_reserves': 1_000_000,
-            b'asset_2_reserves': 1_000_000,
-            b'poolers_fee_share': POOLERS_FEE_SHARE,
-            b'protocol_fee_share': PROTOCOL_FEE_SHARE,
-        })
+        self.ledger.update_local_state(
+            address=self.pool_address,
+            app_id=APPLICATION_ID,
+            state_delta={
+                b'asset_1_reserves': 1_000_000,
+                b'asset_2_reserves': 1_000_000,
+                b'issued_pool_tokens': 1_000_000,
+            }
+        )
+
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=user_addr,
@@ -1760,14 +1867,16 @@ class TestSwap(BaseTestCase):
     def test_fixed_output_with_change_pass(self):
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.set_local_state(self.pool_address, APPLICATION_ID, {
-            b'asset_1_id': self.asset_1_id,
-            b'asset_2_id': self.asset_2_id,
-            b'asset_1_reserves': 1_000_000,
-            b'asset_2_reserves': 1_000_000,
-            b'poolers_fee_share': POOLERS_FEE_SHARE,
-            b'protocol_fee_share': PROTOCOL_FEE_SHARE,
-        })
+        self.ledger.update_local_state(
+            address=self.pool_address,
+            app_id=APPLICATION_ID,
+            state_delta={
+                b'asset_1_reserves': 1_000_000,
+                b'asset_2_reserves': 1_000_000,
+                b'issued_pool_tokens': 1_000_000,
+            }
+        )
+
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=user_addr,
@@ -1812,14 +1921,16 @@ class TestSwap(BaseTestCase):
     def test_fail_insufficient_fee(self):
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.set_local_state(self.pool_address, APPLICATION_ID, {
-            b'asset_1_id': self.asset_1_id,
-            b'asset_2_id': self.asset_2_id,
-            b'asset_1_reserves': 1_000_000,
-            b'asset_2_reserves': 1_000_000,
-            b'poolers_fee_share': POOLERS_FEE_SHARE,
-            b'protocol_fee_share': PROTOCOL_FEE_SHARE,
-        })
+        self.ledger.update_local_state(
+            address=self.pool_address,
+            app_id=APPLICATION_ID,
+            state_delta={
+                b'asset_1_reserves': 1_000_000,
+                b'asset_2_reserves': 1_000_000,
+                b'issued_pool_tokens': 1_000_000,
+            }
+        )
+
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=user_addr,
@@ -1851,14 +1962,16 @@ class TestSwap(BaseTestCase):
         self.ledger.set_account_balance(user_addr, 1_000_000, asset_id=0)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.set_local_state(self.pool_address, APPLICATION_ID, {
-            b'asset_1_id': self.asset_1_id,
-            b'asset_2_id': self.asset_2_id,
-            b'asset_1_reserves': 1_000_000,
-            b'asset_2_reserves': 1_000_000,
-            b'poolers_fee_share': POOLERS_FEE_SHARE,
-            b'protocol_fee_share': PROTOCOL_FEE_SHARE,
-        })
+        self.ledger.update_local_state(
+            address=self.pool_address,
+            app_id=APPLICATION_ID,
+            state_delta={
+                b'asset_1_reserves': 1_000_000,
+                b'asset_2_reserves': 1_000_000,
+                b'issued_pool_tokens': 1_000_000,
+            }
+        )
+
         txn_group = [
             transaction.PaymentTxn(
                 sender=user_addr,
@@ -1888,14 +2001,16 @@ class TestSwap(BaseTestCase):
     def test_fail_wrong_asset_out_1(self):
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.set_local_state(self.pool_address, APPLICATION_ID, {
-            b'asset_1_id': self.asset_1_id,
-            b'asset_2_id': self.asset_2_id,
-            b'asset_1_reserves': 1_000_000,
-            b'asset_2_reserves': 1_000_000,
-            b'poolers_fee_share': POOLERS_FEE_SHARE,
-            b'protocol_fee_share': PROTOCOL_FEE_SHARE,
-        })
+        self.ledger.update_local_state(
+            address=self.pool_address,
+            app_id=APPLICATION_ID,
+            state_delta={
+                b'asset_1_reserves': 1_000_000,
+                b'asset_2_reserves': 1_000_000,
+                b'issued_pool_tokens': 1_000_000,
+            }
+        )
+
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=user_addr,
@@ -1926,14 +2041,16 @@ class TestSwap(BaseTestCase):
     def test_fail_wrong_asset_out_2(self):
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.set_local_state(self.pool_address, APPLICATION_ID, {
-            b'asset_1_id': self.asset_1_id,
-            b'asset_2_id': self.asset_2_id,
-            b'asset_1_reserves': 1_000_000,
-            b'asset_2_reserves': 1_000_000,
-            b'poolers_fee_share': POOLERS_FEE_SHARE,
-            b'protocol_fee_share': PROTOCOL_FEE_SHARE,
-        })
+        self.ledger.update_local_state(
+            address=self.pool_address,
+            app_id=APPLICATION_ID,
+            state_delta={
+                b'asset_1_reserves': 1_000_000,
+                b'asset_2_reserves': 1_000_000,
+                b'issued_pool_tokens': 1_000_000,
+            }
+        )
+
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=user_addr,
@@ -2056,7 +2173,7 @@ class TestClaimFees(BaseTestCase):
             pool_local_state_delta,
             {
                 b'protocol_fees_asset_1': {b'at': 2},   # -> 0
-                b'protocol_fees_asset_2': {b'at': 2}    # -> 0
+                b'protocol_fees_asset_2': {b'at': 2},   # -> 0
             }
         )
 
@@ -3253,22 +3370,18 @@ class TestProxySwap(BaseTestCase):
 
         lsig = get_pool_logicsig_bytecode(self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
-        self.ledger.set_account_balance(self.pool_address, 1_000_000)
-        self.ledger.set_auth_addr(self.pool_address, APPLICATION_ADDRESS)
+        self.bootstrap_pool()
 
     def test_pass(self):
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.set_local_state(
+        self.ledger.update_local_state(
             address=self.pool_address,
             app_id=APPLICATION_ID,
-            state={
-                b'asset_1_id': self.asset_1_id,
-                b'asset_2_id': self.asset_2_id,
+            state_delta={
                 b'asset_1_reserves': 1_000_000,
                 b'asset_2_reserves': 1_000_000,
-                b'poolers_fee_share': POOLERS_FEE_SHARE,
-                b'protocol_fee_share': PROTOCOL_FEE_SHARE,
+                b'issued_pool_tokens': 1_000_000,
             }
         )
 
@@ -3311,7 +3424,6 @@ class TestProxySwap(BaseTestCase):
         # do the same swap again and watch the fees accumulate
         block = self.ledger.eval_transactions(stxns)
         self.assertEqual(self.ledger.get_account_balance(PROXY_ADDRESS, self.asset_1_id)[0], 200)
-
 
 
 class TestGroupedSwap(BaseTestCase):
