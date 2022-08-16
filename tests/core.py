@@ -85,8 +85,6 @@ class BaseTestCase(unittest.TestCase):
                 b'asset_1_reserves': asset_1_reserves,
                 b'asset_2_reserves': asset_2_reserves,
                 b'issued_pool_tokens': issued_pool_token_amount,
-                b'cumulative_asset_1_price': BYTE_ZERO,
-                b'cumulative_asset_2_price': BYTE_ZERO,
             }
         )
 

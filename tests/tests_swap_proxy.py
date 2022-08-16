@@ -133,5 +133,5 @@ class TestProxySwap(BaseTestCase):
         self.assertEqual(self.ledger.get_account_balance(PROXY_ADDRESS, self.asset_1_id)[0], 100)
 
         # do the same swap again and watch the fees accumulate
-        block = self.ledger.eval_transactions(stxns)
+        self.ledger.eval_transactions(stxns)
         self.assertEqual(self.ledger.get_account_balance(PROXY_ADDRESS, self.asset_1_id)[0], 200)
