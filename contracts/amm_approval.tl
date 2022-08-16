@@ -566,14 +566,9 @@ block main:
             byte cumulative_asset_2_price = app_local_get(1, "cumulative_asset_2_price")
             int time_delta = Global.LatestTimestamp - app_local_get(1, "cumulative_price_update_timestamp")
 
-            # TODO: Test same block (time_delta=0)
-            # TODO: Test with existing cumulative prices
             if (issued_pool_tokens && time_delta):
-                # TODO: Test read the value with another contract
-                byte asset_1_price = (itob(asset_2_reserves) b* TWO_TO_THE_64) b/ itob(asset_1_reserves)
-                byte asset_2_price = (itob(asset_1_reserves) b* TWO_TO_THE_64) b/ itob(asset_2_reserves)
-                cumulative_asset_1_price = cumulative_asset_1_price b+ (asset_1_price b* itob(time_delta))
-                cumulative_asset_2_price = cumulative_asset_2_price b+ (asset_2_price b* itob(time_delta))
+                cumulative_asset_1_price = cumulative_asset_1_price b+ (((itob(asset_2_reserves) b* TWO_TO_THE_64) b* itob(time_delta)) b/ itob(asset_1_reserves))
+                cumulative_asset_2_price = cumulative_asset_2_price b+ (((itob(asset_1_reserves) b* TWO_TO_THE_64) b* itob(time_delta)) b/ itob(asset_2_reserves))
                 app_local_put(1, "cumulative_asset_1_price", cumulative_asset_1_price)
                 app_local_put(1, "cumulative_asset_2_price", cumulative_asset_2_price)
                 app_local_put(1, "cumulative_price_update_timestamp", Global.LatestTimestamp)

@@ -117,10 +117,10 @@ bootstrap:
   assert 
   
   // int exists [slot 2]
-  // byte asset_1_unit_name = ""
+  // byte asset_1_unit_name = "" [slot 3]
   pushbytes ""
   store 3 // asset_1_unit_name
-  // byte asset_2_unit_name = "ALGO"
+  // byte asset_2_unit_name = "ALGO" [slot 4]
   pushbytes "ALGO"
   store 4 // asset_2_unit_name
   // int asset_total [slot 5]
@@ -192,7 +192,7 @@ bootstrap:
       assert 
     l1_end: // end
   
-  // byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
+  // byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name)) [slot 6]
   pushbytes "TinymanPool2.0 "
   load 3 // asset_1_unit_name
   pushbytes "-"
@@ -202,12 +202,12 @@ bootstrap:
   concat 
   store 6 // pool_token_asset_name
   
-  // byte pool_address = Txn.Sender
+  // byte pool_address = Txn.Sender [slot 7]
   txn Sender
   store 7 // pool_address
   
   // Ensure pool_address == SHA512_256("program" + bytes from template and args)
-  // byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
+  // byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID)) [slot 8]
   pushbytes "\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
   global CurrentApplicationID
   itob 
@@ -223,7 +223,7 @@ bootstrap:
   txn ApplicationArgs 2
   replace2 19
   store 8 // program
-  // byte hash = sha512_256(concat("Program", program))
+  // byte hash = sha512_256(concat("Program", program)) [slot 9]
   pushbytes "Program"
   load 8 // program
   concat 
@@ -460,7 +460,7 @@ main:
   ==
   assert 
   
-  // byte user_address = Txn.Sender
+  // byte user_address = Txn.Sender [slot 0]
   txn Sender
   store 0 // user_address
   // switch Txn.ApplicationArgs[0]:
@@ -546,7 +546,7 @@ main:
   
   // block amm
   main__amm:
-    // byte pool_address = Txn.Accounts[1]
+    // byte pool_address = Txn.Accounts[1] [slot 1]
     txn Accounts 1
     store 1 // pool_address
     // These will fail if the account is not optted-in and only pool accounts can opt-in to the app.
@@ -1040,14 +1040,14 @@ main:
         bz l9_else
         // then:
           // Adding liquidity after it already has some liquidity
-          // byte a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens)
+          // byte a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens) [slot 15]
           load 11 // asset_1_amount
           itob 
           load 7 // issued_pool_tokens
           itob 
           b*
           store 15 // a_temp
-          // byte b_temp = itob(asset_2_amount) b* itob(issued_pool_tokens)
+          // byte b_temp = itob(asset_2_amount) b* itob(issued_pool_tokens) [slot 16]
           load 13 // asset_2_amount
           itob 
           load 7 // issued_pool_tokens
@@ -1571,12 +1571,12 @@ main:
     
     // func update_price_oracle():
     main__amm__func__update_price_oracle:
-    // byte cumulative_asset_1_price = app_local_get(1, "cumulative_asset_1_price")
+    // byte cumulative_asset_1_price = app_local_get(1, "cumulative_asset_1_price") [slot 201]
     pushint 1
     pushbytes "cumulative_asset_1_price"
     app_local_get 
     store 201 // cumulative_asset_1_price
-    // byte cumulative_asset_2_price = app_local_get(1, "cumulative_asset_2_price")
+    // byte cumulative_asset_2_price = app_local_get(1, "cumulative_asset_2_price") [slot 202]
     pushint 1
     pushbytes "cumulative_asset_2_price"
     app_local_get 
@@ -1589,47 +1589,38 @@ main:
     -
     store 203 // time_delta
     
-    // TODO: Test same block (time_delta=0)
-    // TODO: Test with existing cumulative prices
     // if (issued_pool_tokens && time_delta):
       load 7 // issued_pool_tokens
       load 203 // time_delta
       &&
       bz l15_end
       // then:
-        // TODO: Test read the value with another contract
-        // byte asset_1_price = (itob(asset_2_reserves) b* TWO_TO_THE_64) b/ itob(asset_1_reserves)
-        load 6 // asset_2_reserves
-        itob 
-        pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
-        b*
-        load 5 // asset_1_reserves
-        itob 
-        b/
-        store 204 // asset_1_price
-        // byte asset_2_price = (itob(asset_1_reserves) b* TWO_TO_THE_64) b/ itob(asset_2_reserves)
-        load 5 // asset_1_reserves
-        itob 
-        pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
-        b*
-        load 6 // asset_2_reserves
-        itob 
-        b/
-        store 205 // asset_2_price
-        // cumulative_asset_1_price = cumulative_asset_1_price b+ (asset_1_price b* itob(time_delta))
+        // cumulative_asset_1_price = cumulative_asset_1_price b+ (((itob(asset_2_reserves) b* TWO_TO_THE_64) b* itob(time_delta)) b/ itob(asset_1_reserves))
         load 201 // cumulative_asset_1_price
-        load 204 // asset_1_price
+        load 6 // asset_2_reserves
+        itob 
+        pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
+        b*
         load 203 // time_delta
         itob 
         b*
+        load 5 // asset_1_reserves
+        itob 
+        b/
         b+
         store 201 // cumulative_asset_1_price
-        // cumulative_asset_2_price = cumulative_asset_2_price b+ (asset_2_price b* itob(time_delta))
+        // cumulative_asset_2_price = cumulative_asset_2_price b+ (((itob(asset_1_reserves) b* TWO_TO_THE_64) b* itob(time_delta)) b/ itob(asset_2_reserves))
         load 202 // cumulative_asset_2_price
-        load 205 // asset_2_price
+        load 5 // asset_1_reserves
+        itob 
+        pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
+        b*
         load 203 // time_delta
         itob 
         b*
+        load 6 // asset_2_reserves
+        itob 
+        b/
         b+
         store 202 // cumulative_asset_2_price
         // app_local_put(1, "cumulative_asset_1_price", cumulative_asset_1_price)
@@ -1738,7 +1729,7 @@ store 203 // input_supply
 // Calculates the output amount for a fixed-input swap ignoring fees
 // k = input_supply * output_supply
 // output_amount = output_supply - (k / (input_supply + swap_amount))
-// byte k = itob(input_supply) b* itob(output_supply)
+// byte k = itob(input_supply) b* itob(output_supply) [slot 204]
 load 203 // input_supply
 itob 
 load 202 // output_supply
@@ -1769,7 +1760,7 @@ store 203 // input_supply
 // Calculates the input amount for a fixed-output swap ignoring fees
 // k = input_supply * output_supply
 // input_amount = (k / (output_supply - asset_out_amount)) - input_supply
-// byte k = itob(input_supply) b* itob(output_supply)
+// byte k = itob(input_supply) b* itob(output_supply) [slot 204]
 load 203 // input_supply
 itob 
 load 202 // output_supply

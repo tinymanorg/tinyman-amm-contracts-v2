@@ -1111,34 +1111,30 @@ load 7 // issued_pool_tokens
 load 203 // time_delta
 &&
 bz l15_end
-load 6 // asset_2_reserves
-itob
-pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
-b*
-load 5 // asset_1_reserves
-itob
-b/
-store 204 // asset_1_price
-load 5 // asset_1_reserves
-itob
-pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
-b*
-load 6 // asset_2_reserves
-itob
-b/
-store 205 // asset_2_price
 load 201 // cumulative_asset_1_price
-load 204 // asset_1_price
+load 6 // asset_2_reserves
+itob
+pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
+b*
 load 203 // time_delta
 itob
 b*
+load 5 // asset_1_reserves
+itob
+b/
 b+
 store 201 // cumulative_asset_1_price
 load 202 // cumulative_asset_2_price
-load 205 // asset_2_price
+load 5 // asset_1_reserves
+itob
+pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
+b*
 load 203 // time_delta
 itob
 b*
+load 6 // asset_2_reserves
+itob
+b/
 b+
 store 202 // cumulative_asset_2_price
 pushint 1
