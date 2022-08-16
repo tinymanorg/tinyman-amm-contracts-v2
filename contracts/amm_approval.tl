@@ -386,32 +386,36 @@ block main:
             int pool_tokens_out
             if issued_pool_tokens:
                 # Adding liquidity after it already has some liquidity
-                int a = btoi((itob(asset_1_amount) b* itob(issued_pool_tokens)) b/ itob(asset_1_reserves))
-                int b = btoi((itob(asset_2_amount) b* itob(issued_pool_tokens)) b/ itob(asset_2_reserves))
+                byte a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens)
+                byte b_temp = itob(asset_2_amount) b* itob(issued_pool_tokens)
+                int pool_tokens_out_a = btoi(a_temp b/ itob(asset_1_reserves))
+                int pool_tokens_out_b = btoi(b_temp b/ itob(asset_2_reserves))
 
-                # TODO: We can re-use the intermediate results to reduce operations cost
-                int remainder_a = btoi((itob(asset_1_amount) b* itob(issued_pool_tokens)) b% itob(asset_1_reserves))
-                int remainder_b = btoi((itob(asset_2_amount) b* itob(issued_pool_tokens)) b% itob(asset_2_reserves))
-
-                if a > b:
+                if pool_tokens_out_a > pool_tokens_out_b:
                     # Less of asset 2 supplied. Pool tokens will be issued proportionally to asset_2_amount (b)
                     # Calculate amount of asset 1 to return to user as change
-                    pool_tokens_out = b
+                    pool_tokens_out = pool_tokens_out_b
                     int expected_asset_1_amount = btoi((itob(pool_tokens_out) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
-                    if remainder_b:
+                    
+                    # Round Up if there is remainder
+                    if btoi(b_temp b% itob(asset_2_reserves)):
                         expected_asset_1_amount = expected_asset_1_amount + 1
                     end
+                    
                     int change = asset_1_amount - expected_asset_1_amount
                     asset_1_amount = expected_asset_1_amount
                     transfer_to_user(asset_1_id, change)
                 else:
                     # Less of asset 1 supplied. Pool tokens will be issued proportionally to asset_1_amount (a)
                     # Calculate amount of asset 2 to return to user as change
-                    pool_tokens_out = a
+                    pool_tokens_out = pool_tokens_out_a
                     int expected_asset_2_amount = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
-                    if remainder_a:
+
+                    # Round Up if there is remainder                  
+                    if btoi(a_temp b% itob(asset_1_reserves)):
                         expected_asset_2_amount = expected_asset_2_amount + 1
                     end
+
                     int change = asset_2_amount - expected_asset_2_amount
                     asset_2_amount = expected_asset_2_amount
                     transfer_to_user(asset_2_id, change)

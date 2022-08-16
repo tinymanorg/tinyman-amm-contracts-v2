@@ -1040,63 +1040,45 @@ main:
         bz l9_else
         // then:
           // Adding liquidity after it already has some liquidity
-          // int a = btoi((itob(asset_1_amount) b* itob(issued_pool_tokens)) b/ itob(asset_1_reserves)) [slot 15]
+          // byte a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens)
           load 11 // asset_1_amount
           itob 
           load 7 // issued_pool_tokens
           itob 
           b*
-          load 5 // asset_1_reserves
-          itob 
-          b/
-          btoi 
-          store 15 // a
-          // int b = btoi((itob(asset_2_amount) b* itob(issued_pool_tokens)) b/ itob(asset_2_reserves)) [slot 16]
+          store 15 // a_temp
+          // byte b_temp = itob(asset_2_amount) b* itob(issued_pool_tokens)
           load 13 // asset_2_amount
           itob 
           load 7 // issued_pool_tokens
           itob 
           b*
+          store 16 // b_temp
+          // int pool_tokens_out_a = btoi(a_temp b/ itob(asset_1_reserves)) [slot 17]
+          load 15 // a_temp
+          load 5 // asset_1_reserves
+          itob 
+          b/
+          btoi 
+          store 17 // pool_tokens_out_a
+          // int pool_tokens_out_b = btoi(b_temp b/ itob(asset_2_reserves)) [slot 18]
+          load 16 // b_temp
           load 6 // asset_2_reserves
           itob 
           b/
           btoi 
-          store 16 // b
+          store 18 // pool_tokens_out_b
           
-          // TODO: We can re-use the intermediate results to reduce operations cost
-          // int remainder_a = btoi((itob(asset_1_amount) b* itob(issued_pool_tokens)) b% itob(asset_1_reserves)) [slot 17]
-          load 11 // asset_1_amount
-          itob 
-          load 7 // issued_pool_tokens
-          itob 
-          b*
-          load 5 // asset_1_reserves
-          itob 
-          b%
-          btoi 
-          store 17 // remainder_a
-          // int remainder_b = btoi((itob(asset_2_amount) b* itob(issued_pool_tokens)) b% itob(asset_2_reserves)) [slot 18]
-          load 13 // asset_2_amount
-          itob 
-          load 7 // issued_pool_tokens
-          itob 
-          b*
-          load 6 // asset_2_reserves
-          itob 
-          b%
-          btoi 
-          store 18 // remainder_b
-          
-          // if a > b:
-            load 15 // a
-            load 16 // b
+          // if pool_tokens_out_a > pool_tokens_out_b:
+            load 17 // pool_tokens_out_a
+            load 18 // pool_tokens_out_b
             >
             bz l10_else
             // then:
               // Less of asset 2 supplied. Pool tokens will be issued proportionally to asset_2_amount (b)
               // Calculate amount of asset 1 to return to user as change
-              // pool_tokens_out = b
-              load 16 // b
+              // pool_tokens_out = pool_tokens_out_b
+              load 18 // pool_tokens_out_b
               store 14 // pool_tokens_out
               // int expected_asset_1_amount = btoi((itob(pool_tokens_out) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens)) [slot 19]
               load 14 // pool_tokens_out
@@ -1109,8 +1091,14 @@ main:
               b/
               btoi 
               store 19 // expected_asset_1_amount
-              // if remainder_b:
-                load 18 // remainder_b
+              
+              // Round Up if there is remainder
+              // if btoi(b_temp b% itob(asset_2_reserves)):
+                load 16 // b_temp
+                load 6 // asset_2_reserves
+                itob 
+                b%
+                btoi 
                 bz l11_end
                 // then:
                   // expected_asset_1_amount = expected_asset_1_amount + 1
@@ -1120,6 +1108,7 @@ main:
                   store 19 // expected_asset_1_amount
                 b l11_end
                 l11_end: // end
+              
               // int change = asset_1_amount - expected_asset_1_amount [slot 20]
               load 11 // asset_1_amount
               load 19 // expected_asset_1_amount
@@ -1137,8 +1126,8 @@ main:
             // else:
               // Less of asset 1 supplied. Pool tokens will be issued proportionally to asset_1_amount (a)
               // Calculate amount of asset 2 to return to user as change
-              // pool_tokens_out = a
-              load 15 // a
+              // pool_tokens_out = pool_tokens_out_a
+              load 17 // pool_tokens_out_a
               store 14 // pool_tokens_out
               // int expected_asset_2_amount = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens)) [slot 21]
               load 14 // pool_tokens_out
@@ -1151,8 +1140,14 @@ main:
               b/
               btoi 
               store 21 // expected_asset_2_amount
-              // if remainder_a:
-                load 17 // remainder_a
+              
+              // Round Up if there is remainder
+              // if btoi(a_temp b% itob(asset_1_reserves)):
+                load 15 // a_temp
+                load 5 // asset_1_reserves
+                itob 
+                b%
+                btoi 
                 bz l12_end
                 // then:
                   // expected_asset_2_amount = expected_asset_2_amount + 1
@@ -1162,6 +1157,7 @@ main:
                   store 21 // expected_asset_2_amount
                 b l12_end
                 l12_end: // end
+              
               // int change = asset_2_amount - expected_asset_2_amount [slot 22]
               load 13 // asset_2_amount
               load 21 // expected_asset_2_amount

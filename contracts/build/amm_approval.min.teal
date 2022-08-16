@@ -725,46 +725,30 @@ itob
 load 7 // issued_pool_tokens
 itob
 b*
-load 5 // asset_1_reserves
-itob
-b/
-btoi
-store 15 // a
+store 15 // a_temp
 load 13 // asset_2_amount
 itob
 load 7 // issued_pool_tokens
 itob
 b*
+store 16 // b_temp
+load 15 // a_temp
+load 5 // asset_1_reserves
+itob
+b/
+btoi
+store 17 // pool_tokens_out_a
+load 16 // b_temp
 load 6 // asset_2_reserves
 itob
 b/
 btoi
-store 16 // b
-load 11 // asset_1_amount
-itob
-load 7 // issued_pool_tokens
-itob
-b*
-load 5 // asset_1_reserves
-itob
-b%
-btoi
-store 17 // remainder_a
-load 13 // asset_2_amount
-itob
-load 7 // issued_pool_tokens
-itob
-b*
-load 6 // asset_2_reserves
-itob
-b%
-btoi
-store 18 // remainder_b
-load 15 // a
-load 16 // b
+store 18 // pool_tokens_out_b
+load 17 // pool_tokens_out_a
+load 18 // pool_tokens_out_b
 >
 bz l10_else
-load 16 // b
+load 18 // pool_tokens_out_b
 store 14 // pool_tokens_out
 load 14 // pool_tokens_out
 itob
@@ -776,7 +760,11 @@ itob
 b/
 btoi
 store 19 // expected_asset_1_amount
-load 18 // remainder_b
+load 16 // b_temp
+load 6 // asset_2_reserves
+itob
+b%
+btoi
 bz l11_end
 load 19 // expected_asset_1_amount
 pushint 1
@@ -795,7 +783,7 @@ load 20 // change
 callsub main__amm__func__transfer_to_user
 b l10_end
 l10_else:
-load 15 // a
+load 17 // pool_tokens_out_a
 store 14 // pool_tokens_out
 load 14 // pool_tokens_out
 itob
@@ -807,7 +795,11 @@ itob
 b/
 btoi
 store 21 // expected_asset_2_amount
-load 17 // remainder_a
+load 15 // a_temp
+load 5 // asset_1_reserves
+itob
+b%
+btoi
 bz l12_end
 load 21 // expected_asset_2_amount
 pushint 1
