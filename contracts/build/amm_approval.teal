@@ -91,12 +91,12 @@ bootstrap:
   // Pool Address (Sender) != SHA512_256("program" + bytes from template and args)
   // Address already opted in to app
   
-  // assert((Txn.ApplicationArgs[0] == "bootstrap") || (Txn.ApplicationArgs[0] == "\x1dd\x8dm"))
+  // assert((Txn.ApplicationArgs[0] == "bootstrap") || (Txn.ApplicationArgs[0] == ABI_BOOTSTRAP))
   txn ApplicationArgs 0
   pushbytes "bootstrap"
   ==
   txn ApplicationArgs 0
-  pushbytes "\x1dd\x8dm"
+  pushbytes "\x1dd\x8dm" // ABI_BOOTSTRAP
   ==
   ||
   assert 
@@ -118,11 +118,6 @@ bootstrap:
   // assert(asset_1_id == Txn.Assets[0])
   load 0 // asset_1_id
   txn Assets 0
-  ==
-  assert 
-  // assert(asset_2_id == Txn.Assets[1])
-  load 1 // asset_2_id
-  txn Assets 1
   ==
   assert 
   
@@ -162,6 +157,11 @@ bootstrap:
     load 1 // asset_2_id
     bz l1_end
     // then:
+      // assert(asset_2_id == Txn.Assets[1])
+      load 1 // asset_2_id
+      txn Assets 1
+      ==
+      assert 
       // exists, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
       load 1 // asset_2_id
       asset_params_get AssetUnitName
@@ -786,12 +786,12 @@ main:
       // int change = 0 [slot 23]
       pushint 0
       store 23 // change
-      // if (mode == 'fixed-input') || (mode == '\x00\x0bfixed-input'):
+      // if (mode == 'fixed-input') || (mode == ABI_STRING_FIXED_INPUT):
         load 13 // mode
         pushbytes "fixed-input"
         ==
         load 13 // mode
-        pushbytes "\x00\x0bfixed-input"
+        pushbytes "\x00\x0bfixed-input" // ABI_STRING_FIXED_INPUT
         ==
         ||
         bz l5_elif_0
@@ -820,12 +820,12 @@ main:
           assert 
         b l5_end
         l5_elif_0:
-        // elif (mode == 'fixed-output') || (mode == '\x00\x0cfixed-output'):
+        // elif (mode == 'fixed-output') || (mode == ABI_STRING_FIXED_OUTPUT):
         load 13 // mode
         pushbytes "fixed-output"
         ==
         load 13 // mode
-        pushbytes "\x00\x0cfixed-output"
+        pushbytes "\x00\x0cfixed-output" // ABI_STRING_FIXED_OUTPUT
         ==
         ||
         bz l5_else

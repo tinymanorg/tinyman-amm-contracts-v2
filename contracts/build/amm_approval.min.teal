@@ -53,7 +53,7 @@ txn ApplicationArgs 0
 pushbytes "bootstrap"
 ==
 txn ApplicationArgs 0
-pushbytes "\x1dd\x8dm"
+pushbytes "\x1dd\x8dm" // ABI_BOOTSTRAP
 ==
 ||
 assert
@@ -69,10 +69,6 @@ load 1 // asset_2_id
 assert
 load 0 // asset_1_id
 txn Assets 0
-==
-assert
-load 1 // asset_2_id
-txn Assets 1
 ==
 assert
 pushbytes ""
@@ -97,6 +93,10 @@ pushint 10000 // ASSET_MIN_TOTAL
 assert
 load 1 // asset_2_id
 bz l1_end
+load 1 // asset_2_id
+txn Assets 1
+==
+assert
 load 1 // asset_2_id
 asset_params_get AssetUnitName
 store 2 // exists
@@ -547,7 +547,7 @@ load 13 // mode
 pushbytes "fixed-input"
 ==
 load 13 // mode
-pushbytes "\x00\x0bfixed-input"
+pushbytes "\x00\x0bfixed-input" // ABI_STRING_FIXED_INPUT
 ==
 ||
 bz l5_elif_0
@@ -575,7 +575,7 @@ load 13 // mode
 pushbytes "fixed-output"
 ==
 load 13 // mode
-pushbytes "\x00\x0cfixed-output"
+pushbytes "\x00\x0cfixed-output" // ABI_STRING_FIXED_OUTPUT
 ==
 ||
 bz l5_else

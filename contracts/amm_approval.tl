@@ -6,6 +6,7 @@ const int ASSET_MIN_TOTAL = 10000
 const byte BYTE_ZERO = "\x00\x00\x00\x00\x00\x00\x00\x00"
 const byte TWO_TO_THE_64 = "\x01\x00\x00\x00\x00\x00\x00\x00\x00"
 
+const byte ABI_BOOTSTRAP = "\x1dd\x8dm"
 const byte ABI_ADD_LIQUIDITY = "E\x1d\x91\xb3"
 const byte ABI_REMOVE_LIQUIDITY = "\x10`^T"
 const byte ABI_SWAP = "\xba'-\xc5"
@@ -14,6 +15,8 @@ const byte ABI_VERIFY_FLASH = "\xfd\xe6\xc1\xb5"
 const byte ABI_CLAIM_FEES = "xb\xe4\xae"
 const byte ABI_CLAIM_EXTRA = "z`\x8a\xa5"
 const byte ABI_SET_FEE = "\xfe\x11\xcc["
+const byte ABI_STRING_FIXED_INPUT = "\x00\x0bfixed-input"
+const byte ABI_STRING_FIXED_OUTPUT = "\x00\x0cfixed-output"
 
 
 if Txn.ApplicationID == 0:
@@ -62,14 +65,13 @@ block bootstrap:
     # Pool Address (Sender) != SHA512_256("program" + bytes from template and args)
     # Address already opted in to app
 
-    assert((Txn.ApplicationArgs[0] == "bootstrap") || (Txn.ApplicationArgs[0] == "\x1dd\x8dm"))
+    assert((Txn.ApplicationArgs[0] == "bootstrap") || (Txn.ApplicationArgs[0] == ABI_BOOTSTRAP))
 
     # Ensure the same asset ids are included in Txn.ApplicationArgs and Txn.Assets
     int asset_1_id = btoi(Txn.ApplicationArgs[1])
     int asset_2_id = btoi(Txn.ApplicationArgs[2])
     assert(asset_1_id > asset_2_id)
     assert(asset_1_id == Txn.Assets[0])
-    assert(asset_2_id == Txn.Assets[1])
 
     int exists
     byte asset_1_unit_name = ""
@@ -84,6 +86,7 @@ block bootstrap:
     assert(exists && (asset_total >= ASSET_MIN_TOTAL))
 
     if asset_2_id:
+        assert(asset_2_id == Txn.Assets[1])
         exists, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
         assert(exists)
         # Ensure Asset 2 has total supply >= ASSET_MIN_TOTAL
@@ -327,12 +330,12 @@ block main:
             int swap_amount
             int output_amount
             int change = 0
-            if (mode == 'fixed-input') || (mode == '\x00\x0bfixed-input'):
+            if (mode == 'fixed-input') || (mode == ABI_STRING_FIXED_INPUT):
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(input_amount)
                 swap_amount = input_amount - total_fee_amount
                 output_amount = calculate_fixed_input_swap(input_supply, output_supply, swap_amount)
                 assert(output_amount >= min_output)
-            elif (mode == 'fixed-output') || (mode == '\x00\x0cfixed-output'):
+            elif (mode == 'fixed-output') || (mode == ABI_STRING_FIXED_OUTPUT):
                 output_amount = min_output
                 swap_amount = calculate_fixed_output_swap(input_supply, output_supply, output_amount)
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
