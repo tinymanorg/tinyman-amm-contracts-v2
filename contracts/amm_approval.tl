@@ -260,6 +260,8 @@ block main:
             "add_liquidity": add_liquidity
             "remove_liquidity": remove_liquidity
             "swap": swap
+            "flash": flash
+            "verify_flash": verify_flash
             "claim_fees": claim_fees
             "claim_extra": claim_extra
             "set_fee": set_fee
@@ -306,21 +308,22 @@ block main:
                 error()
             end
 
+            int total_fee_amount
             int poolers_fee_amount
             int protocol_fee_amount
             int swap_amount
             int output_amount
             int change = 0
             if mode == 'fixed-input':
-                poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(input_amount)
-                swap_amount = input_amount - (poolers_fee_amount + protocol_fee_amount)
+                total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(input_amount)
+                swap_amount = input_amount - total_fee_amount
                 output_amount = calculate_fixed_input_swap(input_supply, output_supply, swap_amount)
                 assert(output_amount >= min_output)
             elif mode == 'fixed-output':
                 output_amount = min_output
                 swap_amount = calculate_fixed_output_swap(input_supply, output_supply, output_amount)
-                poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
-                int total_input_amount = swap_amount + (poolers_fee_amount + protocol_fee_amount)
+                total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
+                int total_input_amount = swap_amount + total_fee_amount
                 int change = input_amount - total_input_amount
                 if change:
                     transfer_to_user(input_asset_id, change)
@@ -347,6 +350,113 @@ block main:
             end
 
             transfer_to_user(output_asset_id, output_amount)
+
+            # State updates
+            app_local_put(1, "asset_1_reserves", asset_1_reserves)
+            app_local_put(1, "asset_2_reserves", asset_2_reserves)
+            app_local_put(1, "protocol_fees_asset_1", protocol_fees_asset_1)
+            app_local_put(1, "protocol_fees_asset_2", protocol_fees_asset_2)
+            exit(1)
+        end
+
+        block flash:
+            update_price_oracle()
+
+            int index_diff = btoi(Txn.ApplicationArgs[1])
+            int asset_1_amount = btoi(Txn.ApplicationArgs[2])
+            int asset_2_amount = btoi(Txn.ApplicationArgs[3])
+            assert(asset_1_amount || asset_2_amount)
+
+            int verify_flash_txn_index = Txn.GroupIndex + index_diff
+            assert(Gtxn[verify_flash_txn_index].Sender == Txn.Sender)
+            assert(Gtxn[verify_flash_txn_index].TypeEnum == Appl)
+            assert(Gtxn[verify_flash_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash")
+            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])     # index_diff
+            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[2] == Txn.ApplicationArgs[2])     # asset_1_amount
+            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[3] == Txn.ApplicationArgs[3])     # asset_2_amount
+
+            if asset_1_amount:
+                transfer_to_user(asset_1_id, asset_1_amount)
+            end
+            if asset_2_amount:
+                transfer_to_user(asset_2_id, asset_2_amount)
+            end
+            exit(1)
+        end
+
+        block verify_flash:
+            int index_diff = btoi(Txn.ApplicationArgs[1])
+            int asset_1_amount = btoi(Txn.ApplicationArgs[2])
+            int asset_2_amount = btoi(Txn.ApplicationArgs[3])
+
+            int flash_txn_index = Txn.GroupIndex - index_diff
+            assert(Gtxn[flash_txn_index].TypeEnum == Appl)
+            assert(Gtxn[flash_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[flash_txn_index].ApplicationArgs[0] == "flash")
+
+            int asset_1_repayment_amount = 0
+            int asset_2_repayment_amount = 0
+
+            if asset_1_amount:
+                int asset_1_total_fee_amount
+                int asset_1_poolers_fee_amount
+                int asset_1_protocol_fee_amount
+                asset_1_total_fee_amount, asset_1_poolers_fee_amount, asset_1_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_amount)
+                asset_1_repayment_amount = asset_1_amount + asset_1_total_fee_amount
+                assert(asset_1_repayment_amount > asset_1_amount)
+                
+                int asset_1_txn_index
+                if asset_2_amount:
+                    asset_1_txn_index = Txn.GroupIndex - 2
+                else:
+                    asset_1_txn_index = Txn.GroupIndex - 1
+                end
+
+                assert(Gtxn[asset_1_txn_index].TypeEnum == Axfer)
+                assert(Gtxn[asset_1_txn_index].AssetReceiver == pool_address)
+                assert(Gtxn[asset_1_txn_index].XferAsset == asset_1_id)
+                assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount)         # TODO: This line can be removed for optimization.
+                
+                int change = Gtxn[asset_1_txn_index].AssetAmount - asset_1_repayment_amount
+                if change:
+                    transfer_to_user(asset_1_id, change)
+                end
+
+                protocol_fees_asset_1 = protocol_fees_asset_1 + asset_1_protocol_fee_amount
+                asset_1_reserves = asset_1_reserves + asset_1_poolers_fee_amount
+            end
+
+            if asset_2_amount:
+                int asset_2_total_fee_amount
+                int asset_2_poolers_fee_amount
+                int asset_2_protocol_fee_amount
+                asset_2_total_fee_amount, asset_2_poolers_fee_amount, asset_2_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_2_amount)
+                asset_2_repayment_amount = asset_2_amount + asset_2_total_fee_amount
+                assert(asset_2_repayment_amount > asset_2_amount)
+
+                int asset_2_txn_index = Txn.GroupIndex - 1
+                int change = 0
+                if asset_2_id == 0:
+                    assert(Gtxn[asset_2_txn_index].TypeEnum == Pay)
+                    assert(Gtxn[asset_2_txn_index].Receiver == pool_address)
+                    assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount)          # TODO: This line can be removed for optimization.
+                    change = Gtxn[asset_2_txn_index].Amount - asset_2_repayment_amount
+                else:
+                    assert(Gtxn[asset_2_txn_index].TypeEnum == Axfer)
+                    assert(Gtxn[asset_2_txn_index].AssetReceiver == pool_address)
+                    assert(Gtxn[asset_2_txn_index].XferAsset == asset_2_id)
+                    assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount)     # TODO: This line can be removed for optimization.
+                    change = Gtxn[asset_2_txn_index].AssetAmount - asset_2_repayment_amount
+                end
+
+                if change:
+                    transfer_to_user(asset_2_id, change)
+                end
+
+                protocol_fees_asset_2 = protocol_fees_asset_2 + asset_2_protocol_fee_amount
+                asset_2_reserves = asset_2_reserves + asset_2_poolers_fee_amount
+            end
 
             # State updates
             app_local_put(1, "asset_1_reserves", asset_1_reserves)
@@ -582,9 +692,12 @@ end
 func calculate_fixed_input_fee_amounts(input_amount: int) int:
     int poolers_fee_share = app_local_get(1, "poolers_fee_share")
     int protocol_fee_share = app_local_get(1, "protocol_fee_share")
-    int poolers_fee = (input_amount * poolers_fee_share) / 10000
-    int protocol_fee = (input_amount * protocol_fee_share) / 10000
-    return poolers_fee, protocol_fee
+    
+    int total_fee_share = poolers_fee_share + protocol_fee_share
+    int total_fee = (input_amount * total_fee_share) / 10000
+    int protocol_fee = (total_fee * protocol_fee_share) / total_fee_share
+    int poolers_fee = total_fee - protocol_fee
+    return total_fee, poolers_fee, protocol_fee
 end
 
 
@@ -592,9 +705,12 @@ func calculate_fixed_output_fee_amounts(swap_amount: int) int:
     int poolers_fee_share = app_local_get(1, "poolers_fee_share")
     int protocol_fee_share = app_local_get(1, "protocol_fee_share")
     int input_amount = (swap_amount * 10000) / (10000 - (poolers_fee_share + protocol_fee_share))
-    int poolers_fee = (input_amount * poolers_fee_share) / 10000
-    int protocol_fee = (input_amount * protocol_fee_share) / 10000
-    return poolers_fee, protocol_fee
+
+    int total_fee_share = poolers_fee_share + protocol_fee_share
+    int total_fee = (input_amount * total_fee_share) / 10000
+    int protocol_fee = (total_fee * protocol_fee_share) / total_fee_share
+    int poolers_fee = total_fee - protocol_fee
+    return total_fee, poolers_fee, protocol_fee
 end
 
 

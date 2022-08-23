@@ -100,7 +100,7 @@ class TestGroupedSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_2_id, self.asset_3_id, 9749, "fixed-input"],
+                app_args=[METHOD_SWAP, self.asset_2_id, self.asset_3_id, 9748, "fixed-input"],
                 foreign_assets=[self.asset_2_id, self.asset_3_id],
                 accounts=[self.pool_address2],
             )
@@ -126,10 +126,10 @@ class TestGroupedSwap(BaseTestCase):
         self.assertEqual(itxn[b'snd'], decode_address(self.pool_address1))
 
         itxn = txns[3][b'dt'][b'itx'][0][b'txn']
-        self.assertEqual(itxn[b'aamt'], 9749)
+        self.assertEqual(itxn[b'aamt'], 9748)
         self.assertEqual(itxn[b'arcv'], decode_address(self.user_addr))
         self.assertEqual(itxn[b'xaid'], self.asset_3_id)
         self.assertEqual(itxn[b'snd'], decode_address(self.pool_address2))
 
         self.assertEqual(self.ledger.get_account_balance(self.user_addr, self.asset_2_id)[0], 0)
-        self.assertEqual(self.ledger.get_account_balance(self.user_addr, self.asset_3_id)[0], 9749)
+        self.assertEqual(self.ledger.get_account_balance(self.user_addr, self.asset_3_id)[0], 9748)

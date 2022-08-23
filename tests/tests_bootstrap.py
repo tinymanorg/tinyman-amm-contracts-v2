@@ -406,7 +406,7 @@ class TestBootstrap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], 'assert(exists && (asset_total >= ASSET_MIN_TOTAL))')
 
 
-class TestBootstrapAlgoPair(BaseTestCase):
+class TestBootstralgoPair(BaseTestCase):
 
     @classmethod
     def setUpClass(cls):
