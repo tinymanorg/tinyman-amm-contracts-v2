@@ -1,8 +1,10 @@
 import unittest
 from decimal import Decimal
 
+from algosdk.atomic_transaction_composer import AtomicTransactionComposer, TransactionWithSigner
 from algosdk.encoding import decode_address
 from algosdk.future import transaction
+from algosdk.future.transaction import SuggestedParams
 
 from .constants import *
 
@@ -138,6 +140,58 @@ class BaseTestCase(unittest.TestCase):
         txn_group[2].fee = app_call_fee or self.sp.fee
         return txn_group
 
+    def get_abi_add_liquidity_atomic_composer(self, asset_1_amount, asset_2_amount, signer, app_call_fee=None):
+        composer = AtomicTransactionComposer()
+        asset_1_txn = TransactionWithSigner(
+            txn=transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=asset_1_amount,
+            ),
+            signer=signer
+        )
+
+        if self.asset_2_id:
+            asset_2_txn = TransactionWithSigner(
+                txn=transaction.AssetTransferTxn(
+                    sender=self.user_addr,
+                    sp=self.sp,
+                    receiver=self.pool_address,
+                    index=self.asset_2_id,
+                    amt=asset_2_amount,
+                ),
+                signer=signer
+            )
+        else:
+            asset_2_txn = TransactionWithSigner(
+                txn=transaction.PaymentTxn(
+                    sender=self.user_addr,
+                    sp=self.sp,
+                    receiver=self.pool_address,
+                    amt=asset_2_amount,
+                ),
+                signer=signer
+            )
+
+        composer.add_method_call(
+            app_id=APPLICATION_ID,
+            method=contract.get_method_by_name(METHOD_ADD_LIQUIDITY),
+            sender=self.user_addr,
+            sp=SuggestedParams(**{**self.sp.__dict__, **{"fee": app_call_fee or self.sp.fee}}),
+            signer=signer,
+            method_args=[
+                asset_1_txn,
+                asset_2_txn,
+                self.asset_1_id,
+                self.asset_2_id,
+                self.pool_token_asset_id,
+                self.pool_address
+            ],
+        )
+        return composer
+
     def get_remove_liquidity_transactions(self, liquidity_asset_amount, app_call_fee=None):
         txn_group = [
             transaction.AssetTransferTxn(
@@ -152,12 +206,40 @@ class BaseTestCase(unittest.TestCase):
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_REMOVE_LIQUIDITY],
-                foreign_assets=[self.asset_1_id, self.asset_2_id] if self.asset_2_id else [self.asset_1_id],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
         ]
         txn_group[1].fee = app_call_fee or self.sp.fee
         return txn_group
+
+    def get_abi_remove_liquidity_atomic_composer(self, liquidity_asset_amount, signer, app_call_fee=None):
+        composer = AtomicTransactionComposer()
+        pool_liquidity_txn = TransactionWithSigner(
+            txn=transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.pool_token_asset_id,
+                amt=liquidity_asset_amount,
+            ),
+            signer=signer
+        )
+
+        composer.add_method_call(
+            app_id=APPLICATION_ID,
+            method=contract.get_method_by_name(METHOD_REMOVE_LIQUIDITY),
+            sender=self.user_addr,
+            sp=SuggestedParams(**{**self.sp.__dict__, **{"fee": app_call_fee or self.sp.fee}}),
+            signer=signer,
+            method_args=[
+                pool_liquidity_txn,
+                self.asset_1_id,
+                self.asset_2_id,
+                self.pool_address
+            ],
+        )
+        return composer
 
     def get_claim_fee_transactions(self, fee_collector, app_call_fee=None):
         txn_group = [
@@ -173,6 +255,22 @@ class BaseTestCase(unittest.TestCase):
         txn_group[0].fee = app_call_fee or self.sp.fee
         return txn_group
 
+    def get_abi_claim_fee_atomic_composer(self, fee_collector, signer, app_call_fee=None):
+        composer = AtomicTransactionComposer()
+        composer.add_method_call(
+            app_id=APPLICATION_ID,
+            method=contract.get_method_by_name(METHOD_CLAIM_FEES),
+            sender=fee_collector,
+            sp=SuggestedParams(**{**self.sp.__dict__, **{"fee": app_call_fee or self.sp.fee}}),
+            signer=signer,
+            method_args=[
+                self.asset_1_id,
+                self.asset_2_id,
+                self.pool_address
+            ],
+        )
+        return composer
+
     def get_claim_extra_transactions(self, fee_collector, app_call_fee=None):
         txn_group = [
             transaction.ApplicationNoOpTxn(
@@ -186,6 +284,51 @@ class BaseTestCase(unittest.TestCase):
         ]
         txn_group[0].fee = app_call_fee or self.sp.fee
         return txn_group
+
+    def get_abi_claim_extra_atomic_composer(self, fee_collector, signer, app_call_fee=None):
+        composer = AtomicTransactionComposer()
+        composer.add_method_call(
+            app_id=APPLICATION_ID,
+            method=contract.get_method_by_name(METHOD_CLAIM_EXTRA),
+            sender=fee_collector,
+            sp=SuggestedParams(**{**self.sp.__dict__, **{"fee": app_call_fee or self.sp.fee}}),
+            signer=signer,
+            method_args=[
+                self.asset_1_id,
+                self.asset_2_id,
+                self.pool_address
+            ],
+        )
+        return composer
+
+    def get_set_fee_transactions(self, fee_setter, poolers_fee_share, protocol_fee_share, app_call_fee=None):
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=fee_setter,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SET_FEE, poolers_fee_share, protocol_fee_share],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = app_call_fee or self.sp.fee
+        return txn_group
+
+    def get_abi_set_fee_atomic_composer(self, fee_setter, poolers_fee_share, protocol_fee_share, signer, app_call_fee=None):
+        composer = AtomicTransactionComposer()
+        composer.add_method_call(
+            app_id=APPLICATION_ID,
+            method=contract.get_method_by_name(METHOD_SET_FEE),
+            sender=fee_setter,
+            sp=SuggestedParams(**{**self.sp.__dict__, **{"fee": app_call_fee or self.sp.fee}}),
+            signer=signer,
+            method_args=[
+                poolers_fee_share,
+                protocol_fee_share,
+                self.pool_address
+            ],
+        )
+        return composer
 
     @classmethod
     def sign_txns(cls, txns, secret_key):

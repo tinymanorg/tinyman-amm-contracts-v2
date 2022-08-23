@@ -2,8 +2,8 @@ from algojig import get_suggested_params
 from algojig.exceptions import LogicEvalError
 from algojig.ledger import JigLedger
 from algosdk.account import generate_account
+from algosdk.atomic_transaction_composer import AccountTransactionSigner
 from algosdk.encoding import decode_address
-from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
@@ -93,16 +93,8 @@ class TestSetFee(BaseTestCase):
             with self.subTest(**test_case):
                 self.reset_ledger()
                 inputs = test_case["inputs"]
-
-                stxns = [
-                    transaction.ApplicationNoOpTxn(
-                        sender=self.app_creator_address,
-                        sp=self.sp,
-                        index=APPLICATION_ID,
-                        app_args=[METHOD_SET_FEE, inputs["poolers_fee_share"], inputs["protocol_fee_share"]],
-                        accounts=[self.pool_address],
-                    ).sign(self.app_creator_sk)
-                ]
+                txns = self.get_set_fee_transactions(fee_setter=self.app_creator_address, poolers_fee_share=inputs["poolers_fee_share"], protocol_fee_share=inputs["protocol_fee_share"])
+                stxns = self.sign_txns(txns, self.app_creator_sk)
 
                 if exception := test_case.get("exception"):
                     with self.assertRaises(LogicEvalError) as e:
@@ -152,15 +144,8 @@ class TestSetFee(BaseTestCase):
         # Sender is not fee setter (app creator default)
         new_account_sk, new_account_address = generate_account()
         self.ledger.set_account_balance(new_account_address, 1_000_000)
-        stxns = [
-            transaction.ApplicationNoOpTxn(
-                sender=new_account_address,
-                sp=self.sp,
-                index=APPLICATION_ID,
-                app_args=[METHOD_SET_FEE, 10, 2],
-                accounts=[self.pool_address],
-            ).sign(new_account_sk)
-        ]
+        txns = self.get_set_fee_transactions(fee_setter=new_account_address, poolers_fee_share=10, protocol_fee_share=2)
+        stxns = self.sign_txns(txns, new_account_sk)
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
@@ -198,6 +183,58 @@ class TestSetFee(BaseTestCase):
                 1: {
                     b'poolers_fee_share': {b'at': 2, b'ui': 10},
                     b'protocol_fee_share': {b'at': 2, b'ui': 2}
+                }
+            }
+        )
+
+    def test_abi_set_fee(self):
+        poolers_fee_share = 20
+        protocol_fee_share = 4
+
+        # Check method selectors
+        method = contract.get_method_by_name(METHOD_SET_FEE)
+        self.assertEqual(method.get_selector(), ABI_METHOD[METHOD_SET_FEE])
+
+        signer = AccountTransactionSigner(self.app_creator_sk)
+        composer = self.get_abi_set_fee_atomic_composer(self.app_creator_address, poolers_fee_share, protocol_fee_share, signer)
+        composer.gather_signatures()
+        block = self.ledger.eval_transactions(composer.signed_txns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 1)
+
+        # outer transactions[0]
+        txn = block_txns[0]
+        # there is no inner transaction
+        self.assertIsNone(txn[b'dt'].get(b'itx'))
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [
+                    ABI_METHOD[METHOD_SET_FEE],
+                    poolers_fee_share.to_bytes(8, 'big'),
+                    protocol_fee_share.to_bytes(8, 'big'),
+                    # Accounts
+                    (1).to_bytes(1, "big"),
+                ],
+                b'apat': [decode_address(self.pool_address)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.app_creator_address),
+                b'type': b'appl'
+            }
+        )
+
+        # outer transactions[0] - Pool State Delta
+        self.assertDictEqual(
+            txn[b'dt'][b'ld'],
+            {
+                1: {
+                    b'poolers_fee_share': {b'at': 2, b'ui': poolers_fee_share},
+                    b'protocol_fee_share': {b'at': 2, b'ui': protocol_fee_share}
                 }
             }
         )

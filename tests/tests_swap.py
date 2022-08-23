@@ -4,8 +4,11 @@ from algojig import get_suggested_params
 from algojig.exceptions import LogicEvalError
 from algojig.ledger import JigLedger
 from algosdk.account import generate_account
+from algosdk.atomic_transaction_composer import AtomicTransactionComposer, AccountTransactionSigner
+from algosdk.atomic_transaction_composer import TransactionWithSigner
 from algosdk.encoding import decode_address
 from algosdk.future import transaction
+from algosdk.future.transaction import SuggestedParams
 
 from .constants import *
 from .core import BaseTestCase
@@ -34,17 +37,7 @@ class TestSwap(BaseTestCase):
         self.bootstrap_pool()
 
     def test_fixed_input_pass(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
+        self.set_initial_pool_liquidity(1_000_000, 1_000_000)
 
         min_output = 9000
         txn_group = [
@@ -59,7 +52,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, min_output, SWAP_MODE_FIXED_INPUT],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -150,19 +143,49 @@ class TestSwap(BaseTestCase):
             }
         )
 
-    def test_fixed_output_pass(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
+    def test_abi_fixed_input(self):
+        self.set_initial_pool_liquidity(1_000_000, 1_000_000)
+        user_signer = AccountTransactionSigner(self.user_sk)
 
+        min_output = 9000
+        method = contract.get_method_by_name(METHOD_SWAP)
+        self.assertEqual(method.get_selector(), ABI_METHOD[METHOD_SWAP])
+
+        composer = AtomicTransactionComposer()
+        txn = TransactionWithSigner(
+            txn=transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=10_000,
+            ),
+            signer=user_signer
+        )
+        composer.add_method_call(
+            app_id=APPLICATION_ID,
+            method=method,
+            sender=self.user_addr,
+            sp=SuggestedParams(**{**self.sp.__dict__, **{"fee": 2000}}),
+            signer=user_signer,
+            method_args=[
+                txn,
+                self.asset_1_id,
+                self.asset_2_id,
+                min_output,
+                SWAP_MODE_FIXED_INPUT,
+                self.asset_1_id,
+                self.asset_2_id,
+                self.pool_address
+            ],
+        )
+        composer.gather_signatures()
+        block = self.ledger.eval_transactions(composer.signed_txns)
+        block_txns = block[b'txns']
+        self.assertEqual(len(block_txns), 2)
+
+    def test_fixed_output_pass(self):
+        self.set_initial_pool_liquidity(1_000_000, 1_000_000)
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=self.user_addr,
@@ -197,6 +220,47 @@ class TestSwap(BaseTestCase):
         self.assertEqual(itxn0[b'arcv'], decode_address(self.user_addr))
         self.assertEqual(itxn0[b'xaid'], self.asset_2_id)
         self.assertEqual(itxn0[b'snd'], decode_address(self.pool_address))
+
+    def test_abi_fixed_output(self):
+        self.set_initial_pool_liquidity(1_000_000, 1_000_000)
+        user_signer = AccountTransactionSigner(self.user_sk)
+
+        method = contract.get_method_by_name(METHOD_SWAP)
+        self.assertEqual(method.get_selector(), ABI_METHOD[METHOD_SWAP])
+
+        output_amount = 9872
+        composer = AtomicTransactionComposer()
+        txn = TransactionWithSigner(
+            txn=transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=10_000,
+            ),
+            signer=user_signer
+        )
+        composer.add_method_call(
+            app_id=APPLICATION_ID,
+            method=contract.get_method_by_name(METHOD_SWAP),
+            sender=self.user_addr,
+            sp=SuggestedParams(**{**self.sp.__dict__, **{"fee": 3000}}),
+            signer=user_signer,
+            method_args=[
+                txn,
+                self.asset_1_id,
+                self.asset_2_id,
+                output_amount,
+                SWAP_MODE_FIXED_OUTPUT,
+                self.asset_1_id,
+                self.asset_2_id,
+                self.pool_address
+            ],
+        )
+        composer.gather_signatures()
+        block = self.ledger.eval_transactions(composer.signed_txns)
+        block_txns = block[b'txns']
+        self.assertEqual(len(block_txns), 2)
 
     def test_fixed_output_with_change_pass(self):
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)

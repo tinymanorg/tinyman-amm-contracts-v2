@@ -6,6 +6,15 @@ const int ASSET_MIN_TOTAL = 10000
 const byte BYTE_ZERO = "\x00\x00\x00\x00\x00\x00\x00\x00"
 const byte TWO_TO_THE_64 = "\x01\x00\x00\x00\x00\x00\x00\x00\x00"
 
+const byte ABI_ADD_LIQUIDITY = "E\x1d\x91\xb3"
+const byte ABI_REMOVE_LIQUIDITY = "\x10`^T"
+const byte ABI_SWAP = "\xba'-\xc5"
+const byte ABI_FLASH = "\x9bQA\x1c"
+const byte ABI_VERIFY_FLASH = "\xfd\xe6\xc1\xb5"
+const byte ABI_CLAIM_FEES = "xb\xe4\xae"
+const byte ABI_CLAIM_EXTRA = "z`\x8a\xa5"
+const byte ABI_SET_FEE = "\xfe\x11\xcc["
+
 
 if Txn.ApplicationID == 0:
     # create app
@@ -53,13 +62,14 @@ block bootstrap:
     # Pool Address (Sender) != SHA512_256("program" + bytes from template and args)
     # Address already opted in to app
 
-    assert(Txn.ApplicationArgs[0] == "bootstrap")
+    assert((Txn.ApplicationArgs[0] == "bootstrap") || (Txn.ApplicationArgs[0] == "\x1dd\x8dm"))
 
     # Ensure the same asset ids are included in Txn.ApplicationArgs and Txn.Assets
     int asset_1_id = btoi(Txn.ApplicationArgs[1])
     int asset_2_id = btoi(Txn.ApplicationArgs[2])
     assert(asset_1_id > asset_2_id)
     assert(asset_1_id == Txn.Assets[0])
+    assert(asset_2_id == Txn.Assets[1])
 
     int exists
     byte asset_1_unit_name = ""
@@ -73,12 +83,7 @@ block bootstrap:
     exists, asset_total = asset_params_get(AssetTotal, asset_1_id)
     assert(exists && (asset_total >= ASSET_MIN_TOTAL))
 
-
-    if asset_2_id == 0:
-        # Asset 2 is Algo
-        assert(1 == Txn.NumAssets)
-    else:
-        assert(asset_2_id == Txn.Assets[1])
+    if asset_2_id:
         exists, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
         assert(exists)
         # Ensure Asset 2 has total supply >= ASSET_MIN_TOTAL
@@ -257,14 +262,22 @@ block main:
         int protocol_fees_asset_2 = app_local_get(1, "protocol_fees_asset_2")
 
         switch Txn.ApplicationArgs[0]:
-            "add_liquidity": add_liquidity
-            "remove_liquidity": remove_liquidity
             "swap": swap
+            ABI_SWAP: swap
+            "add_liquidity": add_liquidity
+            ABI_ADD_LIQUIDITY: add_liquidity
+            "remove_liquidity": remove_liquidity
+            ABI_REMOVE_LIQUIDITY: remove_liquidity
             "flash": flash
+            ABI_FLASH: flash
             "verify_flash": verify_flash
+            ABI_VERIFY_FLASH: verify_flash
             "claim_fees": claim_fees
+            ABI_CLAIM_FEES: claim_fees
             "claim_extra": claim_extra
+            ABI_CLAIM_EXTRA: claim_extra
             "set_fee": set_fee
+            ABI_SET_FEE: set_fee
         end
 
 
@@ -314,12 +327,12 @@ block main:
             int swap_amount
             int output_amount
             int change = 0
-            if mode == 'fixed-input':
+            if (mode == 'fixed-input') || (mode == '\x00\x0bfixed-input'):
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(input_amount)
                 swap_amount = input_amount - total_fee_amount
                 output_amount = calculate_fixed_input_swap(input_supply, output_supply, swap_amount)
                 assert(output_amount >= min_output)
-            elif mode == 'fixed-output':
+            elif (mode == 'fixed-output') || (mode == '\x00\x0cfixed-output'):
                 output_amount = min_output
                 swap_amount = calculate_fixed_output_swap(input_supply, output_supply, output_amount)
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
@@ -371,7 +384,7 @@ block main:
             assert(Gtxn[verify_flash_txn_index].Sender == Txn.Sender)
             assert(Gtxn[verify_flash_txn_index].TypeEnum == Appl)
             assert(Gtxn[verify_flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash")
+            assert((Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash") || (Gtxn[verify_flash_txn_index].ApplicationArgs[0] == ABI_VERIFY_FLASH))
             assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])     # index_diff
             assert(Gtxn[verify_flash_txn_index].ApplicationArgs[2] == Txn.ApplicationArgs[2])     # asset_1_amount
             assert(Gtxn[verify_flash_txn_index].ApplicationArgs[3] == Txn.ApplicationArgs[3])     # asset_2_amount
@@ -393,7 +406,7 @@ block main:
             int flash_txn_index = Txn.GroupIndex - index_diff
             assert(Gtxn[flash_txn_index].TypeEnum == Appl)
             assert(Gtxn[flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-            assert(Gtxn[flash_txn_index].ApplicationArgs[0] == "flash")
+            assert((Gtxn[flash_txn_index].ApplicationArgs[0] == "flash") || (Gtxn[flash_txn_index].ApplicationArgs[0] == ABI_FLASH))
 
             int asset_1_repayment_amount = 0
             int asset_2_repayment_amount = 0
@@ -577,7 +590,8 @@ block main:
                 asset_1_amount = btoi((itob(removed_pool_token_amount) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
                 asset_2_amount = btoi((itob(removed_pool_token_amount) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
             end
-
+            
+            # TODO: Is it required? It projects the user but if the liquidity or share is too low, it may cause issues.
             assert(asset_1_amount && asset_2_amount)
             transfer_to_user(asset_1_id, asset_1_amount)
             transfer_to_user(asset_2_id, asset_2_amount)

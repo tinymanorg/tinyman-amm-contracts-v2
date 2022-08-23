@@ -5,6 +5,7 @@ from algojig import get_suggested_params
 from algojig.exceptions import LogicEvalError
 from algojig.ledger import JigLedger
 from algosdk.account import generate_account
+from algosdk.atomic_transaction_composer import AccountTransactionSigner
 from algosdk.encoding import decode_address
 from algosdk.future import transaction
 
@@ -503,6 +504,117 @@ class TestAddLiquidity(BaseTestCase):
                         }
                     )
 
+    def test_abi_add_liquidity(self):
+        asset_1_amount = 10_000
+        asset_2_amount = 20_000
+
+        method = contract.get_method_by_name(METHOD_ADD_LIQUIDITY)
+        self.assertEqual(method.get_selector(), ABI_METHOD[METHOD_ADD_LIQUIDITY])
+
+        user_signer = AccountTransactionSigner(self.user_sk)
+        composer = self.get_abi_add_liquidity_atomic_composer(
+            asset_1_amount=asset_1_amount,
+            asset_2_amount=asset_2_amount,
+            signer=user_signer,
+            app_call_fee=2_000
+        )
+        composer.gather_signatures()
+        block = self.ledger.eval_transactions(composer.signed_txns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 3)
+
+        # outer transactions - [0]
+        txn = block_txns[0]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'aamt': asset_1_amount,
+                b'arcv': decode_address(self.pool_address),
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'grp': ANY,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.user_addr),
+                b'type': b'axfer',
+                b'xaid': self.asset_1_id
+            }
+        )
+
+        # outer transactions - [1]
+        txn = block_txns[1]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'aamt': asset_2_amount,
+                b'arcv': decode_address(self.pool_address),
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'grp': ANY,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.user_addr),
+                b'type': b'axfer',
+                b'xaid': self.asset_2_id
+            }
+        )
+
+        # outer transactions - [2]
+        txn = block_txns[2]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [
+                    ABI_METHOD[METHOD_ADD_LIQUIDITY],
+                    # Foreign keys to arrays
+                    # Assets
+                    (0).to_bytes(1, "big"),
+                    (1).to_bytes(1, "big"),
+                    (2).to_bytes(1, "big"),
+                    # Accounts
+                    (1).to_bytes(1, "big"),
+                ],
+                b'apas': [self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
+                b'apat': [decode_address(self.pool_address)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee * 2,
+                b'fv': self.sp.first,
+                b'grp': ANY,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.user_addr),
+                b'type': b'appl'
+            }
+        )
+
+        # inner transactions
+        inner_transactions = txn[b'dt'][b'itx']
+        self.assertEqual(len(inner_transactions), 1)
+
+        # inner transactions[0]
+        self.assertDictEqual(
+            inner_transactions[0][b'txn'],
+            {
+                b'aamt': 13_142,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'arcv': decode_address(self.user_addr),
+                b'snd': decode_address(self.pool_address),
+                b'type': b'axfer',
+                b'xaid': self.pool_token_asset_id
+            }
+        )
+
+        # local state delta
+        pool_local_state_delta = txn[b'dt'][b'ld'][1]
+        self.assertDictEqual(
+            pool_local_state_delta,
+            {
+                b'asset_1_reserves': {b'at': 2, b'ui': asset_1_amount},
+                b'asset_2_reserves': {b'at': 2, b'ui': asset_2_amount},
+                b'issued_pool_tokens': {b'at': 2, b'ui': 14142}
+            }
+        )
+
     def test_fail_given_account_is_not_a_pool(self):
         asset_1_added_liquidity_amount = 10_000
         asset_2_added_liquidity_amount = 15_000
@@ -637,5 +749,115 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
                 b'asset_1_reserves': {b'at': 2, b'ui': asset_1_added_liquidity_amount},
                 b'asset_2_reserves': {b'at': 2, b'ui': asset_2_added_liquidity_amount},
                 b'issued_pool_tokens': {b'at': 2, b'ui': issued_pool_token_amount}
+            }
+        )
+
+    def test_abi_add_liquidity(self):
+        asset_1_amount = 10_000
+        asset_2_amount = 20_000
+
+        method = contract.get_method_by_name(METHOD_ADD_LIQUIDITY)
+        self.assertEqual(method.get_selector(), ABI_METHOD[METHOD_ADD_LIQUIDITY])
+
+        user_signer = AccountTransactionSigner(self.user_sk)
+        composer = self.get_abi_add_liquidity_atomic_composer(
+            asset_1_amount=asset_1_amount,
+            asset_2_amount=asset_2_amount,
+            signer=user_signer,
+            app_call_fee=2_000
+        )
+        composer.gather_signatures()
+        block = self.ledger.eval_transactions(composer.signed_txns)
+        block_txns = block[b'txns']
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 3)
+
+        # outer transactions - [0]
+        txn = block_txns[0]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'aamt': asset_1_amount,
+                b'arcv': decode_address(self.pool_address),
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'grp': ANY,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.user_addr),
+                b'type': b'axfer',
+                b'xaid': self.asset_1_id
+            }
+        )
+
+        # outer transactions - [1]
+        txn = block_txns[1]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'amt': asset_2_amount,
+                b'rcv': decode_address(self.pool_address),
+                b'fee': self.sp.fee,
+                b'fv': self.sp.first,
+                b'grp': ANY,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.user_addr),
+                b'type': b'pay',
+            }
+        )
+
+        # outer transactions - [2]
+        txn = block_txns[2]
+        self.assertDictEqual(
+            txn[b'txn'],
+            {
+                b'apaa': [
+                    ABI_METHOD[METHOD_ADD_LIQUIDITY],
+                    # Foreign keys to arrays
+                    # Assets
+                    (0).to_bytes(1, "big"),
+                    (1).to_bytes(1, "big"),
+                    (2).to_bytes(1, "big"),
+                    # Accounts
+                    (1).to_bytes(1, "big"),
+                ],
+                b'apas': [self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
+                b'apat': [decode_address(self.pool_address)],
+                b'apid': APPLICATION_ID,
+                b'fee': self.sp.fee * 2,
+                b'fv': self.sp.first,
+                b'grp': ANY,
+                b'lv': self.sp.last,
+                b'snd': decode_address(self.user_addr),
+                b'type': b'appl'
+            }
+        )
+
+        # inner transactions
+        inner_transactions = txn[b'dt'][b'itx']
+        self.assertEqual(len(inner_transactions), 1)
+
+        # inner transactions[0]
+        self.assertDictEqual(
+            inner_transactions[0][b'txn'],
+            {
+                b'aamt': 13_142,
+                b'fv': self.sp.first,
+                b'lv': self.sp.last,
+                b'arcv': decode_address(self.user_addr),
+                b'snd': decode_address(self.pool_address),
+                b'type': b'axfer',
+                b'xaid': self.pool_token_asset_id
+            }
+        )
+
+        # local state delta
+        pool_local_state_delta = txn[b'dt'][b'ld'][1]
+        self.assertDictEqual(
+            pool_local_state_delta,
+            {
+                b'asset_1_reserves': {b'at': 2, b'ui': asset_1_amount},
+                b'asset_2_reserves': {b'at': 2, b'ui': asset_2_amount},
+                b'issued_pool_tokens': {b'at': 2, b'ui': 14142}
             }
         )

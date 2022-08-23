@@ -1,0 +1,116 @@
+{
+  "name": "Tinyman",
+  "desc": "Tinyman AMM",
+  "networks": {
+    "mainnet_gen": {"appID": 0},
+    "testnet_gen": {"appID": 0}
+  },
+  "methods": [
+    {
+      "name": "bootstrap",
+      "desc": "Bootstrap a new Tinyman pool.",
+      "args": [
+        {"type": "uint64", "name": "asset_1_id", "desc": "Asset 1 ID"},
+        {"type": "uint64", "name": "asset_2_id", "desc": "Asset 2 ID (0 for Algo)"},
+        {"type": "asset", "name": "asset_1", "desc": "Asset 1 ID"},
+        {"type": "asset", "name": "asset_2", "desc": "Asset 2 ID (0 for Algo)"}
+      ],
+      "returns": {"type": "void"}
+    },
+    {
+      "name": "add_liquidity",
+      "desc": "Add liquidity to pool and mint pool liquidity assets.",
+      "args": [
+        {"type": "txn", "name": "send_asset_1", "desc": "Transfer asset 1 to pool."},
+        {"type": "txn", "name": "send_asset_1", "desc": "Transfer asset 2 to pool."},
+        {"type": "asset", "name": "asset_1", "desc": "Asset 1 ID"},
+        {"type": "asset", "name": "asset_2", "desc": "Asset 2 ID (0 for Algo)"},
+        {"type": "asset", "name": "liquidity_asset_id", "desc": "Pool Liquidity Asset ID"},
+        {"type": "account", "name": "pool", "desc": "Pool Account"}
+      ],
+      "returns": {"type": "void"}
+    },
+    {
+      "name": "remove_liquidity",
+      "desc": "Burn pool liquidity assets and remove liquidity from pool.",
+      "args": [
+        {"type": "txn", "name": "send_liquidity_asset", "desc": "Transfer pool liquidity assets to pool."},
+        {"type": "asset", "name": "asset_1", "desc": "Asset 1 ID"},
+        {"type": "asset", "name": "asset_2", "desc": "Asset 2 ID (0 for Algo)"},
+        {"type": "account", "name": "pool", "desc": "Pool Account"}
+      ],
+      "returns": {"type": "void"}
+    },
+    {
+      "name": "swap",
+      "desc": "Swap on Tinyman.",
+      "args": [
+        {"type": "txn", "name": "send", "desc": "Transfer input asset or Algo to pool."},
+        {"type": "uint64", "name": "asset_1_id", "desc": "Asset 1 ID"},
+        {"type": "uint64", "name": "asset_2_id", "desc": "Asset 2 ID (0 for Algo)"},
+        {"type": "uint64", "name": "min_output", "desc": "Minimum output amount."},
+        {"type": "string", "name": "swap_mode", "desc": "Swap Mode. [fixed-output, fixed-input]"},
+        {"type": "asset", "name": "asset_1", "desc": "Asset 1 ID"},
+        {"type": "asset", "name": "asset_2", "desc": "Asset 2 ID (0 for Algo)"},
+        {"type": "account", "name": "pool", "desc": "Pool Account"}
+      ],
+      "returns": {"type": "void"}
+    },
+    {
+      "name": "flash",
+      "desc": "Flash.",
+      "args": [
+        {"type": "uint64", "name": "index_diff", "desc": "Group index differance between flash and verify flash transactions."},
+        {"type": "uint64", "name": "asset_1_amount", "desc": "Asset 1 loan amount"},
+        {"type": "uint64", "name": "asset_2_amount", "desc": "Asset 2 loan amount"},
+        {"type": "asset", "name": "asset_1", "desc": "Asset 1 ID"},
+        {"type": "asset", "name": "asset_2", "desc": "Asset 2 ID (0 for Algo)"},
+        {"type": "account", "name": "pool", "desc": "Pool Account"}
+      ],
+      "returns": {"type": "void"}
+    },
+    {
+      "name": "verify_flash",
+      "desc": "Verify Flash.",
+      "args": [
+        {"type": "uint64", "name": "index_diff", "desc": "Group index differance between flash and validate_flash transactions."},
+        {"type": "uint64", "name": "asset_1_amount", "desc": "Asset 1 loan amount"},
+        {"type": "uint64", "name": "asset_2_amount", "desc": "Asset 2 loan amount"},
+        {"type": "asset", "name": "asset_1", "desc": "Asset 1 ID"},
+        {"type": "asset", "name": "asset_2", "desc": "Asset 2 ID (0 for Algo)"},
+        {"type": "account", "name": "pool", "desc": "Pool Account"}
+      ],
+      "returns": {"type": "void"}
+    },
+    {
+      "name": "claim_fees",
+      "desc": "Claim Fees.",
+      "args": [
+        {"type": "asset", "name": "asset_1", "desc": "Asset 1 ID"},
+        {"type": "asset", "name": "asset_2", "desc": "Asset 2 ID (0 for Algo)"},
+        {"type": "account", "name": "pool", "desc": "Pool Account"}
+      ],
+      "returns": {"type": "void"}
+    },
+    {
+      "name": "claim_extra",
+      "desc": "Claim Extra.",
+      "args": [
+        {"type": "asset", "name": "asset_1", "desc": "Asset 1 ID"},
+        {"type": "asset", "name": "asset_2", "desc": "Asset 2 ID (0 for Algo)"},
+        {"type": "account", "name": "pool", "desc": "Pool Account"}
+      ],
+      "returns": {"type": "void"}
+    },
+    {
+      "name": "set_fee",
+      "desc": "Set Fee.",
+      "args": [
+        {"type": "uint64", "name": "poolers_fee_share", "desc": "Poolers fee share (Basis 10000)"},
+        {"type": "uint64", "name": "protocol_fee_share", "desc": "Protocol fee share (Basis 10000)"},
+        {"type": "account", "name": "pool", "desc": "Pool Account"}
+      ],
+      "returns": {"type": "void"}
+    }
+  ]
+}

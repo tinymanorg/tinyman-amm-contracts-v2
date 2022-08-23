@@ -52,6 +52,10 @@ bootstrap:
 txn ApplicationArgs 0
 pushbytes "bootstrap"
 ==
+txn ApplicationArgs 0
+pushbytes "\x1dd\x8dm"
+==
+||
 assert
 txn ApplicationArgs 1
 btoi
@@ -65,6 +69,10 @@ load 1 // asset_2_id
 assert
 load 0 // asset_1_id
 txn Assets 0
+==
+assert
+load 1 // asset_2_id
+txn Assets 1
 ==
 assert
 pushbytes ""
@@ -88,19 +96,7 @@ pushint 10000 // ASSET_MIN_TOTAL
 &&
 assert
 load 1 // asset_2_id
-pushint 0
-==
-bz l1_else
-pushint 1
-txn NumAssets
-==
-assert
-b l1_end
-l1_else:
-load 1 // asset_2_id
-txn Assets 1
-==
-assert
+bz l1_end
 load 1 // asset_2_id
 asset_params_get AssetUnitName
 store 2 // exists
@@ -117,6 +113,7 @@ pushint 10000 // ASSET_MIN_TOTAL
 >=
 &&
 assert
+b l1_end
 l1_end: // end
 pushbytes "TinymanPool2.0 "
 load 3 // asset_1_unit_name
@@ -395,7 +392,19 @@ pushbytes "protocol_fees_asset_2"
 app_local_get
 store 9 // protocol_fees_asset_2
 txn ApplicationArgs 0
+pushbytes "swap"
+==
+bnz main__amm__swap
+txn ApplicationArgs 0
+pushbytes "\xba'-\xc5" // ABI_SWAP
+==
+bnz main__amm__swap
+txn ApplicationArgs 0
 pushbytes "add_liquidity"
+==
+bnz main__amm__add_liquidity
+txn ApplicationArgs 0
+pushbytes "E\x1d\x91\xb3" // ABI_ADD_LIQUIDITY
 ==
 bnz main__amm__add_liquidity
 txn ApplicationArgs 0
@@ -403,11 +412,15 @@ pushbytes "remove_liquidity"
 ==
 bnz main__amm__remove_liquidity
 txn ApplicationArgs 0
-pushbytes "swap"
+pushbytes "\x10`^T" // ABI_REMOVE_LIQUIDITY
 ==
-bnz main__amm__swap
+bnz main__amm__remove_liquidity
 txn ApplicationArgs 0
 pushbytes "flash"
+==
+bnz main__amm__flash
+txn ApplicationArgs 0
+pushbytes "\x9bQA\x1c" // ABI_FLASH
 ==
 bnz main__amm__flash
 txn ApplicationArgs 0
@@ -415,7 +428,15 @@ pushbytes "verify_flash"
 ==
 bnz main__amm__verify_flash
 txn ApplicationArgs 0
+pushbytes "\xfd\xe6\xc1\xb5" // ABI_VERIFY_FLASH
+==
+bnz main__amm__verify_flash
+txn ApplicationArgs 0
 pushbytes "claim_fees"
+==
+bnz main__amm__claim_fees
+txn ApplicationArgs 0
+pushbytes "xb\xe4\xae" // ABI_CLAIM_FEES
 ==
 bnz main__amm__claim_fees
 txn ApplicationArgs 0
@@ -423,7 +444,15 @@ pushbytes "claim_extra"
 ==
 bnz main__amm__claim_extra
 txn ApplicationArgs 0
+pushbytes "z`\x8a\xa5" // ABI_CLAIM_EXTRA
+==
+bnz main__amm__claim_extra
+txn ApplicationArgs 0
 pushbytes "set_fee"
+==
+bnz main__amm__set_fee
+txn ApplicationArgs 0
+pushbytes "\xfe\x11\xcc[" // ABI_SET_FEE
 ==
 bnz main__amm__set_fee
 err // unexpected value
@@ -517,6 +546,10 @@ store 23 // change
 load 13 // mode
 pushbytes "fixed-input"
 ==
+load 13 // mode
+pushbytes "\x00\x0bfixed-input"
+==
+||
 bz l5_elif_0
 load 14 // input_amount
 callsub __func__calculate_fixed_input_fee_amounts
@@ -541,6 +574,10 @@ l5_elif_0:
 load 13 // mode
 pushbytes "fixed-output"
 ==
+load 13 // mode
+pushbytes "\x00\x0cfixed-output"
+==
+||
 bz l5_else
 load 12 // min_output
 store 22 // output_amount
@@ -697,6 +734,11 @@ load 13 // verify_flash_txn_index
 gtxnsa ApplicationArgs 0
 pushbytes "verify_flash"
 ==
+load 13 // verify_flash_txn_index
+gtxnsa ApplicationArgs 0
+pushbytes "\xfd\xe6\xc1\xb5" // ABI_VERIFY_FLASH
+==
+||
 assert
 load 13 // verify_flash_txn_index
 gtxnsa ApplicationArgs 1
@@ -757,6 +799,11 @@ load 13 // flash_txn_index
 gtxnsa ApplicationArgs 0
 pushbytes "flash"
 ==
+load 13 // flash_txn_index
+gtxnsa ApplicationArgs 0
+pushbytes "\x9bQA\x1c" // ABI_FLASH
+==
+||
 assert
 pushint 0
 store 14 // asset_1_repayment_amount

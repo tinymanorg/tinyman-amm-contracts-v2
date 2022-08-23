@@ -3,6 +3,7 @@
 
 
 
+
 // if Txn.ApplicationID == 0:
   txn ApplicationID
   pushint 0
@@ -90,10 +91,14 @@ bootstrap:
   // Pool Address (Sender) != SHA512_256("program" + bytes from template and args)
   // Address already opted in to app
   
-  // assert(Txn.ApplicationArgs[0] == "bootstrap")
+  // assert((Txn.ApplicationArgs[0] == "bootstrap") || (Txn.ApplicationArgs[0] == "\x1dd\x8dm"))
   txn ApplicationArgs 0
   pushbytes "bootstrap"
   ==
+  txn ApplicationArgs 0
+  pushbytes "\x1dd\x8dm"
+  ==
+  ||
   assert 
   
   // Ensure the same asset ids are included in Txn.ApplicationArgs and Txn.Assets
@@ -113,6 +118,11 @@ bootstrap:
   // assert(asset_1_id == Txn.Assets[0])
   load 0 // asset_1_id
   txn Assets 0
+  ==
+  assert 
+  // assert(asset_2_id == Txn.Assets[1])
+  load 1 // asset_2_id
+  txn Assets 1
   ==
   assert 
   
@@ -148,27 +158,10 @@ bootstrap:
   &&
   assert 
   
-  
-  // if asset_2_id == 0:
+  // if asset_2_id:
     load 1 // asset_2_id
-    pushint 0
-    ==
-    bz l1_else
+    bz l1_end
     // then:
-      // Asset 2 is Algo
-      // assert(1 == Txn.NumAssets)
-      pushint 1
-      txn NumAssets
-      ==
-      assert 
-    b l1_end
-    l1_else:
-    // else:
-      // assert(asset_2_id == Txn.Assets[1])
-      load 1 // asset_2_id
-      txn Assets 1
-      ==
-      assert 
       // exists, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
       load 1 // asset_2_id
       asset_params_get AssetUnitName
@@ -190,6 +183,7 @@ bootstrap:
       >=
       &&
       assert 
+    b l1_end
     l1_end: // end
   
   // byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name)) [slot 6]
@@ -593,7 +587,19 @@ main:
     
     // switch Txn.ApplicationArgs[0]:
     txn ApplicationArgs 0
+    pushbytes "swap"
+    ==
+    bnz main__amm__swap
+    txn ApplicationArgs 0
+    pushbytes "\xba'-\xc5" // ABI_SWAP
+    ==
+    bnz main__amm__swap
+    txn ApplicationArgs 0
     pushbytes "add_liquidity"
+    ==
+    bnz main__amm__add_liquidity
+    txn ApplicationArgs 0
+    pushbytes "E\x1d\x91\xb3" // ABI_ADD_LIQUIDITY
     ==
     bnz main__amm__add_liquidity
     txn ApplicationArgs 0
@@ -601,11 +607,15 @@ main:
     ==
     bnz main__amm__remove_liquidity
     txn ApplicationArgs 0
-    pushbytes "swap"
+    pushbytes "\x10`^T" // ABI_REMOVE_LIQUIDITY
     ==
-    bnz main__amm__swap
+    bnz main__amm__remove_liquidity
     txn ApplicationArgs 0
     pushbytes "flash"
+    ==
+    bnz main__amm__flash
+    txn ApplicationArgs 0
+    pushbytes "\x9bQA\x1c" // ABI_FLASH
     ==
     bnz main__amm__flash
     txn ApplicationArgs 0
@@ -613,7 +623,15 @@ main:
     ==
     bnz main__amm__verify_flash
     txn ApplicationArgs 0
+    pushbytes "\xfd\xe6\xc1\xb5" // ABI_VERIFY_FLASH
+    ==
+    bnz main__amm__verify_flash
+    txn ApplicationArgs 0
     pushbytes "claim_fees"
+    ==
+    bnz main__amm__claim_fees
+    txn ApplicationArgs 0
+    pushbytes "xb\xe4\xae" // ABI_CLAIM_FEES
     ==
     bnz main__amm__claim_fees
     txn ApplicationArgs 0
@@ -621,7 +639,15 @@ main:
     ==
     bnz main__amm__claim_extra
     txn ApplicationArgs 0
+    pushbytes "z`\x8a\xa5" // ABI_CLAIM_EXTRA
+    ==
+    bnz main__amm__claim_extra
+    txn ApplicationArgs 0
     pushbytes "set_fee"
+    ==
+    bnz main__amm__set_fee
+    txn ApplicationArgs 0
+    pushbytes "\xfe\x11\xcc[" // ABI_SET_FEE
     ==
     bnz main__amm__set_fee
     err // unexpected value
@@ -760,10 +786,14 @@ main:
       // int change = 0 [slot 23]
       pushint 0
       store 23 // change
-      // if mode == 'fixed-input':
+      // if (mode == 'fixed-input') || (mode == '\x00\x0bfixed-input'):
         load 13 // mode
         pushbytes "fixed-input"
         ==
+        load 13 // mode
+        pushbytes "\x00\x0bfixed-input"
+        ==
+        ||
         bz l5_elif_0
         // then:
           // total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(input_amount)
@@ -790,10 +820,14 @@ main:
           assert 
         b l5_end
         l5_elif_0:
-        // elif mode == 'fixed-output':
+        // elif (mode == 'fixed-output') || (mode == '\x00\x0cfixed-output'):
         load 13 // mode
         pushbytes "fixed-output"
         ==
+        load 13 // mode
+        pushbytes "\x00\x0cfixed-output"
+        ==
+        ||
         bz l5_else
           // output_amount = min_output
           load 12 // min_output
@@ -995,11 +1029,16 @@ main:
       global CurrentApplicationID
       ==
       assert 
-      // assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash")
+      // assert((Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash") || (Gtxn[verify_flash_txn_index].ApplicationArgs[0] == ABI_VERIFY_FLASH))
       load 13 // verify_flash_txn_index
       gtxnsa ApplicationArgs 0
       pushbytes "verify_flash"
       ==
+      load 13 // verify_flash_txn_index
+      gtxnsa ApplicationArgs 0
+      pushbytes "\xfd\xe6\xc1\xb5" // ABI_VERIFY_FLASH
+      ==
+      ||
       assert 
       // assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])     # index_diff
       load 13 // verify_flash_txn_index
@@ -1076,11 +1115,16 @@ main:
       global CurrentApplicationID
       ==
       assert 
-      // assert(Gtxn[flash_txn_index].ApplicationArgs[0] == "flash")
+      // assert((Gtxn[flash_txn_index].ApplicationArgs[0] == "flash") || (Gtxn[flash_txn_index].ApplicationArgs[0] == ABI_FLASH))
       load 13 // flash_txn_index
       gtxnsa ApplicationArgs 0
       pushbytes "flash"
       ==
+      load 13 // flash_txn_index
+      gtxnsa ApplicationArgs 0
+      pushbytes "\x9bQA\x1c" // ABI_FLASH
+      ==
+      ||
       assert 
       
       // int asset_1_repayment_amount = 0 [slot 14]
@@ -1718,6 +1762,7 @@ main:
           store 13 // asset_2_amount
         l21_end: // end
       
+      // TODO: Is it required? It projects the user but if the liquidity or share is too low, it may cause issues.
       // assert(asset_1_amount && asset_2_amount)
       load 12 // asset_1_amount
       load 13 // asset_2_amount
