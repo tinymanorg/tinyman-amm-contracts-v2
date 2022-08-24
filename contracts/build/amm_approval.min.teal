@@ -14,7 +14,6 @@ txn Sender
 app_global_put
 pushint 1
 return
-b l0_end
 l0_end: // end
 txn OnCompletion
 pushint 0 // NoOp
@@ -218,7 +217,6 @@ itxn_field Amount
 pushint 0
 itxn_field Fee
 itxn_submit
-b l2_end
 l2_end: // end
 itxn_begin
 pushint 4 // Axfer
@@ -561,13 +559,12 @@ store 24 // total_input_amount
 load 14 // input_amount
 load 24 // total_input_amount
 -
-store 25 // change
-load 25 // change
+store 23 // change
+load 23 // change
 bz l6_end
 load 10 // input_asset_id
-load 25 // change
+load 23 // change
 callsub main__amm__func__transfer_to_user
-b l6_end
 l6_end: // end
 b l5_end
 l5_else:
@@ -599,7 +596,7 @@ itob
 concat
 log
 pushbytes "change %i"
-load 25 // change
+load 23 // change
 itob
 concat
 log
@@ -702,30 +699,28 @@ load 13 // verify_flash_txn_index
 gtxnsa ApplicationArgs 1
 txn ApplicationArgs 1
 ==
-assert
+assert // index_diff
 load 13 // verify_flash_txn_index
 gtxnsa ApplicationArgs 2
 txn ApplicationArgs 2
 ==
-assert
+assert // asset_1_amount
 load 13 // verify_flash_txn_index
 gtxnsa ApplicationArgs 3
 txn ApplicationArgs 3
 ==
-assert
+assert // asset_2_amount
 load 11 // asset_1_amount
 bz l8_end
 load 2 // asset_1_id
 load 11 // asset_1_amount
 callsub main__amm__func__transfer_to_user
-b l8_end
 l8_end: // end
 load 12 // asset_2_amount
 bz l9_end
 load 3 // asset_2_id
 load 12 // asset_2_amount
 callsub main__amm__func__transfer_to_user
-b l9_end
 l9_end: // end
 pushint 1
 return
@@ -809,18 +804,17 @@ load 19 // asset_1_txn_index
 gtxns AssetAmount
 load 14 // asset_1_repayment_amount
 >=
-assert
+assert // # TODO: This line can be removed for optimization.
 load 19 // asset_1_txn_index
 gtxns AssetAmount
 load 14 // asset_1_repayment_amount
 -
-store 20 // change
-load 20 // change
+store 20 // asset_1_change
+load 20 // asset_1_change
 bz l12_end
 load 2 // asset_1_id
-load 20 // change
+load 20 // asset_1_change
 callsub main__amm__func__transfer_to_user
-b l12_end
 l12_end: // end
 load 8 // protocol_fees_asset_1
 load 18 // asset_1_protocol_fee_amount
@@ -830,7 +824,6 @@ load 5 // asset_1_reserves
 load 17 // asset_1_poolers_fee_amount
 +
 store 5 // asset_1_reserves
-b l10_end
 l10_end: // end
 load 12 // asset_2_amount
 bz l13_end
@@ -852,7 +845,7 @@ pushint 1
 -
 store 24 // asset_2_txn_index
 pushint 0
-store 25 // change
+store 25 // asset_2_change
 load 3 // asset_2_id
 pushint 0
 ==
@@ -871,12 +864,12 @@ load 24 // asset_2_txn_index
 gtxns Amount
 load 15 // asset_2_repayment_amount
 >=
-assert
+assert // # TODO: This line can be removed for optimization.
 load 24 // asset_2_txn_index
 gtxns Amount
 load 15 // asset_2_repayment_amount
 -
-store 25 // change
+store 25 // asset_2_change
 b l14_end
 l14_else:
 load 24 // asset_2_txn_index
@@ -898,19 +891,18 @@ load 24 // asset_2_txn_index
 gtxns AssetAmount
 load 15 // asset_2_repayment_amount
 >=
-assert
+assert // # TODO: This line can be removed for optimization.
 load 24 // asset_2_txn_index
 gtxns AssetAmount
 load 15 // asset_2_repayment_amount
 -
-store 25 // change
+store 25 // asset_2_change
 l14_end: // end
-load 25 // change
+load 25 // asset_2_change
 bz l15_end
 load 3 // asset_2_id
-load 25 // change
+load 25 // asset_2_change
 callsub main__amm__func__transfer_to_user
-b l15_end
 l15_end: // end
 load 9 // protocol_fees_asset_2
 load 23 // asset_2_protocol_fee_amount
@@ -920,7 +912,6 @@ load 6 // asset_2_reserves
 load 22 // asset_2_poolers_fee_amount
 +
 store 6 // asset_2_reserves
-b l13_end
 l13_end: // end
 pushint 1
 pushbytes "asset_1_reserves"
@@ -1057,16 +1048,15 @@ load 19 // expected_asset_1_amount
 pushint 1
 +
 store 19 // expected_asset_1_amount
-b l19_end
 l19_end: // end
 load 11 // asset_1_amount
 load 19 // expected_asset_1_amount
 -
-store 20 // change
+store 20 // asset_1_change
 load 19 // expected_asset_1_amount
 store 11 // asset_1_amount
 load 2 // asset_1_id
-load 20 // change
+load 20 // asset_1_change
 callsub main__amm__func__transfer_to_user
 b l18_end
 l18_else:
@@ -1092,16 +1082,15 @@ load 21 // expected_asset_2_amount
 pushint 1
 +
 store 21 // expected_asset_2_amount
-b l20_end
 l20_end: // end
 load 13 // asset_2_amount
 load 21 // expected_asset_2_amount
 -
-store 22 // change
+store 22 // asset_2_change
 load 21 // expected_asset_2_amount
 store 13 // asset_2_amount
 load 3 // asset_2_id
-load 22 // change
+load 22 // asset_2_change
 callsub main__amm__func__transfer_to_user
 l18_end: // end
 load 7 // issued_pool_tokens
@@ -1436,7 +1425,6 @@ pushint 1
 pushbytes "cumulative_price_update_timestamp"
 global LatestTimestamp
 app_local_put
-b l23_end
 l23_end: // end
 retsub
 __func__calculate_fixed_input_fee_amounts:

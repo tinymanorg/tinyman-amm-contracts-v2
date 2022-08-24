@@ -324,7 +324,7 @@ block main:
                 swap_amount = calculate_fixed_output_swap(input_supply, output_supply, output_amount)
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
                 int total_input_amount = swap_amount + total_fee_amount
-                int change = input_amount - total_input_amount
+                change = input_amount - total_input_amount
                 if change:
                     transfer_to_user(input_asset_id, change)
                 end
@@ -372,9 +372,9 @@ block main:
             assert(Gtxn[verify_flash_txn_index].TypeEnum == Appl)
             assert(Gtxn[verify_flash_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash")
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])     # index_diff
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[2] == Txn.ApplicationArgs[2])     # asset_1_amount
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[3] == Txn.ApplicationArgs[3])     # asset_2_amount
+            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[2] == Txn.ApplicationArgs[2], "asset_1_amount")
+            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[3] == Txn.ApplicationArgs[3], "asset_2_amount")
 
             if asset_1_amount:
                 transfer_to_user(asset_1_id, asset_1_amount)
@@ -416,11 +416,11 @@ block main:
                 assert(Gtxn[asset_1_txn_index].TypeEnum == Axfer)
                 assert(Gtxn[asset_1_txn_index].AssetReceiver == pool_address)
                 assert(Gtxn[asset_1_txn_index].XferAsset == asset_1_id)
-                assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount)         # TODO: This line can be removed for optimization.
+                assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount, "# TODO: This line can be removed for optimization.")
                 
-                int change = Gtxn[asset_1_txn_index].AssetAmount - asset_1_repayment_amount
-                if change:
-                    transfer_to_user(asset_1_id, change)
+                int asset_1_change = Gtxn[asset_1_txn_index].AssetAmount - asset_1_repayment_amount
+                if asset_1_change:
+                    transfer_to_user(asset_1_id, asset_1_change)
                 end
 
                 protocol_fees_asset_1 = protocol_fees_asset_1 + asset_1_protocol_fee_amount
@@ -436,22 +436,22 @@ block main:
                 assert(asset_2_repayment_amount > asset_2_amount)
 
                 int asset_2_txn_index = Txn.GroupIndex - 1
-                int change = 0
+                int asset_2_change = 0
                 if asset_2_id == 0:
                     assert(Gtxn[asset_2_txn_index].TypeEnum == Pay)
                     assert(Gtxn[asset_2_txn_index].Receiver == pool_address)
-                    assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount)          # TODO: This line can be removed for optimization.
-                    change = Gtxn[asset_2_txn_index].Amount - asset_2_repayment_amount
+                    assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount, "# TODO: This line can be removed for optimization.")
+                    asset_2_change = Gtxn[asset_2_txn_index].Amount - asset_2_repayment_amount
                 else:
                     assert(Gtxn[asset_2_txn_index].TypeEnum == Axfer)
                     assert(Gtxn[asset_2_txn_index].AssetReceiver == pool_address)
                     assert(Gtxn[asset_2_txn_index].XferAsset == asset_2_id)
-                    assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount)     # TODO: This line can be removed for optimization.
-                    change = Gtxn[asset_2_txn_index].AssetAmount - asset_2_repayment_amount
+                    assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount, "# TODO: This line can be removed for optimization.")
+                    asset_2_change = Gtxn[asset_2_txn_index].AssetAmount - asset_2_repayment_amount
                 end
 
-                if change:
-                    transfer_to_user(asset_2_id, change)
+                if asset_2_change:
+                    transfer_to_user(asset_2_id, asset_2_change)
                 end
 
                 protocol_fees_asset_2 = protocol_fees_asset_2 + asset_2_protocol_fee_amount
@@ -512,9 +512,9 @@ block main:
                         expected_asset_1_amount = expected_asset_1_amount + 1
                     end
                     
-                    int change = asset_1_amount - expected_asset_1_amount
+                    int asset_1_change = asset_1_amount - expected_asset_1_amount
                     asset_1_amount = expected_asset_1_amount
-                    transfer_to_user(asset_1_id, change)
+                    transfer_to_user(asset_1_id, asset_1_change)
                 else:
                     # Less of asset 1 supplied. Pool tokens will be issued proportionally to asset_1_amount (a)
                     # Calculate amount of asset 2 to return to user as change
@@ -526,9 +526,9 @@ block main:
                         expected_asset_2_amount = expected_asset_2_amount + 1
                     end
 
-                    int change = asset_2_amount - expected_asset_2_amount
+                    int asset_2_change = asset_2_amount - expected_asset_2_amount
                     asset_2_amount = expected_asset_2_amount
-                    transfer_to_user(asset_2_id, change)
+                    transfer_to_user(asset_2_id, asset_2_change)
                 end
                 issued_pool_tokens = issued_pool_tokens + pool_tokens_out
                 asset_1_reserves = asset_1_reserves + asset_1_amount
