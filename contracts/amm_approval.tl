@@ -376,8 +376,6 @@ block main:
             assert(Gtxn[verify_flash_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash")
             assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[2] == Txn.ApplicationArgs[2], "asset_1_amount")
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[3] == Txn.ApplicationArgs[3], "asset_2_amount")
 
             if asset_1_amount:
                 transfer_to_user(asset_1_id, asset_1_amount)
@@ -398,21 +396,20 @@ block main:
             # Gtxn[X]: Verify Flash AppCall from User
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
-            int asset_1_amount = btoi(Txn.ApplicationArgs[2])
-            int asset_2_amount = btoi(Txn.ApplicationArgs[3])
-
             int flash_txn_index = Txn.GroupIndex - index_diff
             assert(Gtxn[flash_txn_index].TypeEnum == Appl)
             assert(Gtxn[flash_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_txn_index].ApplicationArgs[0] == "flash")
-
-            int asset_1_repayment_amount = 0
-            int asset_2_repayment_amount = 0
+            assert(Gtxn[flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            int asset_1_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[2])
+            int asset_2_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[3])
 
             if asset_1_amount:
                 int asset_1_total_fee_amount
                 int asset_1_poolers_fee_amount
                 int asset_1_protocol_fee_amount
+                int asset_1_repayment_amount
+                
                 asset_1_total_fee_amount, asset_1_poolers_fee_amount, asset_1_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_amount)
                 asset_1_repayment_amount = asset_1_amount + asset_1_total_fee_amount
                 assert(asset_1_repayment_amount > asset_1_amount)
@@ -442,6 +439,8 @@ block main:
                 int asset_2_total_fee_amount
                 int asset_2_poolers_fee_amount
                 int asset_2_protocol_fee_amount
+                int asset_2_repayment_amount
+                
                 asset_2_total_fee_amount, asset_2_poolers_fee_amount, asset_2_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_2_amount)
                 asset_2_repayment_amount = asset_2_amount + asset_2_total_fee_amount
                 assert(asset_2_repayment_amount > asset_2_amount)
