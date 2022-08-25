@@ -950,6 +950,9 @@ main:
     main__amm__flash:
       // update_price_oracle()
       callsub main__amm__func__update_price_oracle
+      // Gtxn[X]: Flash AppCall from User
+      // itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
+      // itxn: Transfer Asset 2 to User from Pool if Asset 2 is requested
       
       // int index_diff = btoi(Txn.ApplicationArgs[1]) [slot 10]
       txn ApplicationArgs 1
@@ -1041,6 +1044,14 @@ main:
     
     // block verify_flash
     main__amm__verify_flash:
+      // if borrowed in two assets:
+      // Gtxn[X-2]: Transfer Asset 1 to Pool
+      // Gtxn[X-1]: Transfer Asset 2 to Pool
+      // if borrowed single asset:
+      // Gtxn[X-1]: Transfer borrowed Asset to Pool
+      
+      // Gtxn[X]: Verify Flash AppCall from User
+      
       // int index_diff = btoi(Txn.ApplicationArgs[1]) [slot 10]
       txn ApplicationArgs 1
       btoi
@@ -1147,27 +1158,29 @@ main:
           load 2 // asset_1_id
           ==
           assert
-          // assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount, "# TODO: This line can be removed for optimization.")
+          // assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount)
           load 19 // asset_1_txn_index
           gtxns AssetAmount
           load 14 // asset_1_repayment_amount
           >=
-          assert // # TODO: This line can be removed for optimization.
+          assert
           
-          // int asset_1_change = Gtxn[asset_1_txn_index].AssetAmount - asset_1_repayment_amount [slot 20]
+          // int asset_1_donation = Gtxn[asset_1_txn_index].AssetAmount - asset_1_repayment_amount [slot 20]
           load 19 // asset_1_txn_index
           gtxns AssetAmount
           load 14 // asset_1_repayment_amount
           -
-          store 20 // asset_1_change
-          // if asset_1_change:
-            load 20 // asset_1_change
+          store 20 // asset_1_donation
+          // if asset_1_donation:
+            load 20 // asset_1_donation
             bz l12_end
             // then:
-              // transfer_to_user(asset_1_id, asset_1_change)
-              load 2 // asset_1_id
-              load 20 // asset_1_change
-              callsub main__amm__func__transfer_to_user
+              // log(concat("asset_1_donation %i", itob(asset_1_donation)))
+              pushbytes "asset_1_donation %i"
+              load 20 // asset_1_donation
+              itob
+              concat
+              log
             l12_end: // end
           
           // protocol_fees_asset_1 = protocol_fees_asset_1 + asset_1_protocol_fee_amount
@@ -1211,9 +1224,9 @@ main:
           pushint 1
           -
           store 24 // asset_2_txn_index
-          // int asset_2_change = 0 [slot 25]
+          // int asset_2_donation = 0 [slot 25]
           pushint 0
-          store 25 // asset_2_change
+          store 25 // asset_2_donation
           // if asset_2_id == 0:
             load 3 // asset_2_id
             pushint 0
@@ -1232,18 +1245,18 @@ main:
               load 1 // pool_address
               ==
               assert
-              // assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount, "# TODO: This line can be removed for optimization.")
+              // assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount)
               load 24 // asset_2_txn_index
               gtxns Amount
               load 15 // asset_2_repayment_amount
               >=
-              assert // # TODO: This line can be removed for optimization.
-              // asset_2_change = Gtxn[asset_2_txn_index].Amount - asset_2_repayment_amount
+              assert
+              // asset_2_donation = Gtxn[asset_2_txn_index].Amount - asset_2_repayment_amount
               load 24 // asset_2_txn_index
               gtxns Amount
               load 15 // asset_2_repayment_amount
               -
-              store 25 // asset_2_change
+              store 25 // asset_2_donation
             b l14_end
             l14_else:
             // else:
@@ -1265,28 +1278,30 @@ main:
               load 3 // asset_2_id
               ==
               assert
-              // assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount, "# TODO: This line can be removed for optimization.")
+              // assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount)
               load 24 // asset_2_txn_index
               gtxns AssetAmount
               load 15 // asset_2_repayment_amount
               >=
-              assert // # TODO: This line can be removed for optimization.
-              // asset_2_change = Gtxn[asset_2_txn_index].AssetAmount - asset_2_repayment_amount
+              assert
+              // asset_2_donation = Gtxn[asset_2_txn_index].AssetAmount - asset_2_repayment_amount
               load 24 // asset_2_txn_index
               gtxns AssetAmount
               load 15 // asset_2_repayment_amount
               -
-              store 25 // asset_2_change
+              store 25 // asset_2_donation
             l14_end: // end
           
-          // if asset_2_change:
-            load 25 // asset_2_change
+          // if asset_2_donation:
+            load 25 // asset_2_donation
             bz l15_end
             // then:
-              // transfer_to_user(asset_2_id, asset_2_change)
-              load 3 // asset_2_id
-              load 25 // asset_2_change
-              callsub main__amm__func__transfer_to_user
+              // log(concat("asset_2_donation %i", itob(asset_2_donation)))
+              pushbytes "asset_2_donation %i"
+              load 25 // asset_2_donation
+              itob
+              concat
+              log
             l15_end: // end
           
           // protocol_fees_asset_2 = protocol_fees_asset_2 + asset_2_protocol_fee_amount

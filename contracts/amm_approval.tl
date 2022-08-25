@@ -361,6 +361,9 @@ block main:
 
         block flash:
             update_price_oracle()
+            # Gtxn[X]: Flash AppCall from User
+            #   itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
+            #   itxn: Transfer Asset 2 to User from Pool if Asset 2 is requested
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
             int asset_1_amount = btoi(Txn.ApplicationArgs[2])
@@ -386,6 +389,14 @@ block main:
         end
 
         block verify_flash:
+            # if borrowed in two assets:
+            #   Gtxn[X-2]: Transfer Asset 1 to Pool
+            #   Gtxn[X-1]: Transfer Asset 2 to Pool
+            # if borrowed single asset:
+            #   Gtxn[X-1]: Transfer borrowed Asset to Pool
+
+            # Gtxn[X]: Verify Flash AppCall from User
+
             int index_diff = btoi(Txn.ApplicationArgs[1])
             int asset_1_amount = btoi(Txn.ApplicationArgs[2])
             int asset_2_amount = btoi(Txn.ApplicationArgs[3])
@@ -416,11 +427,11 @@ block main:
                 assert(Gtxn[asset_1_txn_index].TypeEnum == Axfer)
                 assert(Gtxn[asset_1_txn_index].AssetReceiver == pool_address)
                 assert(Gtxn[asset_1_txn_index].XferAsset == asset_1_id)
-                assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount, "# TODO: This line can be removed for optimization.")
+                assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount)
                 
-                int asset_1_change = Gtxn[asset_1_txn_index].AssetAmount - asset_1_repayment_amount
-                if asset_1_change:
-                    transfer_to_user(asset_1_id, asset_1_change)
+                int asset_1_donation = Gtxn[asset_1_txn_index].AssetAmount - asset_1_repayment_amount
+                if asset_1_donation:
+                    log(concat("asset_1_donation %i", itob(asset_1_donation)))
                 end
 
                 protocol_fees_asset_1 = protocol_fees_asset_1 + asset_1_protocol_fee_amount
@@ -436,22 +447,22 @@ block main:
                 assert(asset_2_repayment_amount > asset_2_amount)
 
                 int asset_2_txn_index = Txn.GroupIndex - 1
-                int asset_2_change = 0
+                int asset_2_donation = 0
                 if asset_2_id == 0:
                     assert(Gtxn[asset_2_txn_index].TypeEnum == Pay)
                     assert(Gtxn[asset_2_txn_index].Receiver == pool_address)
-                    assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount, "# TODO: This line can be removed for optimization.")
-                    asset_2_change = Gtxn[asset_2_txn_index].Amount - asset_2_repayment_amount
+                    assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount)
+                    asset_2_donation = Gtxn[asset_2_txn_index].Amount - asset_2_repayment_amount
                 else:
                     assert(Gtxn[asset_2_txn_index].TypeEnum == Axfer)
                     assert(Gtxn[asset_2_txn_index].AssetReceiver == pool_address)
                     assert(Gtxn[asset_2_txn_index].XferAsset == asset_2_id)
-                    assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount, "# TODO: This line can be removed for optimization.")
-                    asset_2_change = Gtxn[asset_2_txn_index].AssetAmount - asset_2_repayment_amount
+                    assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount)
+                    asset_2_donation = Gtxn[asset_2_txn_index].AssetAmount - asset_2_repayment_amount
                 end
 
-                if asset_2_change:
-                    transfer_to_user(asset_2_id, asset_2_change)
+                if asset_2_donation:
+                    log(concat("asset_2_donation %i", itob(asset_2_donation)))
                 end
 
                 protocol_fees_asset_2 = protocol_fees_asset_2 + asset_2_protocol_fee_amount

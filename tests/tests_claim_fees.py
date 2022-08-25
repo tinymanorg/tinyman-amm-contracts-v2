@@ -5,7 +5,6 @@ from algojig.exceptions import LogicEvalError
 from algojig.ledger import JigLedger
 from algosdk.account import generate_account
 from algosdk.encoding import decode_address
-from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
@@ -45,9 +44,8 @@ class TestClaimFees(BaseTestCase):
         asset_2_fee_amount = 10_000
         self.set_pool_protocol_fees(asset_1_fee_amount, asset_2_fee_amount)
 
-        txn_group = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        txns = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        stxns = self.sign_txns(txns, fee_collector_sk)
 
         block = self.ledger.eval_transactions(stxns)
         block_txns = block[b'txns']
@@ -64,7 +62,6 @@ class TestClaimFees(BaseTestCase):
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
                 b'fv': ANY,
-                b'grp': ANY,
                 b'lv': ANY,
                 b'snd': decode_address(fee_collector),
                 b'type': b'appl'
@@ -117,9 +114,8 @@ class TestClaimFees(BaseTestCase):
         asset_2_fee_amount = 0
         self.set_pool_protocol_fees(asset_1_fee_amount, asset_2_fee_amount)
 
-        txn_group = self.get_claim_fee_transactions(fee_collector=self.user_addr, app_call_fee=3_000)
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, self.user_sk)
+        txns = self.get_claim_fee_transactions(fee_collector=self.user_addr, app_call_fee=3_000)
+        stxns = self.sign_txns(txns, self.user_sk)
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
@@ -136,9 +132,8 @@ class TestClaimFees(BaseTestCase):
         asset_2_fee_amount = 0
         self.set_pool_protocol_fees(asset_1_fee_amount, asset_2_fee_amount)
 
-        txn_group = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        txns = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        stxns = self.sign_txns(txns, fee_collector_sk)
 
         block = self.ledger.eval_transactions(stxns)
         block_txns = block[b'txns']
@@ -197,9 +192,8 @@ class TestClaimFees(BaseTestCase):
         asset_2_fee_amount = 0
         self.set_pool_protocol_fees(asset_1_fee_amount, asset_2_fee_amount)
 
-        txn_group = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        txns = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        stxns = self.sign_txns(txns, fee_collector_sk)
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
@@ -214,9 +208,8 @@ class TestClaimFees(BaseTestCase):
         asset_2_fee_amount = 10_000
         self.set_pool_protocol_fees(asset_1_fee_amount, asset_2_fee_amount)
 
-        txn_group = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        txns = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        stxns = self.sign_txns(txns, fee_collector_sk)
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
@@ -254,9 +247,8 @@ class TestClaimFeesAlgoPair(BaseTestCase):
         asset_2_fee_amount = 10_000
         self.set_pool_protocol_fees(asset_1_fee_amount, asset_2_fee_amount)
 
-        txn_group = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        txns = self.get_claim_fee_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        stxns = self.sign_txns(txns, fee_collector_sk)
 
         block = self.ledger.eval_transactions(stxns)
         block_txns = block[b'txns']
@@ -273,7 +265,6 @@ class TestClaimFeesAlgoPair(BaseTestCase):
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
                 b'fv': ANY,
-                b'grp': ANY,
                 b'lv': ANY,
                 b'snd': decode_address(fee_collector),
                 b'type': b'appl'
