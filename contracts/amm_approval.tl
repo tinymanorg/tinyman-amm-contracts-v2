@@ -354,6 +354,7 @@ block main:
 
             # itxn[0]: Transfer Asset 2 to User from Pool
 
+            byte k_initial = itob(asset_1_reserves) b* itob(asset_2_reserves)
             int input_asset_id = btoi(Txn.ApplicationArgs[1])
             int output_asset_id = btoi(Txn.ApplicationArgs[2])
             int min_output = btoi(Txn.ApplicationArgs[3])
@@ -397,12 +398,18 @@ block main:
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(input_amount)
                 swap_amount = input_amount - total_fee_amount
                 output_amount = calculate_fixed_input_swap(input_supply, output_supply, swap_amount)
+
+                assert(total_fee_amount, "If the amount is too small, total fee amount is rounded to 0.")
                 assert(output_amount >= min_output)
             elif mode == 'fixed-output':
                 output_amount = min_output
                 swap_amount = calculate_fixed_output_swap(input_supply, output_supply, output_amount)
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
                 int total_input_amount = swap_amount + total_fee_amount
+
+                assert(total_fee_amount, "If the amount is too small, total fee amount is rounded to 0.")
+                assert(input_amount >= total_input_amount)
+
                 change = input_amount - total_input_amount
                 if change:
                     transfer_to_user(input_asset_id, change)
@@ -430,6 +437,7 @@ block main:
 
             transfer_to_user(output_asset_id, output_amount)
 
+            assert(k_initial b< (itob(asset_1_reserves) b* itob(asset_2_reserves)), "Assert K<K'")
             # State updates
             app_local_put(1, "asset_1_reserves", asset_1_reserves)
             app_local_put(1, "asset_2_reserves", asset_2_reserves)
@@ -440,6 +448,9 @@ block main:
 
         block flash:
             update_price_oracle()
+            # Gtxn[X]: Flash AppCall from User
+            #   itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
+            #   itxn: Transfer Asset 2 to User from Pool if Asset 2 is requested
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
             int asset_1_amount = btoi(Txn.ApplicationArgs[2])
@@ -452,35 +463,42 @@ block main:
             assert(Gtxn[verify_flash_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash")
             assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[2] == Txn.ApplicationArgs[2], "asset_1_amount")
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[3] == Txn.ApplicationArgs[3], "asset_2_amount")
 
             if asset_1_amount:
+                assert(asset_1_amount <= asset_1_reserves)
                 transfer_to_user(asset_1_id, asset_1_amount)
             end
             if asset_2_amount:
+                assert(asset_2_amount <= asset_2_reserves)
                 transfer_to_user(asset_2_id, asset_2_amount)
             end
             exit(1)
         end
 
         block verify_flash:
-            int index_diff = btoi(Txn.ApplicationArgs[1])
-            int asset_1_amount = btoi(Txn.ApplicationArgs[2])
-            int asset_2_amount = btoi(Txn.ApplicationArgs[3])
+            # if borrowed in two assets:
+            #   Gtxn[X-2]: Transfer Asset 1 to Pool
+            #   Gtxn[X-1]: Transfer Asset 2 to Pool
+            # if borrowed single asset:
+            #   Gtxn[X-1]: Transfer borrowed Asset to Pool
 
+            # Gtxn[X]: Verify Flash AppCall from User
+
+            int index_diff = btoi(Txn.ApplicationArgs[1])
             int flash_txn_index = Txn.GroupIndex - index_diff
             assert(Gtxn[flash_txn_index].TypeEnum == Appl)
             assert(Gtxn[flash_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_txn_index].ApplicationArgs[0] == "flash")
-
-            int asset_1_repayment_amount = 0
-            int asset_2_repayment_amount = 0
+            assert(Gtxn[flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            int asset_1_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[2])
+            int asset_2_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[3])
 
             if asset_1_amount:
                 int asset_1_total_fee_amount
                 int asset_1_poolers_fee_amount
                 int asset_1_protocol_fee_amount
+                int asset_1_repayment_amount
+                
                 asset_1_total_fee_amount, asset_1_poolers_fee_amount, asset_1_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_amount)
                 asset_1_repayment_amount = asset_1_amount + asset_1_total_fee_amount
                 assert(asset_1_repayment_amount > asset_1_amount)
@@ -495,11 +513,11 @@ block main:
                 assert(Gtxn[asset_1_txn_index].TypeEnum == Axfer)
                 assert(Gtxn[asset_1_txn_index].AssetReceiver == pool_address)
                 assert(Gtxn[asset_1_txn_index].XferAsset == asset_1_id)
-                assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount, "# TODO: This line can be removed for optimization.")
+                assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount)
                 
-                int asset_1_change = Gtxn[asset_1_txn_index].AssetAmount - asset_1_repayment_amount
-                if asset_1_change:
-                    transfer_to_user(asset_1_id, asset_1_change)
+                int asset_1_donation = Gtxn[asset_1_txn_index].AssetAmount - asset_1_repayment_amount
+                if asset_1_donation:
+                    log(concat("asset_1_donation %i", itob(asset_1_donation)))
                 end
 
                 protocol_fees_asset_1 = protocol_fees_asset_1 + asset_1_protocol_fee_amount
@@ -510,27 +528,29 @@ block main:
                 int asset_2_total_fee_amount
                 int asset_2_poolers_fee_amount
                 int asset_2_protocol_fee_amount
+                int asset_2_repayment_amount
+                
                 asset_2_total_fee_amount, asset_2_poolers_fee_amount, asset_2_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_2_amount)
                 asset_2_repayment_amount = asset_2_amount + asset_2_total_fee_amount
                 assert(asset_2_repayment_amount > asset_2_amount)
 
                 int asset_2_txn_index = Txn.GroupIndex - 1
-                int asset_2_change = 0
+                int asset_2_donation = 0
                 if asset_2_id == 0:
                     assert(Gtxn[asset_2_txn_index].TypeEnum == Pay)
                     assert(Gtxn[asset_2_txn_index].Receiver == pool_address)
-                    assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount, "# TODO: This line can be removed for optimization.")
-                    asset_2_change = Gtxn[asset_2_txn_index].Amount - asset_2_repayment_amount
+                    assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount)
+                    asset_2_donation = Gtxn[asset_2_txn_index].Amount - asset_2_repayment_amount
                 else:
                     assert(Gtxn[asset_2_txn_index].TypeEnum == Axfer)
                     assert(Gtxn[asset_2_txn_index].AssetReceiver == pool_address)
                     assert(Gtxn[asset_2_txn_index].XferAsset == asset_2_id)
-                    assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount, "# TODO: This line can be removed for optimization.")
-                    asset_2_change = Gtxn[asset_2_txn_index].AssetAmount - asset_2_repayment_amount
+                    assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount)
+                    asset_2_donation = Gtxn[asset_2_txn_index].AssetAmount - asset_2_repayment_amount
                 end
 
-                if asset_2_change:
-                    transfer_to_user(asset_2_id, asset_2_change)
+                if asset_2_donation:
+                    log(concat("asset_2_donation %i", itob(asset_2_donation)))
                 end
 
                 protocol_fees_asset_2 = protocol_fees_asset_2 + asset_2_protocol_fee_amount
@@ -720,7 +740,8 @@ func calculate_fixed_input_swap(input_supply: int, output_supply: int, swap_amou
     # k = input_supply * output_supply
     # output_amount = output_supply - (k / (input_supply + swap_amount))
     byte k = itob(input_supply) b* itob(output_supply)
-    int output_amount = output_supply - btoi((k b/ itob(input_supply + swap_amount)))
+    # +1 for Round Up
+    int output_amount = output_supply - (btoi((k b/ itob(input_supply + swap_amount))) + 1)
     return output_amount
 end
 
@@ -730,7 +751,8 @@ func calculate_fixed_output_swap(input_supply: int, output_supply: int, output_a
     # k = input_supply * output_supply
     # input_amount = (k / (output_supply - asset_out_amount)) - input_supply
     byte k = itob(input_supply) b* itob(output_supply)
-    int input_amount = btoi((k b/ itob(output_supply - output_amount))) - input_supply
+    # +1 for Round Up
+    int input_amount = (btoi((k b/ itob(output_supply - output_amount))) + 1) - input_supply
     return input_amount
 end
 

@@ -387,150 +387,6 @@ txna Accounts 1
 app_global_put
 pushint 1
 return
-main__claim_fees:
-txna Accounts 1
-store 1 // pool_address
-pushint 1
-pushbytes "asset_1_id"
-app_local_get
-store 2 // asset_1_id
-pushint 1
-pushbytes "asset_2_id"
-app_local_get
-store 3 // asset_2_id
-pushint 1
-pushbytes "protocol_fees_asset_1"
-app_local_get
-store 4 // protocol_fees_asset_1
-pushint 1
-pushbytes "protocol_fees_asset_2"
-app_local_get
-store 5 // protocol_fees_asset_2
-load 0 // user_address
-pushbytes "fee_collector"
-app_global_get
-==
-assert
-load 4 // protocol_fees_asset_1
-load 5 // protocol_fees_asset_2
-||
-assert
-load 2 // asset_1_id
-load 4 // protocol_fees_asset_1
-load 1 // pool_address
-load 0 // user_address
-callsub __func__transfer
-load 3 // asset_2_id
-load 5 // protocol_fees_asset_2
-load 1 // pool_address
-load 0 // user_address
-callsub __func__transfer
-pushint 1
-pushbytes "protocol_fees_asset_1"
-pushint 0
-app_local_put
-pushint 1
-pushbytes "protocol_fees_asset_2"
-pushint 0
-app_local_put
-pushint 1
-return
-main__claim_extra:
-txna Accounts 1
-store 1 // pool_address
-pushint 1
-pushbytes "asset_1_id"
-app_local_get
-store 2 // asset_1_id
-pushint 1
-pushbytes "asset_2_id"
-app_local_get
-store 3 // asset_2_id
-load 0 // user_address
-pushbytes "fee_collector"
-app_global_get
-==
-assert
-pushint 1
-load 2 // asset_1_id
-callsub __func__get_balance
-pushint 1
-pushbytes "asset_1_reserves"
-app_local_get
-pushint 1
-pushbytes "protocol_fees_asset_1"
-app_local_get
-+
--
-store 4 // asset_1_amount
-pushint 1
-load 3 // asset_2_id
-callsub __func__get_balance
-pushint 1
-pushbytes "asset_2_reserves"
-app_local_get
-pushint 1
-pushbytes "protocol_fees_asset_2"
-app_local_get
-+
--
-store 5 // asset_2_amount
-load 4 // asset_1_amount
-load 5 // asset_2_amount
-||
-assert
-load 2 // asset_1_id
-load 4 // asset_1_amount
-load 1 // pool_address
-load 0 // user_address
-callsub __func__transfer
-load 3 // asset_2_id
-load 5 // asset_2_amount
-load 1 // pool_address
-load 0 // user_address
-callsub __func__transfer
-pushint 1
-return
-main__set_fee:
-load 0 // user_address
-pushbytes "fee_setter"
-app_global_get
-==
-assert
-txna ApplicationArgs 1
-btoi
-store 1 // poolers_fee_share
-txna ApplicationArgs 2
-btoi
-store 2 // protocol_fee_share
-load 1 // poolers_fee_share
-pushint 50
-<=
-assert
-load 2 // protocol_fee_share
-pushint 10
-<=
-assert
-load 1 // poolers_fee_share
-load 2 // protocol_fee_share
->=
-assert
-load 1 // poolers_fee_share
-load 2 // protocol_fee_share
-pushint 5
-*
->=
-assert
-pushint 1
-pushbytes "poolers_fee_share"
-load 1 // poolers_fee_share
-app_local_put
-pushint 1
-pushbytes "protocol_fee_share"
-load 2 // protocol_fee_share
-app_local_put
-pushint 1
-return
 main__amm:
 txna Accounts 1
 store 1 // pool_address
@@ -600,143 +456,143 @@ bnz main__amm__verify_flash
 err // unexpected value
 main__amm__swap:
 callsub main__amm__func__update_price_oracle
-txna ApplicationArgs 1
+txn ApplicationArgs 1
 btoi
-store 11 // input_asset_id
-txna ApplicationArgs 2
+store 10 // input_asset_id
+txn ApplicationArgs 2
 btoi
-store 12 // output_asset_id
-txna ApplicationArgs 3
+store 11 // output_asset_id
+txn ApplicationArgs 3
 btoi
-store 13 // min_output
-txna ApplicationArgs 4
-store 14 // mode
+store 12 // min_output
+txn ApplicationArgs 4
+store 13 // mode
 txn GroupIndex
 pushint 1
 -
-store 16 // input_txn_index
-load 11 // input_asset_id
+store 15 // input_txn_index
+load 10 // input_asset_id
 pushint 0
 ==
-bz l5_else
-load 16 // input_txn_index
+bz l3_else
+load 15 // input_txn_index
 gtxns TypeEnum
 pushint 1 // Pay
 ==
 assert
-load 16 // input_txn_index
+load 15 // input_txn_index
 gtxns Receiver
 load 1 // pool_address
 ==
 assert
-load 16 // input_txn_index
+load 15 // input_txn_index
 gtxns Amount
-store 15 // input_amount
-b l5_end
-l5_else:
-load 16 // input_txn_index
+store 14 // input_amount
+b l3_end
+l3_else:
+load 15 // input_txn_index
 gtxns TypeEnum
 pushint 4 // Axfer
 ==
 assert
-load 16 // input_txn_index
+load 15 // input_txn_index
 gtxns AssetReceiver
 load 1 // pool_address
 ==
 assert
-load 16 // input_txn_index
+load 15 // input_txn_index
 gtxns XferAsset
-load 11 // input_asset_id
+load 10 // input_asset_id
 ==
 assert
-load 16 // input_txn_index
+load 15 // input_txn_index
 gtxns AssetAmount
-store 15 // input_amount
-l5_end: // end
-load 11 // input_asset_id
+store 14 // input_amount
+l3_end: // end
+load 10 // input_asset_id
 load 2 // asset_1_id
 ==
-load 12 // output_asset_id
+load 11 // output_asset_id
 load 3 // asset_2_id
 ==
 &&
 bz l6_elif_0
 load 5 // asset_1_reserves
-store 17 // input_supply
+store 16 // input_supply
 load 6 // asset_2_reserves
-store 18 // output_supply
-b l6_end
-l6_elif_0:
-load 11 // input_asset_id
+store 17 // output_supply
+b l4_end
+l4_elif_0:
+load 10 // input_asset_id
 load 3 // asset_2_id
 ==
-load 12 // output_asset_id
+load 11 // output_asset_id
 load 2 // asset_1_id
 ==
 &&
 bz l6_else
 load 6 // asset_2_reserves
-store 17 // input_supply
+store 16 // input_supply
 load 5 // asset_1_reserves
-store 18 // output_supply
-b l6_end
-l6_else:
+store 17 // output_supply
+b l4_end
+l4_else:
 err
 l6_end: // end
 pushint 0
-store 24 // change
-load 14 // mode
+store 23 // change
+load 13 // mode
 pushbytes "fixed-input"
 ==
-bz l7_elif_0
-load 15 // input_amount
+bz l5_elif_0
+load 14 // input_amount
 callsub __func__calculate_fixed_input_fee_amounts
-store 19 // total_fee_amount
-store 20 // poolers_fee_amount
-store 21 // protocol_fee_amount
-load 15 // input_amount
-load 19 // total_fee_amount
+store 18 // total_fee_amount
+store 19 // poolers_fee_amount
+store 20 // protocol_fee_amount
+load 14 // input_amount
+load 18 // total_fee_amount
 -
-store 22 // swap_amount
-load 17 // input_supply
-load 18 // output_supply
-load 22 // swap_amount
+store 21 // swap_amount
+load 16 // input_supply
+load 17 // output_supply
+load 21 // swap_amount
 callsub __func__calculate_fixed_input_swap
-store 23 // output_amount
-load 23 // output_amount
-load 13 // min_output
+store 22 // output_amount
+load 22 // output_amount
+load 12 // min_output
 >=
 assert
-b l7_end
-l7_elif_0:
-load 14 // mode
+b l5_end
+l5_elif_0:
+load 13 // mode
 pushbytes "fixed-output"
 ==
-bz l7_else
-load 13 // min_output
-store 23 // output_amount
-load 17 // input_supply
-load 18 // output_supply
-load 23 // output_amount
+bz l5_else
+load 12 // min_output
+store 22 // output_amount
+load 16 // input_supply
+load 17 // output_supply
+load 22 // output_amount
 callsub __func__calculate_fixed_output_swap
-store 22 // swap_amount
-load 22 // swap_amount
+store 21 // swap_amount
+load 21 // swap_amount
 callsub __func__calculate_fixed_output_fee_amounts
-store 19 // total_fee_amount
-store 20 // poolers_fee_amount
-store 21 // protocol_fee_amount
-load 22 // swap_amount
-load 19 // total_fee_amount
+store 18 // total_fee_amount
+store 19 // poolers_fee_amount
+store 20 // protocol_fee_amount
+load 21 // swap_amount
+load 18 // total_fee_amount
 +
-store 25 // total_input_amount
-load 15 // input_amount
-load 25 // total_input_amount
+store 24 // total_input_amount
+load 14 // input_amount
+load 24 // total_input_amount
 -
-store 24 // change
-load 24 // change
-bz l8_end
-load 11 // input_asset_id
-load 24 // change
+store 23 // change
+load 23 // change
+bz l6_end
+load 10 // input_asset_id
+load 23 // change
 callsub main__amm__func__transfer_to_user
 l8_end: // end
 b l7_end
@@ -744,73 +600,81 @@ l7_else:
 err
 l7_end: // end
 pushbytes "input_amount %i"
-load 15 // input_amount
+load 14 // input_amount
 itob
 concat
 log
 pushbytes "poolers_fee_amount %i"
-load 20 // poolers_fee_amount
+load 19 // poolers_fee_amount
 itob
 concat
 log
 pushbytes "protocol_fee_amount %i"
-load 21 // protocol_fee_amount
+load 20 // protocol_fee_amount
 itob
 concat
 log
 pushbytes "swap_amount %i"
-load 22 // swap_amount
+load 21 // swap_amount
 itob
 concat
 log
 pushbytes "output_amount %i"
-load 23 // output_amount
+load 22 // output_amount
 itob
 concat
 log
 pushbytes "change %i"
-load 24 // change
+load 23 // change
 itob
 concat
 log
-load 11 // input_asset_id
+load 10 // input_asset_id
 load 2 // asset_1_id
 ==
 bz l9_else
 load 8 // protocol_fees_asset_1
-load 21 // protocol_fee_amount
+load 20 // protocol_fee_amount
 +
 store 8 // protocol_fees_asset_1
 load 5 // asset_1_reserves
-load 22 // swap_amount
-load 20 // poolers_fee_amount
+load 21 // swap_amount
+load 19 // poolers_fee_amount
 +
 +
 store 5 // asset_1_reserves
 load 6 // asset_2_reserves
-load 23 // output_amount
+load 22 // output_amount
 -
 store 6 // asset_2_reserves
 b l9_end
 l9_else:
 load 9 // protocol_fees_asset_2
-load 21 // protocol_fee_amount
+load 20 // protocol_fee_amount
 +
 store 9 // protocol_fees_asset_2
 load 6 // asset_2_reserves
-load 22 // swap_amount
-load 20 // poolers_fee_amount
+load 21 // swap_amount
+load 19 // poolers_fee_amount
 +
 +
 store 6 // asset_2_reserves
 load 5 // asset_1_reserves
-load 23 // output_amount
+load 22 // output_amount
 -
 store 5 // asset_1_reserves
-l9_end: // end
-load 12 // output_asset_id
-load 23 // output_amount
+l7_end: // end
+load 11 // output_asset_id
+load 22 // output_amount
 callsub main__amm__func__transfer_to_user
+load 11 // k_initial
+load 5 // asset_1_reserves
+itob
+load 6 // asset_2_reserves
+itob
+b*
+b<
+assert // Assert K<K'
 pushint 1
 pushbytes "asset_1_reserves"
 load 5 // asset_1_reserves
@@ -873,24 +737,24 @@ gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
 assert // index_diff
-load 14 // verify_flash_txn_index
+load 13 // verify_flash_txn_index
 gtxnsa ApplicationArgs 2
-txna ApplicationArgs 2
+txn ApplicationArgs 2
 ==
 assert // asset_1_amount
-load 14 // verify_flash_txn_index
+load 13 // verify_flash_txn_index
 gtxnsa ApplicationArgs 3
-txna ApplicationArgs 3
+txn ApplicationArgs 3
 ==
 assert // asset_2_amount
-load 12 // asset_1_amount
-bz l10_end
+load 11 // asset_1_amount
+bz l8_end
 load 2 // asset_1_id
 load 12 // asset_1_amount
 callsub main__amm__func__transfer_to_user
-l10_end: // end
-load 13 // asset_2_amount
-bz l11_end
+l8_end: // end
+load 12 // asset_2_amount
+bz l9_end
 load 3 // asset_2_id
 load 13 // asset_2_amount
 callsub main__amm__func__transfer_to_user
@@ -900,117 +764,117 @@ return
 main__amm__verify_flash:
 txna ApplicationArgs 1
 btoi
-store 11 // index_diff
-txna ApplicationArgs 2
+store 10 // index_diff
+txn ApplicationArgs 2
 btoi
-store 12 // asset_1_amount
-txna ApplicationArgs 3
+store 11 // asset_1_amount
+txn ApplicationArgs 3
 btoi
-store 13 // asset_2_amount
+store 12 // asset_2_amount
 txn GroupIndex
 load 11 // index_diff
 -
-store 14 // flash_txn_index
-load 14 // flash_txn_index
+store 13 // flash_txn_index
+load 13 // flash_txn_index
 gtxns TypeEnum
 pushint 6 // Appl
 ==
 assert
-load 14 // flash_txn_index
+load 13 // flash_txn_index
 gtxns ApplicationID
 global CurrentApplicationID
 ==
 assert
-load 14 // flash_txn_index
+load 13 // flash_txn_index
 gtxnsa ApplicationArgs 0
 pushbytes "flash"
 ==
 assert
 pushint 0
-store 15 // asset_1_repayment_amount
+store 14 // asset_1_repayment_amount
 pushint 0
-store 16 // asset_2_repayment_amount
-load 12 // asset_1_amount
-bz l12_end
-load 12 // asset_1_amount
+store 15 // asset_2_repayment_amount
+load 11 // asset_1_amount
+bz l10_end
+load 11 // asset_1_amount
 callsub __func__calculate_fixed_input_fee_amounts
-store 17 // asset_1_total_fee_amount
-store 18 // asset_1_poolers_fee_amount
-store 19 // asset_1_protocol_fee_amount
-load 12 // asset_1_amount
-load 17 // asset_1_total_fee_amount
+store 16 // asset_1_total_fee_amount
+store 17 // asset_1_poolers_fee_amount
+store 18 // asset_1_protocol_fee_amount
+load 11 // asset_1_amount
+load 16 // asset_1_total_fee_amount
 +
-store 15 // asset_1_repayment_amount
-load 15 // asset_1_repayment_amount
-load 12 // asset_1_amount
+store 14 // asset_1_repayment_amount
+load 14 // asset_1_repayment_amount
+load 11 // asset_1_amount
 >
 assert
-load 13 // asset_2_amount
-bz l13_else
+load 12 // asset_2_amount
+bz l11_else
 txn GroupIndex
 pushint 2
 -
-store 20 // asset_1_txn_index
-b l13_end
-l13_else:
+store 19 // asset_1_txn_index
+b l11_end
+l11_else:
 txn GroupIndex
 pushint 1
 -
-store 20 // asset_1_txn_index
-l13_end: // end
-load 20 // asset_1_txn_index
+store 19 // asset_1_txn_index
+l11_end: // end
+load 19 // asset_1_txn_index
 gtxns TypeEnum
 pushint 4 // Axfer
 ==
 assert
-load 20 // asset_1_txn_index
+load 19 // asset_1_txn_index
 gtxns AssetReceiver
 load 1 // pool_address
 ==
 assert
-load 20 // asset_1_txn_index
+load 19 // asset_1_txn_index
 gtxns XferAsset
 load 2 // asset_1_id
 ==
 assert
-load 20 // asset_1_txn_index
+load 19 // asset_1_txn_index
 gtxns AssetAmount
-load 15 // asset_1_repayment_amount
+load 14 // asset_1_repayment_amount
 >=
-assert // # TODO: This line can be removed for optimization.
-load 20 // asset_1_txn_index
+assert
+load 19 // asset_1_txn_index
 gtxns AssetAmount
-load 15 // asset_1_repayment_amount
+load 14 // asset_1_repayment_amount
 -
-store 21 // asset_1_change
-load 21 // asset_1_change
-bz l14_end
+store 20 // asset_1_change
+load 20 // asset_1_change
+bz l12_end
 load 2 // asset_1_id
-load 21 // asset_1_change
+load 20 // asset_1_change
 callsub main__amm__func__transfer_to_user
-l14_end: // end
+l12_end: // end
 load 8 // protocol_fees_asset_1
-load 19 // asset_1_protocol_fee_amount
+load 18 // asset_1_protocol_fee_amount
 +
 store 8 // protocol_fees_asset_1
 load 5 // asset_1_reserves
-load 18 // asset_1_poolers_fee_amount
+load 17 // asset_1_poolers_fee_amount
 +
 store 5 // asset_1_reserves
-l12_end: // end
-load 13 // asset_2_amount
-bz l15_end
-load 13 // asset_2_amount
+l10_end: // end
+load 12 // asset_2_amount
+bz l13_end
+load 12 // asset_2_amount
 callsub __func__calculate_fixed_input_fee_amounts
-store 22 // asset_2_total_fee_amount
-store 23 // asset_2_poolers_fee_amount
-store 24 // asset_2_protocol_fee_amount
-load 13 // asset_2_amount
-load 22 // asset_2_total_fee_amount
+store 21 // asset_2_total_fee_amount
+store 22 // asset_2_poolers_fee_amount
+store 23 // asset_2_protocol_fee_amount
+load 12 // asset_2_amount
+load 21 // asset_2_total_fee_amount
 +
-store 16 // asset_2_repayment_amount
-load 16 // asset_2_repayment_amount
-load 13 // asset_2_amount
+store 15 // asset_2_repayment_amount
+load 15 // asset_2_repayment_amount
+load 12 // asset_2_amount
 >
 assert
 txn GroupIndex
@@ -1018,7 +882,7 @@ pushint 1
 -
 store 25 // asset_2_txn_index
 pushint 0
-store 26 // asset_2_change
+store 26 // asset_2_donation
 load 3 // asset_2_id
 pushint 0
 ==
@@ -1035,14 +899,14 @@ load 1 // pool_address
 assert
 load 25 // asset_2_txn_index
 gtxns Amount
-load 16 // asset_2_repayment_amount
+load 15 // asset_2_repayment_amount
 >=
-assert // # TODO: This line can be removed for optimization.
+assert
 load 25 // asset_2_txn_index
 gtxns Amount
-load 16 // asset_2_repayment_amount
+load 15 // asset_2_repayment_amount
 -
-store 26 // asset_2_change
+store 26 // asset_2_donation
 b l16_end
 l16_else:
 load 25 // asset_2_txn_index
@@ -1062,27 +926,29 @@ load 3 // asset_2_id
 assert
 load 25 // asset_2_txn_index
 gtxns AssetAmount
-load 16 // asset_2_repayment_amount
+load 15 // asset_2_repayment_amount
 >=
-assert // # TODO: This line can be removed for optimization.
+assert
 load 25 // asset_2_txn_index
 gtxns AssetAmount
-load 16 // asset_2_repayment_amount
+load 15 // asset_2_repayment_amount
 -
-store 26 // asset_2_change
+store 26 // asset_2_donation
 l16_end: // end
-load 26 // asset_2_change
+load 26 // asset_2_donation
 bz l17_end
-load 3 // asset_2_id
-load 26 // asset_2_change
-callsub main__amm__func__transfer_to_user
+pushbytes "asset_2_donation %i"
+load 26 // asset_2_donation
+itob
+concat
+log
 l17_end: // end
 load 9 // protocol_fees_asset_2
-load 24 // asset_2_protocol_fee_amount
+load 23 // asset_2_protocol_fee_amount
 +
 store 9 // protocol_fees_asset_2
 load 6 // asset_2_reserves
-load 23 // asset_2_poolers_fee_amount
+load 22 // asset_2_poolers_fee_amount
 +
 store 6 // asset_2_reserves
 l15_end: // end
@@ -1568,6 +1434,8 @@ load 47 // swap_amount
 itob
 b/
 btoi
+pushint 1
++
 -
 store 51 // output_amount
 load 51 // output_amount
@@ -1589,7 +1457,7 @@ load 52 // output_amount
 itob
 b/
 btoi
-load 54 // input_supply
+load 203 // input_supply
 -
 store 56 // input_amount
 load 56 // input_amount

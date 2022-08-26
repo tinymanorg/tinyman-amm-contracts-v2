@@ -70,6 +70,8 @@ class TestGroupedSwap(BaseTestCase):
             }
         )
 
+        swap_1_amount_out = 9871
+        swap_2_amount_out = 9746
         txn_group = [
             # Swap 1
             transaction.AssetTransferTxn(
@@ -83,7 +85,7 @@ class TestGroupedSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, 9872, "fixed-input"],
+                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, swap_1_amount_out, "fixed-input"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address1],
             ),
@@ -94,13 +96,13 @@ class TestGroupedSwap(BaseTestCase):
                 sp=self.sp,
                 receiver=self.pool_address2,
                 index=self.asset_2_id,
-                amt=9872,
+                amt=swap_1_amount_out,
             ),
             transaction.ApplicationNoOpTxn(
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_2_id, self.asset_3_id, 9748, "fixed-input"],
+                app_args=[METHOD_SWAP, self.asset_2_id, self.asset_3_id, swap_2_amount_out, "fixed-input"],
                 foreign_assets=[self.asset_2_id, self.asset_3_id],
                 accounts=[self.pool_address2],
             )
@@ -109,27 +111,21 @@ class TestGroupedSwap(BaseTestCase):
         txn_group[3].fee = 5000
 
         txn_group = transaction.assign_group_id(txn_group)
-        stxns = [
-            txn_group[0].sign(self.user_sk),
-            txn_group[1].sign(self.user_sk),
-            txn_group[2].sign(self.user_sk),
-            txn_group[3].sign(self.user_sk),
-        ]
-
+        stxns = self.sign_txns(txn_group, self.user_sk)
         block = self.ledger.eval_transactions(stxns)
         txns = block[b'txns']
 
         itxn = txns[1][b'dt'][b'itx'][0][b'txn']
-        self.assertEqual(itxn[b'aamt'], 9872)
+        self.assertEqual(itxn[b'aamt'], swap_1_amount_out)
         self.assertEqual(itxn[b'arcv'], decode_address(self.user_addr))
         self.assertEqual(itxn[b'xaid'], self.asset_2_id)
         self.assertEqual(itxn[b'snd'], decode_address(self.pool_address1))
 
         itxn = txns[3][b'dt'][b'itx'][0][b'txn']
-        self.assertEqual(itxn[b'aamt'], 9748)
+        self.assertEqual(itxn[b'aamt'], swap_2_amount_out)
         self.assertEqual(itxn[b'arcv'], decode_address(self.user_addr))
         self.assertEqual(itxn[b'xaid'], self.asset_3_id)
         self.assertEqual(itxn[b'snd'], decode_address(self.pool_address2))
 
         self.assertEqual(self.ledger.get_account_balance(self.user_addr, self.asset_2_id)[0], 0)
-        self.assertEqual(self.ledger.get_account_balance(self.user_addr, self.asset_3_id)[0], 9748)
+        self.assertEqual(self.ledger.get_account_balance(self.user_addr, self.asset_3_id)[0], swap_2_amount_out)
