@@ -267,10 +267,9 @@ block main:
         int protocol_fees_asset_1 = app_local_get(1, "protocol_fees_asset_1")
         int protocol_fees_asset_2 = app_local_get(1, "protocol_fees_asset_2")
 
-        assert(user_address == app_global_get("fee_collector"))
         assert(protocol_fees_asset_1 || protocol_fees_asset_2)
-        transfer(asset_1_id, protocol_fees_asset_1, pool_address, user_address)
-        transfer(asset_2_id, protocol_fees_asset_2, pool_address, user_address)
+        transfer(asset_1_id, protocol_fees_asset_1, pool_address, app_global_get("fee_collector"))
+        transfer(asset_2_id, protocol_fees_asset_2, pool_address, app_global_get("fee_collector"))
 
         # State updates
         app_local_put(1, "protocol_fees_asset_1", 0)
@@ -291,13 +290,12 @@ block main:
         int asset_1_id = app_local_get(1, "asset_1_id")
         int asset_2_id = app_local_get(1, "asset_2_id")
 
-        assert(user_address == app_global_get("fee_collector"))
         int asset_1_amount = get_balance(1, asset_1_id) - (app_local_get(1, "asset_1_reserves") + app_local_get(1, "protocol_fees_asset_1"))
         int asset_2_amount = get_balance(1, asset_2_id) - (app_local_get(1, "asset_2_reserves") + app_local_get(1, "protocol_fees_asset_2"))
 
         assert(asset_1_amount || asset_2_amount)
-        transfer(asset_1_id, asset_1_amount, pool_address, user_address)
-        transfer(asset_2_id, asset_2_amount, pool_address, user_address)
+        transfer(asset_1_id, asset_1_amount, pool_address, app_global_get("fee_collector"))
+        transfer(asset_2_id, asset_2_amount, pool_address, app_global_get("fee_collector"))
         exit(1)
     end
 

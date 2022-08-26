@@ -120,7 +120,7 @@ class TestSetFeeCollector(BaseTestCase):
             }
         )
 
-    def test_fail_sender_is_not_fee_collector(self):
+    def test_fail_sender_is_not_fee_manager(self):
         invalid_account_sk, invalid_account_address = generate_account()
         self.ledger.set_account_balance(self.app_creator_address, 1_000_000)
         self.ledger.set_account_balance(invalid_account_address, 1_000_000)
