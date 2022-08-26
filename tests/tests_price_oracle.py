@@ -56,7 +56,7 @@ class TestPriceOracle(BaseTestCase):
                 sp=self.sp,
                 receiver=self.pool_address,
                 index=self.asset_1_id,
-                amt=1,
+                amt=334,
             ),
             transaction.ApplicationNoOpTxn(
                 sender=self.user_addr,
@@ -89,14 +89,13 @@ class TestPriceOracle(BaseTestCase):
         self.assertDictEqual(
             pool_local_state_delta,
             {
-                b'asset_1_reserves': ANY,
-                b'asset_2_reserves': ANY,
+                b'asset_1_reserves': {b'at': 2, b'ui': 335},
+                b'asset_2_reserves': {b'at': 2, b'ui': 55229772675777101},
                 b'cumulative_asset_1_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(cumulative_asset_1_price)},
                 b'cumulative_asset_2_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(cumulative_asset_2_price)},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': int(two_hundred_years_later.timestamp())},
             }
         )
-
         self.assertEqual(cumulative_asset_1_price, 2147640163675837592635447824606866120216936448000)
         self.assertEqual(cumulative_asset_2_price, 6311347200)
 
@@ -137,7 +136,7 @@ class TestPriceOracle(BaseTestCase):
                 sp=self.sp,
                 receiver=self.pool_address,
                 index=self.asset_1_id,
-                amt=1,
+                amt=334,
             ),
             transaction.ApplicationNoOpTxn(
                 sender=self.user_addr,
@@ -157,7 +156,7 @@ class TestPriceOracle(BaseTestCase):
                 sp=self.sp,
                 receiver=self.pool_address,
                 index=self.asset_2_id,
-                amt=1,
+                amt=334,
             ),
             transaction.ApplicationNoOpTxn(
                 sender=self.user_addr,
@@ -228,7 +227,7 @@ class TestPriceOracle(BaseTestCase):
                 sp=self.sp,
                 receiver=self.pool_address,
                 index=self.asset_1_id,
-                amt=1,
+                amt=334,
             ),
             transaction.ApplicationNoOpTxn(
                 sender=self.user_addr,
@@ -279,9 +278,9 @@ class TestPriceOracle(BaseTestCase):
                 byte_pool_address + b'_price_update_timestamp': {b'at': 2, b'ui': 3000}
             }
         )
-        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_1_price'][b'bs'], "big"), 18446707180258297648)
-        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_2_price'][b'bs'], "big"), 18446780967234592560)
-        self.assertAlmostEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_1_price'][b'bs'], "big") / PRICE_SCALE_FACTOR, 0.9999, delta=0.0001)
-        self.assertAlmostEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_2_price'][b'bs'], "big") / PRICE_SCALE_FACTOR, 1.0000, delta=0.0001)
-        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_cumulative_asset_1_price'][b'bs'], "big"), 55340195327677400880150)
-        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_cumulative_asset_2_price'][b'bs'], "big"), 55340269114653695792144)
+        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_1_price'][b'bs'], "big"), 18434462644153932631)
+        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_2_price'][b'bs'], "big"), 18459033685413727963)
+        self.assertAlmostEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_1_price'][b'bs'], "big") / PRICE_SCALE_FACTOR, 0.9999, delta=0.001)
+        self.assertAlmostEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_2_price'][b'bs'], "big") / PRICE_SCALE_FACTOR, 1.0000, delta=0.001)
+        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_cumulative_asset_1_price'][b'bs'], "big"), 55327950791573035863364)
+        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_cumulative_asset_2_price'][b'bs'], "big"), 55352521832832831195923)

@@ -180,7 +180,8 @@ class TestBootstrap(BaseTestCase):
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
                 b'protocol_fees_asset_1': {b'at': 2},
-                b'protocol_fees_asset_2': {b'at': 2}
+                b'protocol_fees_asset_2': {b'at': 2},
+                b'proxy_app_id': {b'at': 2}
             }
         )
 
@@ -559,6 +560,7 @@ class TestBootstralgoPair(BaseTestCase):
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
                 b'protocol_fees_asset_1': {b'at': 2},
-                b'protocol_fees_asset_2': {b'at': 2}
+                b'protocol_fees_asset_2': {b'at': 2},
+                b'proxy_app_id': {b'at': 2}
             }
         )

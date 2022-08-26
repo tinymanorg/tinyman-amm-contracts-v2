@@ -126,7 +126,7 @@ class TestSwap(BaseTestCase):
         self.assertDictEqual(
             inner_transactions[0][b'txn'],
             {
-                b'aamt': 9872,
+                b'aamt': 9871,
                 b'arcv': decode_address(self.user_addr),
                 b'fv': ANY,
                 b'lv': ANY,
@@ -142,7 +142,7 @@ class TestSwap(BaseTestCase):
             pool_local_state_delta,
             {
                 b'asset_1_reserves': {b'at': 2, b'ui': 1009995},
-                b'asset_2_reserves': {b'at': 2, b'ui': 990128},
+                b'asset_2_reserves': {b'at': 2, b'ui': 990129},
                 b'protocol_fees_asset_1': {b'at': 2, b'ui': 5},
                 b'cumulative_asset_1_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA)},
                 b'cumulative_asset_2_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA)},
@@ -163,6 +163,7 @@ class TestSwap(BaseTestCase):
             }
         )
 
+        amount_out = 9871
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=self.user_addr,
@@ -175,7 +176,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, 9872, "fixed-output"],
+                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, amount_out, "fixed-output"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -193,7 +194,7 @@ class TestSwap(BaseTestCase):
 
         # Check details of output inner transaction
         itxn0 = txns[1][b'dt'][b'itx'][0][b'txn']
-        self.assertEqual(itxn0[b'aamt'], 9872)
+        self.assertEqual(itxn0[b'aamt'], amount_out)
         self.assertEqual(itxn0[b'arcv'], decode_address(self.user_addr))
         self.assertEqual(itxn0[b'xaid'], self.asset_2_id)
         self.assertEqual(itxn0[b'snd'], decode_address(self.pool_address))
@@ -211,6 +212,7 @@ class TestSwap(BaseTestCase):
             }
         )
 
+        amount_out = 9872
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=self.user_addr,
@@ -223,7 +225,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, 9872, "fixed-output"],
+                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, amount_out, "fixed-output"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -240,14 +242,14 @@ class TestSwap(BaseTestCase):
 
         # Check details of input change inner transaction
         itxn0 = txns[1][b'dt'][b'itx'][0][b'txn']
-        self.assertEqual(itxn0[b'aamt'], 100)
+        self.assertEqual(itxn0[b'aamt'], 99)
         self.assertEqual(itxn0[b'arcv'], decode_address(self.user_addr))
         self.assertEqual(itxn0[b'xaid'], self.asset_1_id)
         self.assertEqual(itxn0[b'snd'], decode_address(self.pool_address))
 
         # Check details of output inner transaction
         itxn1 = txns[1][b'dt'][b'itx'][1][b'txn']
-        self.assertEqual(itxn1[b'aamt'], 9872)
+        self.assertEqual(itxn1[b'aamt'], amount_out)
         self.assertEqual(itxn1[b'arcv'], decode_address(self.user_addr))
         self.assertEqual(itxn1[b'xaid'], self.asset_2_id)
         self.assertEqual(itxn1[b'snd'], decode_address(self.pool_address))
