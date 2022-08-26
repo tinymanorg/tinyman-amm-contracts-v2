@@ -58,6 +58,7 @@ block bootstrap:
     # Ensure the same asset ids are included in Txn.ApplicationArgs and Txn.Assets
     int asset_1_id = btoi(Txn.ApplicationArgs[1])
     int asset_2_id = btoi(Txn.ApplicationArgs[2])
+    int proxy_app_id = 0
     assert(asset_1_id > asset_2_id)
     assert(asset_1_id == Txn.Assets[0])
 
@@ -89,12 +90,16 @@ block bootstrap:
     byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
 
     byte pool_address = Txn.Sender
-
+    
     # Ensure pool_address == SHA512_256("program" + bytes from template and args)
-    const byte TEMPLATE = "\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
+    const byte TEMPLATE = "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
     byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
     program = replace2(11, program, Txn.ApplicationArgs[1])
     program = replace2(19, program, Txn.ApplicationArgs[2])
+    if Txn.NumAppArgs > 3:
+        proxy_app_id = btoi(Txn.ApplicationArgs[3])
+        program = replace2(27, program, Txn.ApplicationArgs[3])
+    end
     byte hash = sha512_256(concat("Program", program))
     assert(hash == pool_address)
 
@@ -183,6 +188,7 @@ block bootstrap:
     app_local_put(0, "asset_2_id", asset_2_id)
     app_local_put(0, "poolers_fee_share", poolers_fee_share)
     app_local_put(0, "protocol_fee_share", protocol_fee_share)
+    app_local_put(0, "proxy_app_id", proxy_app_id)
     # Set all remaining keys with initials values
     app_local_put(0, "asset_1_reserves", 0)
     app_local_put(0, "asset_2_reserves", 0)
@@ -205,6 +211,9 @@ block main:
         "set_fee_collector": set_fee_collector
         "set_fee_setter": set_fee_setter
         "set_fee_manager": set_fee_manager
+        "claim_fees": claim_fees
+        "claim_extra": claim_extra
+        "set_fee": set_fee
         else: amm
     end
 
@@ -244,6 +253,76 @@ block main:
         exit(1)
     end
 
+    block claim_fees:
+        # Transfer accumulated fees from the pool to the fee_collector
+
+        # Gtxn[0]: AppCall from User
+
+        # itxn[0]: Transfer Asset 1 to fee_collector from Pool
+        # itxn[1]: Transfer Asset 2 to fee_collector from Pool
+        
+        byte pool_address = Txn.Accounts[1]
+        int asset_1_id = app_local_get(1, "asset_1_id")
+        int asset_2_id = app_local_get(1, "asset_2_id")
+        int protocol_fees_asset_1 = app_local_get(1, "protocol_fees_asset_1")
+        int protocol_fees_asset_2 = app_local_get(1, "protocol_fees_asset_2")
+
+        assert(user_address == app_global_get("fee_collector"))
+        assert(protocol_fees_asset_1 || protocol_fees_asset_2)
+        transfer(asset_1_id, protocol_fees_asset_1, pool_address, user_address)
+        transfer(asset_2_id, protocol_fees_asset_2, pool_address, user_address)
+
+        # State updates
+        app_local_put(1, "protocol_fees_asset_1", 0)
+        app_local_put(1, "protocol_fees_asset_2", 0)
+        exit(1)
+    end
+
+    block claim_extra:
+        # Transfer any extra donations to the fee_collector
+
+        # Gtxn[0]: AppCall from User
+        # Note: must account for min balance when asset_2 is algo
+
+        # itxn[0]: Transfer Asset 1 to fee_collector from Pool
+        # itxn[1]: Transfer Asset 2 to fee_collector from Pool
+
+        byte pool_address = Txn.Accounts[1]
+        int asset_1_id = app_local_get(1, "asset_1_id")
+        int asset_2_id = app_local_get(1, "asset_2_id")
+
+        assert(user_address == app_global_get("fee_collector"))
+        int asset_1_amount = get_balance(1, asset_1_id) - (app_local_get(1, "asset_1_reserves") + app_local_get(1, "protocol_fees_asset_1"))
+        int asset_2_amount = get_balance(1, asset_2_id) - (app_local_get(1, "asset_2_reserves") + app_local_get(1, "protocol_fees_asset_2"))
+
+        assert(asset_1_amount || asset_2_amount)
+        transfer(asset_1_id, asset_1_amount, pool_address, user_address)
+        transfer(asset_2_id, asset_2_amount, pool_address, user_address)
+        exit(1)
+    end
+
+    block set_fee:
+        # Set a new fee collector, only fee setter can call this method
+        # Txn: AppCall from fee_setter
+        assert(user_address == app_global_get("fee_setter"))
+
+        int poolers_fee_share = btoi(Txn.ApplicationArgs[1])
+        int protocol_fee_share = btoi(Txn.ApplicationArgs[2])
+
+        # TODO: Dummy validation for now
+        assert(poolers_fee_share <= 50)
+        assert(protocol_fee_share <= 10)
+        assert(poolers_fee_share >= protocol_fee_share)
+        assert(poolers_fee_share >= (protocol_fee_share * 5))
+
+        # State updates
+        # [poolers_fee_share]
+        # [protocol_fee_share]
+        app_local_put(1, "poolers_fee_share", poolers_fee_share)
+        app_local_put(1, "protocol_fee_share", protocol_fee_share)
+        exit(1)
+    end
+
     block amm:
         byte pool_address = Txn.Accounts[1]
         # These will fail if the account is not optted-in and only pool accounts can opt-in to the app.
@@ -255,6 +334,11 @@ block main:
         int issued_pool_tokens = app_local_get(1, "issued_pool_tokens")
         int protocol_fees_asset_1 = app_local_get(1, "protocol_fees_asset_1")
         int protocol_fees_asset_2 = app_local_get(1, "protocol_fees_asset_2")
+        int proxy_app_id = app_local_get(1, "proxy_app_id")
+
+        if proxy_app_id:
+            assert(Global.CallerApplicationID == proxy_app_id)
+        end
 
         switch Txn.ApplicationArgs[0]:
             "add_liquidity": add_liquidity
@@ -262,9 +346,6 @@ block main:
             "swap": swap
             "flash": flash
             "verify_flash": verify_flash
-            "claim_fees": claim_fees
-            "claim_extra": claim_extra
-            "set_fee": set_fee
         end
 
 
@@ -589,86 +670,8 @@ block main:
             exit(1)
         end
 
-        block claim_fees:
-            # Transfer accumulated fees from the pool to the fee_collector
-
-            # Gtxn[0]: AppCall from User
-
-            # itxn[0]: Transfer Asset 1 to fee_collector from Pool
-            # itxn[1]: Transfer Asset 2 to fee_collector from Pool
-
-            assert(user_address == app_global_get("fee_collector"))
-            assert(protocol_fees_asset_1 || protocol_fees_asset_2)
-            transfer_to_user(asset_1_id, protocol_fees_asset_1)
-            transfer_to_user(asset_2_id, protocol_fees_asset_2)
-
-            # State updates
-            app_local_put(1, "protocol_fees_asset_1", 0)
-            app_local_put(1, "protocol_fees_asset_2", 0)
-            exit(1)
-        end
-
-        block claim_extra:
-            # Transfer any extra donations to the fee_collector
-
-            # Gtxn[0]: AppCall from User
-            # Note: must account for min balance when asset_2 is algo
-
-            # itxn[0]: Transfer Asset 1 to fee_collector from Pool
-            # itxn[1]: Transfer Asset 2 to fee_collector from Pool
-
-            assert(user_address == app_global_get("fee_collector"))
-            int asset_1_amount = get_balance(1, asset_1_id) - (asset_1_reserves + protocol_fees_asset_1)
-            int asset_2_amount = get_balance(1, asset_2_id) - (asset_2_reserves + protocol_fees_asset_2)
-
-            assert(asset_1_amount || asset_2_amount)
-            transfer_to_user(asset_1_id, asset_1_amount)
-            transfer_to_user(asset_2_id, asset_2_amount)
-            exit(1)
-        end
-
-        block set_fee:
-            # Set a new fee collector, only fee setter can call this method
-            # Txn: AppCall from fee_setter
-            assert(user_address == app_global_get("fee_setter"))
-
-            int poolers_fee_share = btoi(Txn.ApplicationArgs[1])
-            int protocol_fee_share = btoi(Txn.ApplicationArgs[2])
-
-            # TODO: Dummy validation for now
-            assert(poolers_fee_share <= 50)
-            assert(protocol_fee_share <= 10)
-            assert(poolers_fee_share >= protocol_fee_share)
-            assert(poolers_fee_share >= (protocol_fee_share * 5))
-
-            # State updates
-            # [poolers_fee_share]
-            # [protocol_fee_share]
-            app_local_put(1, "poolers_fee_share", poolers_fee_share)
-            app_local_put(1, "protocol_fee_share", protocol_fee_share)
-            exit(1)
-        end
-
         func transfer_to_user(asset_id: int, amount: int):
-            if asset_id == 0:
-                inner_txn:
-                    TypeEnum: Pay
-                    Sender: pool_address
-                    Receiver: user_address
-                    Amount: amount
-                    Fee: 0
-                end
-            else:
-                inner_txn:
-                    TypeEnum: Axfer
-                    Sender: pool_address
-                    AssetReceiver: user_address
-                    AssetAmount: amount
-                    XferAsset: asset_id
-                    Fee: 0
-                end
-            end
-            return
+            return transfer(asset_id, amount, pool_address, user_address)
         end
 
         func update_price_oracle():
@@ -742,4 +745,27 @@ func get_balance(account_idx: int, asset_id: int) int:
         _, balance = asset_holding_get(AssetBalance, account_idx, asset_id)
     end
     return balance
+end
+
+
+func transfer(asset_id: int, amount: int, sender: byte, receiver: byte):
+    if asset_id == 0:
+        inner_txn:
+            TypeEnum: Pay
+            Sender: sender
+            Receiver: receiver
+            Amount: amount
+            Fee: 0
+        end
+    else:
+        inner_txn:
+            TypeEnum: Axfer
+            Sender: sender
+            AssetReceiver: receiver
+            AssetAmount: amount
+            XferAsset: asset_id
+            Fee: 0
+        end
+    end
+    return
 end

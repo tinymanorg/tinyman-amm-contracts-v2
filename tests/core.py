@@ -24,7 +24,7 @@ class BaseTestCase(unittest.TestCase):
             }
         )
 
-    def bootstrap_pool(self):
+    def bootstrap_pool(self, proxy_app_id=0):
         asset_2_id = getattr(self, "asset_2_id", ALGO_ASSET_ID)
         minimum_balance = 500_000 if asset_2_id else 400_000
 
@@ -69,7 +69,8 @@ class BaseTestCase(unittest.TestCase):
                 b'cumulative_price_update_timestamp': 0,
 
                 b'protocol_fees_asset_1': 0,
-                b'protocol_fees_asset_2': 0
+                b'protocol_fees_asset_2': 0,
+                b'proxy_app_id': proxy_app_id,
             }
         )
 
