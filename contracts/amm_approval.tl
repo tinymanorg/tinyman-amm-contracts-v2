@@ -275,6 +275,7 @@ block main:
 
             # itxn[0]: Transfer Asset 2 to User from Pool
 
+            byte k_initial = itob(asset_1_reserves) b* itob(asset_2_reserves)
             int input_asset_id = btoi(Txn.ApplicationArgs[1])
             int output_asset_id = btoi(Txn.ApplicationArgs[2])
             int min_output = btoi(Txn.ApplicationArgs[3])
@@ -318,12 +319,18 @@ block main:
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(input_amount)
                 swap_amount = input_amount - total_fee_amount
                 output_amount = calculate_fixed_input_swap(input_supply, output_supply, swap_amount)
+
+                assert(total_fee_amount, "If the amount is too small, total fee amount is rounded to 0.")
                 assert(output_amount >= min_output)
             elif mode == 'fixed-output':
                 output_amount = min_output
                 swap_amount = calculate_fixed_output_swap(input_supply, output_supply, output_amount)
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
                 int total_input_amount = swap_amount + total_fee_amount
+
+                assert(total_fee_amount, "If the amount is too small, total fee amount is rounded to 0.")
+                assert(input_amount >= total_input_amount)
+
                 change = input_amount - total_input_amount
                 if change:
                     transfer_to_user(input_asset_id, change)
@@ -351,6 +358,7 @@ block main:
 
             transfer_to_user(output_asset_id, output_amount)
 
+            assert(k_initial b< (itob(asset_1_reserves) b* itob(asset_2_reserves)), "Assert K<K'")
             # State updates
             app_local_put(1, "asset_1_reserves", asset_1_reserves)
             app_local_put(1, "asset_2_reserves", asset_2_reserves)
@@ -731,7 +739,8 @@ func calculate_fixed_input_swap(input_supply: int, output_supply: int, swap_amou
     # k = input_supply * output_supply
     # output_amount = output_supply - (k / (input_supply + swap_amount))
     byte k = itob(input_supply) b* itob(output_supply)
-    int output_amount = output_supply - btoi((k b/ itob(input_supply + swap_amount)))
+    # +1 for Round Up
+    int output_amount = output_supply - (btoi((k b/ itob(input_supply + swap_amount))) + 1)
     return output_amount
 end
 
@@ -741,7 +750,8 @@ func calculate_fixed_output_swap(input_supply: int, output_supply: int, output_a
     # k = input_supply * output_supply
     # input_amount = (k / (output_supply - asset_out_amount)) - input_supply
     byte k = itob(input_supply) b* itob(output_supply)
-    int input_amount = btoi((k b/ itob(output_supply - output_amount))) - input_supply
+    # +1 for Round Up
+    int input_amount = (btoi((k b/ itob(output_supply - output_amount))) + 1) - input_supply
     return input_amount
 end
 
