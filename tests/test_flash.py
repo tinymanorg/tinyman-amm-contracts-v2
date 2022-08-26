@@ -53,7 +53,7 @@ class TestFlash(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_FLASH, index_diff, asset_1_amount, asset_2_amount],
+                app_args=[METHOD_FLASH_LOAN, index_diff, asset_1_amount, asset_2_amount],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             ),
@@ -75,7 +75,7 @@ class TestFlash(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_VERIFY_FLASH, index_diff],
+                app_args=[METHOD_VERIFY_FLASH_LOAN, index_diff],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -97,7 +97,7 @@ class TestFlash(BaseTestCase):
             txn[b'txn'],
             {
                 b'apaa': [
-                    b'flash',
+                    b'flash_loan',
                     index_diff.to_bytes(8, "big"),
                     asset_1_amount.to_bytes(8, "big"),
                     asset_2_amount.to_bytes(8, "big"),
@@ -156,7 +156,7 @@ class TestFlash(BaseTestCase):
             txn[b'txn'],
             {
                 b'apaa': [
-                    b'verify_flash',
+                    b'verify_flash_loan',
                     index_diff.to_bytes(8, "big"),
                 ],
                 b'apas': [self.asset_1_id, self.asset_2_id],
@@ -214,7 +214,7 @@ class TestFlash(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_FLASH, index_diff, asset_1_amount, asset_2_amount],
+                app_args=[METHOD_FLASH_LOAN, index_diff, asset_1_amount, asset_2_amount],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             ),
@@ -229,7 +229,7 @@ class TestFlash(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_VERIFY_FLASH, index_diff],
+                app_args=[METHOD_VERIFY_FLASH_LOAN, index_diff],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -252,7 +252,7 @@ class TestFlash(BaseTestCase):
             txn[b'txn'],
             {
                 b'apaa': [
-                    b'flash',
+                    b'flash_loan',
                     index_diff.to_bytes(8, "big"),
                     asset_1_amount.to_bytes(8, "big"),
                     asset_2_amount.to_bytes(8, "big"),
@@ -297,7 +297,7 @@ class TestFlash(BaseTestCase):
             txn[b'txn'],
             {
                 b'apaa': [
-                    b'verify_flash',
+                    b'verify_flash_loan',
                     index_diff.to_bytes(8, "big"),
                 ],
                 b'apas': [self.asset_1_id, self.asset_2_id],

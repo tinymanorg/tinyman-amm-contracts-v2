@@ -594,11 +594,11 @@ pushbytes "swap"
 ==
 bnz main__amm__swap
 txna ApplicationArgs 0
-pushbytes "flash"
+pushbytes "flash_loan"
 ==
 bnz main__amm__flash_loan
 txna ApplicationArgs 0
-pushbytes "verify_flash"
+pushbytes "verify_flash_loan"
 ==
 bnz main__amm__verify_flash_loan
 txna ApplicationArgs 0
@@ -881,28 +881,28 @@ assert
 txn GroupIndex
 load 11 // index_diff
 +
-store 14 // verify_flash_txn_index
-load 14 // verify_flash_txn_index
+store 14 // verify_flash_loan_txn_index
+load 14 // verify_flash_loan_txn_index
 gtxns Sender
 txn Sender
 ==
 assert
-load 14 // verify_flash_txn_index
+load 14 // verify_flash_loan_txn_index
 gtxns TypeEnum
 pushint 6 // Appl
 ==
 assert
-load 14 // verify_flash_txn_index
+load 14 // verify_flash_loan_txn_index
 gtxns ApplicationID
 global CurrentApplicationID
 ==
 assert
-load 14 // verify_flash_txn_index
+load 14 // verify_flash_loan_txn_index
 gtxnsa ApplicationArgs 0
-pushbytes "verify_flash"
+pushbytes "verify_flash_loan"
 ==
 assert
-load 14 // verify_flash_txn_index
+load 14 // verify_flash_loan_txn_index
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
@@ -936,32 +936,32 @@ store 11 // index_diff
 txn GroupIndex
 load 11 // index_diff
 -
-store 12 // flash_txn_index
-load 12 // flash_txn_index
+store 12 // flash_loan_txn_index
+load 12 // flash_loan_txn_index
 gtxns TypeEnum
 pushint 6 // Appl
 ==
 assert
-load 12 // flash_txn_index
+load 12 // flash_loan_txn_index
 gtxns ApplicationID
 global CurrentApplicationID
 ==
 assert
-load 12 // flash_txn_index
+load 12 // flash_loan_txn_index
 gtxnsa ApplicationArgs 0
-pushbytes "flash"
+pushbytes "flash_loan"
 ==
 assert
-load 12 // flash_txn_index
+load 12 // flash_loan_txn_index
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
 assert // index_diff
-load 12 // flash_txn_index
+load 12 // flash_loan_txn_index
 gtxnsa ApplicationArgs 2
 btoi
 store 13 // asset_1_amount
-load 12 // flash_txn_index
+load 12 // flash_loan_txn_index
 gtxnsa ApplicationArgs 3
 btoi
 store 14 // asset_2_amount
@@ -1165,28 +1165,28 @@ assert
 txn GroupIndex
 load 11 // index_diff
 +
-store 14 // verify_flash_txn_index
-load 14 // verify_flash_txn_index
+store 14 // verify_flash_swap_txn_index
+load 14 // verify_flash_swap_txn_index
 gtxns Sender
 txn Sender
 ==
 assert
-load 14 // verify_flash_txn_index
+load 14 // verify_flash_swap_txn_index
 gtxns TypeEnum
 pushint 6 // Appl
 ==
 assert
-load 14 // verify_flash_txn_index
+load 14 // verify_flash_swap_txn_index
 gtxns ApplicationID
 global CurrentApplicationID
 ==
 assert
-load 14 // verify_flash_txn_index
+load 14 // verify_flash_swap_txn_index
 gtxnsa ApplicationArgs 0
 pushbytes "verify_flash_swap"
 ==
 assert
-load 14 // verify_flash_txn_index
+load 14 // verify_flash_swap_txn_index
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
@@ -1228,43 +1228,43 @@ store 11 // index_diff
 txn GroupIndex
 load 11 // index_diff
 -
-store 12 // flash_txn_index
-load 12 // flash_txn_index
+store 12 // flash_swap_txn_index
+load 12 // flash_swap_txn_index
 gtxns TypeEnum
 pushint 6 // Appl
 ==
 assert
-load 12 // flash_txn_index
+load 12 // flash_swap_txn_index
 gtxns ApplicationID
 global CurrentApplicationID
 ==
 assert
-load 12 // flash_txn_index
+load 12 // flash_swap_txn_index
 gtxnsa ApplicationArgs 0
 pushbytes "flash_swap"
 ==
 assert
-load 12 // flash_txn_index
+load 12 // flash_swap_txn_index
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
 assert // index_diff
-load 12 // flash_txn_index
+load 12 // flash_swap_txn_index
 gtxnsa ApplicationArgs 2
 btoi
 store 13 // asset_1_amount
-load 12 // flash_txn_index
+load 12 // flash_swap_txn_index
 gtxnsa ApplicationArgs 3
 btoi
 store 14 // asset_2_amount
-load 12 // flash_txn_index
+load 12 // flash_swap_txn_index
 gtxnsa Logs 0
 store 15 // initial_k
-load 12 // flash_txn_index
+load 12 // flash_swap_txn_index
 gtxnsa Logs 1
 btoi
 store 16 // asset_1_balance_after_transfer
-load 12 // flash_txn_index
+load 12 // flash_swap_txn_index
 gtxnsa Logs 2
 btoi
 store 17 // asset_2_balance_after_transfer

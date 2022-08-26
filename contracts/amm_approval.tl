@@ -344,8 +344,8 @@ block main:
             "add_liquidity": add_liquidity
             "remove_liquidity": remove_liquidity
             "swap": swap
-            "flash": flash_loan
-            "verify_flash": verify_flash_loan
+            "flash_loan": flash_loan
+            "verify_flash_loan": verify_flash_loan
             "flash_swap": flash_swap
             "verify_flash_swap": verify_flash_swap
         end
@@ -452,7 +452,7 @@ block main:
 
         block flash_loan:
             update_price_oracle()
-            # Gtxn[X]: Flash AppCall from User
+            # Gtxn[X]: Flash Loan AppCall from User
             #   itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
             #   itxn: Transfer Asset 2 to User from Pool if Asset 2 is requested
 
@@ -461,12 +461,12 @@ block main:
             int asset_2_amount = btoi(Txn.ApplicationArgs[3])
             assert(asset_1_amount || asset_2_amount)
 
-            int verify_flash_txn_index = Txn.GroupIndex + index_diff
-            assert(Gtxn[verify_flash_txn_index].Sender == Txn.Sender)
-            assert(Gtxn[verify_flash_txn_index].TypeEnum == Appl)
-            assert(Gtxn[verify_flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash")
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            int verify_flash_loan_txn_index = Txn.GroupIndex + index_diff
+            assert(Gtxn[verify_flash_loan_txn_index].Sender == Txn.Sender)
+            assert(Gtxn[verify_flash_loan_txn_index].TypeEnum == Appl)
+            assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[0] == "verify_flash_loan")
+            assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
 
             if asset_1_amount:
                 assert(asset_1_amount <= asset_1_reserves)
@@ -486,16 +486,16 @@ block main:
             # if borrowed single asset:
             #   Gtxn[X-1]: Transfer borrowed Asset to Pool
 
-            # Gtxn[X]: Verify Flash AppCall from User
+            # Gtxn[X]: Verify Flash Loan AppCall from User
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
-            int flash_txn_index = Txn.GroupIndex - index_diff
-            assert(Gtxn[flash_txn_index].TypeEnum == Appl)
-            assert(Gtxn[flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-            assert(Gtxn[flash_txn_index].ApplicationArgs[0] == "flash")
-            assert(Gtxn[flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
-            int asset_1_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[2])
-            int asset_2_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[3])
+            int flash_loan_txn_index = Txn.GroupIndex - index_diff
+            assert(Gtxn[flash_loan_txn_index].TypeEnum == Appl)
+            assert(Gtxn[flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[flash_loan_txn_index].ApplicationArgs[0] == "flash_loan")
+            assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            int asset_1_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[2])
+            int asset_2_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[3])
 
             if asset_1_amount:
                 int asset_1_total_fee_amount
@@ -582,12 +582,12 @@ block main:
             int asset_2_amount = btoi(Txn.ApplicationArgs[3])
             assert(asset_1_amount || asset_2_amount)
 
-            int verify_flash_txn_index = Txn.GroupIndex + index_diff
-            assert(Gtxn[verify_flash_txn_index].Sender == Txn.Sender)
-            assert(Gtxn[verify_flash_txn_index].TypeEnum == Appl)
-            assert(Gtxn[verify_flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash_swap")
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            int verify_flash_swap_txn_index = Txn.GroupIndex + index_diff
+            assert(Gtxn[verify_flash_swap_txn_index].Sender == Txn.Sender)
+            assert(Gtxn[verify_flash_swap_txn_index].TypeEnum == Appl)
+            assert(Gtxn[verify_flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[0] == "verify_flash_swap")
+            assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
 
             if asset_1_amount:
                 transfer_to_user(asset_1_id, asset_1_amount)
@@ -612,17 +612,17 @@ block main:
             # Gtxn[X]: Verify Flash AppCall from User
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
-            int flash_txn_index = Txn.GroupIndex - index_diff
-            assert(Gtxn[flash_txn_index].TypeEnum == Appl)
-            assert(Gtxn[flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-            assert(Gtxn[flash_txn_index].ApplicationArgs[0] == "flash_swap")
-            assert(Gtxn[flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
-            int asset_1_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[2])
-            int asset_2_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[3])
+            int flash_swap_txn_index = Txn.GroupIndex - index_diff
+            assert(Gtxn[flash_swap_txn_index].TypeEnum == Appl)
+            assert(Gtxn[flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[flash_swap_txn_index].ApplicationArgs[0] == "flash_swap")
+            assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            int asset_1_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2])
+            int asset_2_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[3])
 
-            byte initial_k = Gtxn[flash_txn_index].Logs[0]
-            int asset_1_balance_after_transfer = btoi(Gtxn[flash_txn_index].Logs[1])
-            int asset_2_balance_after_transfer = btoi(Gtxn[flash_txn_index].Logs[2])
+            byte initial_k = Gtxn[flash_swap_txn_index].Logs[0]
+            int asset_1_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[1])
+            int asset_2_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[2])
             int asset_1_balance = get_balance(1, asset_1_id)
             int asset_2_balance = get_balance(1, asset_2_id)
 
