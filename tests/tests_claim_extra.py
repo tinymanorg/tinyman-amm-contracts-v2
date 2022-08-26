@@ -36,7 +36,6 @@ class TestClaimExtra(BaseTestCase):
 
     def test_pass(self):
         fee_collector = self.app_creator_address
-        fee_collector_sk = self.app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
         self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
         self.ledger.opt_in_asset(fee_collector, self.asset_2_id)
@@ -46,9 +45,9 @@ class TestClaimExtra(BaseTestCase):
         self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
         self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
-        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = self.get_claim_extra_transactions(sender=self.user_addr, fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        stxns = self.sign_txns(txn_group, self.user_sk)
 
         block = self.ledger.eval_transactions(stxns)
         block_txns = block[b'txns']
@@ -61,13 +60,13 @@ class TestClaimExtra(BaseTestCase):
             {
                 b'apaa': [b'claim_extra'],
                 b'apas': [self.asset_1_id, self.asset_2_id],
-                b'apat': [decode_address(self.pool_address)],
+                b'apat': [decode_address(self.pool_address), decode_address(fee_collector)],
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
                 b'fv': ANY,
                 b'grp': ANY,
                 b'lv': ANY,
-                b'snd': decode_address(fee_collector),
+                b'snd': decode_address(self.user_addr),
                 b'type': b'appl'
             }
         )
@@ -103,23 +102,8 @@ class TestClaimExtra(BaseTestCase):
             },
         )
 
-    def test_fail_sender_is_not_fee_collector(self):
-        asset_1_extra = 0
-        asset_2_extra = 0
-        self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
-        self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
-
-        txn_group = self.get_claim_extra_transactions(fee_collector=self.user_addr, app_call_fee=3_000)
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, self.user_sk)
-
-        with self.assertRaises(LogicEvalError) as e:
-            self.ledger.eval_transactions(stxns)
-        self.assertEqual(e.exception.source['line'], 'assert(user_address == app_global_get("fee_collector"))')
-
     def test_pass_only_one_of_the_asset_has_extra(self):
         fee_collector = self.app_creator_address
-        fee_collector_sk = self.app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
         self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
         self.ledger.opt_in_asset(fee_collector, self.asset_2_id)
@@ -129,9 +113,9 @@ class TestClaimExtra(BaseTestCase):
         self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
         self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
-        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = self.get_claim_extra_transactions(sender=self.user_addr, fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        stxns = self.sign_txns(txn_group, self.user_sk)
 
         block = self.ledger.eval_transactions(stxns)
         block_txns = block[b'txns']
@@ -172,7 +156,6 @@ class TestClaimExtra(BaseTestCase):
 
     def test_fail_there_is_no_extra(self):
         fee_collector = self.app_creator_address
-        fee_collector_sk = self.app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
         self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
         self.ledger.opt_in_asset(fee_collector, self.asset_2_id)
@@ -182,9 +165,9 @@ class TestClaimExtra(BaseTestCase):
         self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
         self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
-        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = self.get_claim_extra_transactions(sender=self.user_addr, fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        stxns = self.sign_txns(txn_group, self.user_sk)
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
@@ -192,7 +175,6 @@ class TestClaimExtra(BaseTestCase):
 
     def test_fail_fee_collector_did_not_opt_in(self):
         fee_collector = self.app_creator_address
-        fee_collector_sk = self.app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
 
         asset_1_extra = 5_000
@@ -200,9 +182,9 @@ class TestClaimExtra(BaseTestCase):
         self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
         self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
-        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = self.get_claim_extra_transactions(sender=self.user_addr, fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        stxns = self.sign_txns(txn_group, self.user_sk)
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
@@ -232,7 +214,6 @@ class TestClaimExtraAlgoPair(BaseTestCase):
 
     def test_pass(self):
         fee_collector = self.app_creator_address
-        fee_collector_sk = self.app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
         self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
 
@@ -241,9 +222,9 @@ class TestClaimExtraAlgoPair(BaseTestCase):
         self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
         self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
-        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = self.get_claim_extra_transactions(sender=self.user_addr, fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        stxns = self.sign_txns(txn_group, self.user_sk)
 
         block = self.ledger.eval_transactions(stxns)
         block_txns = block[b'txns']
@@ -256,13 +237,13 @@ class TestClaimExtraAlgoPair(BaseTestCase):
             {
                 b'apaa': [b'claim_extra'],
                 b'apas': [self.asset_1_id],
-                b'apat': [decode_address(self.pool_address)],
+                b'apat': [decode_address(self.pool_address), decode_address(fee_collector)],
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
                 b'fv': ANY,
                 b'grp': ANY,
                 b'lv': ANY,
-                b'snd': decode_address(fee_collector),
+                b'snd': decode_address(self.user_addr),
                 b'type': b'appl'
             }
         )
@@ -299,7 +280,6 @@ class TestClaimExtraAlgoPair(BaseTestCase):
 
     def test_pass_there_is_no_algo_extra(self):
         fee_collector = self.app_creator_address
-        fee_collector_sk = self.app_creator_sk
         self.ledger.set_account_balance(fee_collector, 1_000_000)
         self.ledger.opt_in_asset(fee_collector, self.asset_1_id)
 
@@ -308,9 +288,9 @@ class TestClaimExtraAlgoPair(BaseTestCase):
         self.ledger.move(asset_1_extra, self.asset_1_id, receiver=self.pool_address)
         self.ledger.move(asset_2_extra, self.asset_2_id, receiver=self.pool_address)
 
-        txn_group = self.get_claim_extra_transactions(fee_collector=fee_collector, app_call_fee=3_000)
+        txn_group = self.get_claim_extra_transactions(sender=self.user_addr, fee_collector=fee_collector, app_call_fee=3_000)
         txn_group = transaction.assign_group_id(txn_group)
-        stxns = self.sign_txns(txn_group, fee_collector_sk)
+        stxns = self.sign_txns(txn_group, self.user_sk)
 
         block = self.ledger.eval_transactions(stxns)
         block_txns = block[b'txns']
@@ -323,13 +303,13 @@ class TestClaimExtraAlgoPair(BaseTestCase):
             {
                 b'apaa': [b'claim_extra'],
                 b'apas': [self.asset_1_id],
-                b'apat': [decode_address(self.pool_address)],
+                b'apat': [decode_address(self.pool_address), decode_address(fee_collector)],
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
                 b'fv': ANY,
                 b'grp': ANY,
                 b'lv': ANY,
-                b'snd': decode_address(fee_collector),
+                b'snd': decode_address(self.user_addr),
                 b'type': b'appl'
             }
         )
