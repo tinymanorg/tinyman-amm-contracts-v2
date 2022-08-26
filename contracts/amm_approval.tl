@@ -256,7 +256,7 @@ block main:
         int protocol_fees_asset_1 = app_local_get(1, "protocol_fees_asset_1")
         int protocol_fees_asset_2 = app_local_get(1, "protocol_fees_asset_2")
 
-        assert(app_local_get(1, "lock") ==  0)
+        assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))
 
         switch Txn.ApplicationArgs[0]:
             "add_liquidity": add_liquidity
