@@ -361,7 +361,7 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
         block = self.ledger.eval_transactions(stxns)
         txns = block[b'txns']
         itxn = txns[1][b'dt'][b'itx'][-1][b'txn']
-        self.assertEqual(itxn[b'aamt'], 9775)
+        self.assertEqual(itxn[b'aamt'], 9774)
         self.assertEqual(itxn[b'arcv'], decode_address(self.user_addr))
         self.assertEqual(itxn[b'xaid'], self.asset_2_id)
         self.assertEqual(itxn[b'snd'], decode_address(PROXY_ADDRESS))
