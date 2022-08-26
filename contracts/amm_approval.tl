@@ -378,9 +378,11 @@ block main:
             assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
 
             if asset_1_amount:
+                assert(asset_1_amount <= asset_1_reserves)
                 transfer_to_user(asset_1_id, asset_1_amount)
             end
             if asset_2_amount:
+                assert(asset_2_amount <= asset_2_reserves)
                 transfer_to_user(asset_2_id, asset_2_amount)
             end
             exit(1)
