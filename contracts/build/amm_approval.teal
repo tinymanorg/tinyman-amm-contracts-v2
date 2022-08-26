@@ -844,6 +844,18 @@ main:
         assert
       l4_end: // end
     
+    // assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))
+    txna ApplicationArgs 0
+    pushbytes "verify_flash_swap"
+    ==
+    pushint 1
+    pushbytes "lock"
+    app_local_get
+    pushint 0
+    ==
+    ||
+    assert
+    
     // switch Txn.ApplicationArgs[0]:
     txna ApplicationArgs 0
     pushbytes "add_liquidity"
@@ -858,13 +870,21 @@ main:
     ==
     bnz main__amm__swap
     txna ApplicationArgs 0
-    pushbytes "flash"
+    pushbytes "flash_loan"
     ==
-    bnz main__amm__flash
+    bnz main__amm__flash_loan
     txna ApplicationArgs 0
-    pushbytes "verify_flash"
+    pushbytes "verify_flash_loan"
     ==
-    bnz main__amm__verify_flash
+    bnz main__amm__verify_flash_loan
+    txna ApplicationArgs 0
+    pushbytes "flash_swap"
+    ==
+    bnz main__amm__flash_swap
+    txna ApplicationArgs 0
+    pushbytes "verify_flash_swap"
+    ==
+    bnz main__amm__verify_flash_swap
     err // unexpected value
     
     
@@ -1219,11 +1239,11 @@ main:
       pushint 1
       return
     
-    // block flash
-    main__amm__flash:
+    // block flash_loan
+    main__amm__flash_loan:
       // update_price_oracle()
       callsub main__amm__func__update_price_oracle
-      // Gtxn[X]: Flash AppCall from User
+      // Gtxn[X]: Flash Loan AppCall from User
       // itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
       // itxn: Transfer Asset 2 to User from Pool if Asset 2 is requested
       
@@ -1245,37 +1265,37 @@ main:
       ||
       assert
       
-      // int verify_flash_txn_index = Txn.GroupIndex + index_diff [slot 14]
+      // int verify_flash_loan_txn_index = Txn.GroupIndex + index_diff [slot 14]
       txn GroupIndex
       load 11 // index_diff
       +
-      store 14 // verify_flash_txn_index
-      // assert(Gtxn[verify_flash_txn_index].Sender == Txn.Sender)
-      load 14 // verify_flash_txn_index
+      store 14 // verify_flash_loan_txn_index
+      // assert(Gtxn[verify_flash_loan_txn_index].Sender == Txn.Sender)
+      load 14 // verify_flash_loan_txn_index
       gtxns Sender
       txn Sender
       ==
       assert
-      // assert(Gtxn[verify_flash_txn_index].TypeEnum == Appl)
-      load 14 // verify_flash_txn_index
+      // assert(Gtxn[verify_flash_loan_txn_index].TypeEnum == Appl)
+      load 14 // verify_flash_loan_txn_index
       gtxns TypeEnum
       pushint 6 // Appl
       ==
       assert
-      // assert(Gtxn[verify_flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-      load 14 // verify_flash_txn_index
+      // assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
+      load 14 // verify_flash_loan_txn_index
       gtxns ApplicationID
       global CurrentApplicationID
       ==
       assert
-      // assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash")
-      load 14 // verify_flash_txn_index
+      // assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[0] == "verify_flash_loan")
+      load 14 // verify_flash_loan_txn_index
       gtxnsa ApplicationArgs 0
-      pushbytes "verify_flash"
+      pushbytes "verify_flash_loan"
       ==
       assert
-      // assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
-      load 14 // verify_flash_txn_index
+      // assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+      load 14 // verify_flash_loan_txn_index
       gtxnsa ApplicationArgs 1
       txna ApplicationArgs 1
       ==
@@ -1313,56 +1333,56 @@ main:
       pushint 1
       return
     
-    // block verify_flash
-    main__amm__verify_flash:
+    // block verify_flash_loan
+    main__amm__verify_flash_loan:
       // if borrowed in two assets:
       // Gtxn[X-2]: Transfer Asset 1 to Pool
       // Gtxn[X-1]: Transfer Asset 2 to Pool
       // if borrowed single asset:
       // Gtxn[X-1]: Transfer borrowed Asset to Pool
       
-      // Gtxn[X]: Verify Flash AppCall from User
+      // Gtxn[X]: Verify Flash Loan AppCall from User
       
       // int index_diff = btoi(Txn.ApplicationArgs[1]) [slot 11]
       txna ApplicationArgs 1
       btoi
       store 11 // index_diff
-      // int flash_txn_index = Txn.GroupIndex - index_diff [slot 12]
+      // int flash_loan_txn_index = Txn.GroupIndex - index_diff [slot 12]
       txn GroupIndex
       load 11 // index_diff
       -
-      store 12 // flash_txn_index
-      // assert(Gtxn[flash_txn_index].TypeEnum == Appl)
-      load 12 // flash_txn_index
+      store 12 // flash_loan_txn_index
+      // assert(Gtxn[flash_loan_txn_index].TypeEnum == Appl)
+      load 12 // flash_loan_txn_index
       gtxns TypeEnum
       pushint 6 // Appl
       ==
       assert
-      // assert(Gtxn[flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-      load 12 // flash_txn_index
+      // assert(Gtxn[flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
+      load 12 // flash_loan_txn_index
       gtxns ApplicationID
       global CurrentApplicationID
       ==
       assert
-      // assert(Gtxn[flash_txn_index].ApplicationArgs[0] == "flash")
-      load 12 // flash_txn_index
+      // assert(Gtxn[flash_loan_txn_index].ApplicationArgs[0] == "flash_loan")
+      load 12 // flash_loan_txn_index
       gtxnsa ApplicationArgs 0
-      pushbytes "flash"
+      pushbytes "flash_loan"
       ==
       assert
-      // assert(Gtxn[flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
-      load 12 // flash_txn_index
+      // assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+      load 12 // flash_loan_txn_index
       gtxnsa ApplicationArgs 1
       txna ApplicationArgs 1
       ==
       assert // index_diff
-      // int asset_1_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[2]) [slot 13]
-      load 12 // flash_txn_index
+      // int asset_1_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[2]) [slot 13]
+      load 12 // flash_loan_txn_index
       gtxnsa ApplicationArgs 2
       btoi
       store 13 // asset_1_amount
-      // int asset_2_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[3]) [slot 14]
-      load 12 // flash_txn_index
+      // int asset_2_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[3]) [slot 14]
+      load 12 // flash_loan_txn_index
       gtxnsa ApplicationArgs 3
       btoi
       store 14 // asset_2_amount
@@ -1616,6 +1636,364 @@ main:
       pushint 1
       return
     
+    // block flash_swap
+    main__amm__flash_swap:
+      // app_local_put(1, "lock", 1)
+      pushint 1
+      pushbytes "lock"
+      pushint 1
+      app_local_put
+      
+      // update_price_oracle()
+      callsub main__amm__func__update_price_oracle
+      // Gtxn[X]: Flash AppCall from User
+      // itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
+      // itxn: Transfer Asset 2 to User from Pool if Asset 2 is requested
+      
+      // int index_diff = btoi(Txn.ApplicationArgs[1]) [slot 11]
+      txna ApplicationArgs 1
+      btoi
+      store 11 // index_diff
+      // int asset_1_amount = btoi(Txn.ApplicationArgs[2]) [slot 12]
+      txna ApplicationArgs 2
+      btoi
+      store 12 // asset_1_amount
+      // int asset_2_amount = btoi(Txn.ApplicationArgs[3]) [slot 13]
+      txna ApplicationArgs 3
+      btoi
+      store 13 // asset_2_amount
+      // assert(asset_1_amount || asset_2_amount)
+      load 12 // asset_1_amount
+      load 13 // asset_2_amount
+      ||
+      assert
+      
+      // int verify_flash_swap_txn_index = Txn.GroupIndex + index_diff [slot 14]
+      txn GroupIndex
+      load 11 // index_diff
+      +
+      store 14 // verify_flash_swap_txn_index
+      // assert(Gtxn[verify_flash_swap_txn_index].Sender == Txn.Sender)
+      load 14 // verify_flash_swap_txn_index
+      gtxns Sender
+      txn Sender
+      ==
+      assert
+      // assert(Gtxn[verify_flash_swap_txn_index].TypeEnum == Appl)
+      load 14 // verify_flash_swap_txn_index
+      gtxns TypeEnum
+      pushint 6 // Appl
+      ==
+      assert
+      // assert(Gtxn[verify_flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
+      load 14 // verify_flash_swap_txn_index
+      gtxns ApplicationID
+      global CurrentApplicationID
+      ==
+      assert
+      // assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[0] == "verify_flash_swap")
+      load 14 // verify_flash_swap_txn_index
+      gtxnsa ApplicationArgs 0
+      pushbytes "verify_flash_swap"
+      ==
+      assert
+      // assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+      load 14 // verify_flash_swap_txn_index
+      gtxnsa ApplicationArgs 1
+      txna ApplicationArgs 1
+      ==
+      assert // index_diff
+      
+      // if asset_1_amount:
+        load 12 // asset_1_amount
+        bz l18_end
+        // then:
+          // transfer_to_user(asset_1_id, asset_1_amount)
+          load 2 // asset_1_id
+          load 12 // asset_1_amount
+          callsub main__amm__func__transfer_to_user
+        l18_end: // end
+      // if asset_2_amount:
+        load 13 // asset_2_amount
+        bz l19_end
+        // then:
+          // transfer_to_user(asset_2_id, asset_2_amount)
+          load 3 // asset_2_id
+          load 13 // asset_2_amount
+          callsub main__amm__func__transfer_to_user
+        l19_end: // end
+      
+      // log(itob(asset_1_reserves) b* itob(asset_2_reserves))
+      load 5 // asset_1_reserves
+      itob
+      load 6 // asset_2_reserves
+      itob
+      b*
+      log
+      // log(itob(get_balance(1, asset_1_id)))
+      pushint 1
+      load 2 // asset_1_id
+      callsub __func__get_balance
+      itob
+      log
+      // log(itob(get_balance(1, asset_2_id)))
+      pushint 1
+      load 3 // asset_2_id
+      callsub __func__get_balance
+      itob
+      log
+      // exit(1)
+      pushint 1
+      return
+    
+    // block verify_flash_swap
+    main__amm__verify_flash_swap:
+      // if borrowed in two assets:
+      // Gtxn[X-2]: Transfer Asset 1 to Pool
+      // Gtxn[X-1]: Transfer Asset 2 to Pool
+      // if borrowed single asset:
+      // Gtxn[X-1]: Transfer borrowed Asset to Pool
+      
+      // Gtxn[X]: Verify Flash AppCall from User
+      
+      // int index_diff = btoi(Txn.ApplicationArgs[1]) [slot 11]
+      txna ApplicationArgs 1
+      btoi
+      store 11 // index_diff
+      // int flash_swap_txn_index = Txn.GroupIndex - index_diff [slot 12]
+      txn GroupIndex
+      load 11 // index_diff
+      -
+      store 12 // flash_swap_txn_index
+      // assert(Gtxn[flash_swap_txn_index].TypeEnum == Appl)
+      load 12 // flash_swap_txn_index
+      gtxns TypeEnum
+      pushint 6 // Appl
+      ==
+      assert
+      // assert(Gtxn[flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
+      load 12 // flash_swap_txn_index
+      gtxns ApplicationID
+      global CurrentApplicationID
+      ==
+      assert
+      // assert(Gtxn[flash_swap_txn_index].ApplicationArgs[0] == "flash_swap")
+      load 12 // flash_swap_txn_index
+      gtxnsa ApplicationArgs 0
+      pushbytes "flash_swap"
+      ==
+      assert
+      // assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+      load 12 // flash_swap_txn_index
+      gtxnsa ApplicationArgs 1
+      txna ApplicationArgs 1
+      ==
+      assert // index_diff
+      // int asset_1_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2]) [slot 13]
+      load 12 // flash_swap_txn_index
+      gtxnsa ApplicationArgs 2
+      btoi
+      store 13 // asset_1_amount
+      // int asset_2_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[3]) [slot 14]
+      load 12 // flash_swap_txn_index
+      gtxnsa ApplicationArgs 3
+      btoi
+      store 14 // asset_2_amount
+      
+      // byte initial_k = Gtxn[flash_swap_txn_index].Logs[0] [slot 15]
+      load 12 // flash_swap_txn_index
+      gtxnsa Logs 0
+      store 15 // initial_k
+      // int asset_1_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[1]) [slot 16]
+      load 12 // flash_swap_txn_index
+      gtxnsa Logs 1
+      btoi
+      store 16 // asset_1_balance_after_transfer
+      // int asset_2_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[2]) [slot 17]
+      load 12 // flash_swap_txn_index
+      gtxnsa Logs 2
+      btoi
+      store 17 // asset_2_balance_after_transfer
+      // int asset_1_balance = get_balance(1, asset_1_id) [slot 18]
+      pushint 1
+      load 2 // asset_1_id
+      callsub __func__get_balance
+      store 18 // asset_1_balance
+      // int asset_2_balance = get_balance(1, asset_2_id) [slot 19]
+      pushint 1
+      load 3 // asset_2_id
+      callsub __func__get_balance
+      store 19 // asset_2_balance
+      
+      // int asset_1_in = 0 [slot 20]
+      pushint 0
+      store 20 // asset_1_in
+      // int asset_2_in = 0 [slot 21]
+      pushint 0
+      store 21 // asset_2_in
+      // if asset_1_balance > asset_1_balance_after_transfer:
+        load 18 // asset_1_balance
+        load 16 // asset_1_balance_after_transfer
+        >
+        bz l20_end
+        // then:
+          // asset_1_in = asset_1_balance - asset_1_balance_after_transfer
+          load 18 // asset_1_balance
+          load 16 // asset_1_balance_after_transfer
+          -
+          store 20 // asset_1_in
+        l20_end: // end
+      // if asset_2_balance > asset_2_balance_after_transfer:
+        load 19 // asset_2_balance
+        load 17 // asset_2_balance_after_transfer
+        >
+        bz l21_end
+        // then:
+          // asset_2_in = asset_2_balance - asset_2_balance_after_transfer
+          load 19 // asset_2_balance
+          load 17 // asset_2_balance_after_transfer
+          -
+          store 21 // asset_2_in
+        l21_end: // end
+      
+      // int asset_1_total_fee_amount [slot 22]
+      // int asset_1_poolers_fee_amount [slot 23]
+      // int asset_1_protocol_fee_amount [slot 24]
+      // if asset_1_in:
+        load 20 // asset_1_in
+        bz l22_else
+        // then:
+          // asset_1_total_fee_amount, asset_1_poolers_fee_amount, asset_1_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_in)
+          load 20 // asset_1_in
+          callsub __func__calculate_fixed_input_fee_amounts
+          store 22 // asset_1_total_fee_amount
+          store 23 // asset_1_poolers_fee_amount
+          store 24 // asset_1_protocol_fee_amount
+          // log(concat("asset_1_fee %i", itob(asset_1_total_fee_amount)))
+          pushbytes "asset_1_fee %i"
+          load 22 // asset_1_total_fee_amount
+          itob
+          concat
+          log
+          
+          // protocol_fees_asset_1 = protocol_fees_asset_1 + asset_1_protocol_fee_amount
+          load 8 // protocol_fees_asset_1
+          load 24 // asset_1_protocol_fee_amount
+          +
+          store 8 // protocol_fees_asset_1
+          // asset_1_reserves = (asset_1_reserves - asset_1_amount) + (asset_1_in - asset_1_protocol_fee_amount)
+          load 5 // asset_1_reserves
+          load 13 // asset_1_amount
+          -
+          load 20 // asset_1_in
+          load 24 // asset_1_protocol_fee_amount
+          -
+          +
+          store 5 // asset_1_reserves
+        b l22_end
+        l22_else:
+        // else:
+          // asset_1_poolers_fee_amount = 0
+          pushint 0
+          store 23 // asset_1_poolers_fee_amount
+          // asset_1_reserves = asset_1_reserves - asset_1_amount
+          load 5 // asset_1_reserves
+          load 13 // asset_1_amount
+          -
+          store 5 // asset_1_reserves
+        l22_end: // end
+      
+      // int asset_2_total_fee_amount [slot 25]
+      // int asset_2_poolers_fee_amount [slot 26]
+      // int asset_2_protocol_fee_amount [slot 27]
+      // if asset_2_in:
+        load 21 // asset_2_in
+        bz l23_else
+        // then:
+          // asset_2_total_fee_amount, asset_2_poolers_fee_amount, asset_2_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_2_in)
+          load 21 // asset_2_in
+          callsub __func__calculate_fixed_input_fee_amounts
+          store 25 // asset_2_total_fee_amount
+          store 26 // asset_2_poolers_fee_amount
+          store 27 // asset_2_protocol_fee_amount
+          // log(concat("asset_2_fee %i", itob(asset_2_total_fee_amount)))
+          pushbytes "asset_2_fee %i"
+          load 25 // asset_2_total_fee_amount
+          itob
+          concat
+          log
+          
+          // protocol_fees_asset_2 = protocol_fees_asset_2 + asset_2_protocol_fee_amount
+          load 9 // protocol_fees_asset_2
+          load 27 // asset_2_protocol_fee_amount
+          +
+          store 9 // protocol_fees_asset_2
+          // asset_2_reserves = (asset_2_reserves - asset_2_amount) + (asset_2_in - asset_2_protocol_fee_amount)
+          load 6 // asset_2_reserves
+          load 14 // asset_2_amount
+          -
+          load 21 // asset_2_in
+          load 27 // asset_2_protocol_fee_amount
+          -
+          +
+          store 6 // asset_2_reserves
+        b l23_end
+        l23_else:
+        // else:
+          // asset_2_poolers_fee_amount = 0
+          pushint 0
+          store 26 // asset_2_poolers_fee_amount
+          // asset_2_reserves = asset_2_reserves - asset_2_amount
+          load 6 // asset_2_reserves
+          load 14 // asset_2_amount
+          -
+          store 6 // asset_2_reserves
+        l23_end: // end
+      
+      // assert(initial_k b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)), "Initial K < New K")
+      load 15 // initial_k
+      load 5 // asset_1_reserves
+      load 23 // asset_1_poolers_fee_amount
+      -
+      itob
+      load 6 // asset_2_reserves
+      load 26 // asset_2_poolers_fee_amount
+      -
+      itob
+      b*
+      b<
+      assert // Initial K < New K
+      
+      // State updates
+      // app_local_put(1, "lock", 0)
+      pushint 1
+      pushbytes "lock"
+      pushint 0
+      app_local_put
+      // app_local_put(1, "asset_1_reserves", asset_1_reserves)
+      pushint 1
+      pushbytes "asset_1_reserves"
+      load 5 // asset_1_reserves
+      app_local_put
+      // app_local_put(1, "asset_2_reserves", asset_2_reserves)
+      pushint 1
+      pushbytes "asset_2_reserves"
+      load 6 // asset_2_reserves
+      app_local_put
+      // app_local_put(1, "protocol_fees_asset_1", protocol_fees_asset_1)
+      pushint 1
+      pushbytes "protocol_fees_asset_1"
+      load 8 // protocol_fees_asset_1
+      app_local_put
+      // app_local_put(1, "protocol_fees_asset_2", protocol_fees_asset_2)
+      pushint 1
+      pushbytes "protocol_fees_asset_2"
+      load 9 // protocol_fees_asset_2
+      app_local_put
+      // exit(1)
+      pushint 1
+      return
+    
     // block add_liquidity
     main__amm__add_liquidity:
       // Gtxn[0]: Transfer Asset1 to Pool from User
@@ -1663,7 +2041,7 @@ main:
         load 3 // asset_2_id
         pushint 0
         ==
-        bz l18_else
+        bz l24_else
         // then:
           // assert(Gtxn[asset_2_txn_index].TypeEnum == Pay)
           load 13 // asset_2_txn_index
@@ -1681,8 +2059,8 @@ main:
           load 13 // asset_2_txn_index
           gtxns Amount
           store 14 // asset_2_amount
-        b l18_end
-        l18_else:
+        b l24_end
+        l24_else:
         // else:
           // assert(Gtxn[asset_2_txn_index].TypeEnum == Axfer)
           load 13 // asset_2_txn_index
@@ -1706,12 +2084,12 @@ main:
           load 13 // asset_2_txn_index
           gtxns AssetAmount
           store 14 // asset_2_amount
-        l18_end: // end
+        l24_end: // end
       
       // int pool_tokens_out [slot 15]
       // if issued_pool_tokens:
         load 7 // issued_pool_tokens
-        bz l19_else
+        bz l25_else
         // then:
           // Adding liquidity after it already has some liquidity
           // byte a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens) [slot 16]
@@ -1747,7 +2125,7 @@ main:
             load 18 // pool_tokens_out_a
             load 19 // pool_tokens_out_b
             >
-            bz l20_else
+            bz l26_else
             // then:
               // Less of asset 2 supplied. Pool tokens will be issued proportionally to asset_2_amount (b)
               // Calculate amount of asset 1 to return to user as change
@@ -1773,14 +2151,14 @@ main:
                 itob
                 b%
                 btoi
-                bz l21_end
+                bz l27_end
                 // then:
                   // expected_asset_1_amount = expected_asset_1_amount + 1
                   load 20 // expected_asset_1_amount
                   pushint 1
                   +
                   store 20 // expected_asset_1_amount
-                l21_end: // end
+                l27_end: // end
               
               // int asset_1_change = asset_1_amount - expected_asset_1_amount [slot 21]
               load 12 // asset_1_amount
@@ -1794,8 +2172,8 @@ main:
               load 2 // asset_1_id
               load 21 // asset_1_change
               callsub main__amm__func__transfer_to_user
-            b l20_end
-            l20_else:
+            b l26_end
+            l26_else:
             // else:
               // Less of asset 1 supplied. Pool tokens will be issued proportionally to asset_1_amount (a)
               // Calculate amount of asset 2 to return to user as change
@@ -1821,14 +2199,14 @@ main:
                 itob
                 b%
                 btoi
-                bz l22_end
+                bz l28_end
                 // then:
                   // expected_asset_2_amount = expected_asset_2_amount + 1
                   load 22 // expected_asset_2_amount
                   pushint 1
                   +
                   store 22 // expected_asset_2_amount
-                l22_end: // end
+                l28_end: // end
               
               // int asset_2_change = asset_2_amount - expected_asset_2_amount [slot 23]
               load 14 // asset_2_amount
@@ -1842,7 +2220,7 @@ main:
               load 3 // asset_2_id
               load 23 // asset_2_change
               callsub main__amm__func__transfer_to_user
-            l20_end: // end
+            l26_end: // end
           // issued_pool_tokens = issued_pool_tokens + pool_tokens_out
           load 7 // issued_pool_tokens
           load 15 // pool_tokens_out
@@ -1858,8 +2236,8 @@ main:
           load 14 // asset_2_amount
           +
           store 6 // asset_2_reserves
-        b l19_end
-        l19_else:
+        b l25_end
+        l25_else:
         // else:
           // Adding liquidity to the pool for the first time:
           // pool_tokens_out = sqrt(asset_1_amount * asset_2_amount) - LOCKED_POOL_TOKENS
@@ -1883,7 +2261,7 @@ main:
           // asset_2_reserves = asset_2_amount
           load 14 // asset_2_amount
           store 6 // asset_2_reserves
-        l19_end: // end
+        l25_end: // end
       
       // Ensure calculated amount of pool tokens is > 0
       // assert(pool_tokens_out)
@@ -1959,7 +2337,7 @@ main:
         +
         load 7 // issued_pool_tokens
         ==
-        bz l23_else
+        bz l29_else
         // then:
           // asset_1_amount = asset_1_reserves
           load 5 // asset_1_reserves
@@ -1970,8 +2348,8 @@ main:
           // removed_pool_token_amount = issued_pool_tokens
           load 7 // issued_pool_tokens
           store 12 // removed_pool_token_amount
-        b l23_end
-        l23_else:
+        b l29_end
+        l29_else:
         // else:
           // asset_1_amount = btoi((itob(removed_pool_token_amount) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
           load 12 // removed_pool_token_amount
@@ -1995,7 +2373,7 @@ main:
           b/
           btoi
           store 14 // asset_2_amount
-        l23_end: // end
+        l29_end: // end
       
       // assert(asset_1_amount && asset_2_amount)
       load 13 // asset_1_amount
@@ -2039,11 +2417,11 @@ main:
     
     // func transfer_to_user(asset_id: int, amount: int):
     main__amm__func__transfer_to_user:
-    store 27 // amount
-    store 28 // asset_id
+    store 28 // amount
+    store 29 // asset_id
     // return transfer(asset_id, amount, pool_address, user_address)
-    load 28 // asset_id
-    load 27 // amount
+    load 29 // asset_id
+    load 28 // amount
     load 1 // pool_address
     load 0 // user_address
     callsub __func__transfer
@@ -2051,200 +2429,200 @@ main:
     
     // func update_price_oracle():
     main__amm__func__update_price_oracle:
-    // byte cumulative_asset_1_price = app_local_get(1, "cumulative_asset_1_price") [slot 29]
+    // byte cumulative_asset_1_price = app_local_get(1, "cumulative_asset_1_price") [slot 30]
     pushint 1
     pushbytes "cumulative_asset_1_price"
     app_local_get
-    store 29 // cumulative_asset_1_price
-    // byte cumulative_asset_2_price = app_local_get(1, "cumulative_asset_2_price") [slot 30]
+    store 30 // cumulative_asset_1_price
+    // byte cumulative_asset_2_price = app_local_get(1, "cumulative_asset_2_price") [slot 31]
     pushint 1
     pushbytes "cumulative_asset_2_price"
     app_local_get
-    store 30 // cumulative_asset_2_price
-    // int time_delta = Global.LatestTimestamp - app_local_get(1, "cumulative_price_update_timestamp") [slot 31]
+    store 31 // cumulative_asset_2_price
+    // int time_delta = Global.LatestTimestamp - app_local_get(1, "cumulative_price_update_timestamp") [slot 32]
     global LatestTimestamp
     pushint 1
     pushbytes "cumulative_price_update_timestamp"
     app_local_get
     -
-    store 31 // time_delta
+    store 32 // time_delta
     
     // if (issued_pool_tokens && time_delta):
       load 7 // issued_pool_tokens
-      load 31 // time_delta
+      load 32 // time_delta
       &&
-      bz l24_end
+      bz l30_end
       // then:
         // cumulative_asset_1_price = cumulative_asset_1_price b+ (((itob(asset_2_reserves) b* TWO_TO_THE_64) b* itob(time_delta)) b/ itob(asset_1_reserves))
-        load 29 // cumulative_asset_1_price
+        load 30 // cumulative_asset_1_price
         load 6 // asset_2_reserves
         itob
         pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
         b*
-        load 31 // time_delta
+        load 32 // time_delta
         itob
         b*
         load 5 // asset_1_reserves
         itob
         b/
         b+
-        store 29 // cumulative_asset_1_price
+        store 30 // cumulative_asset_1_price
         // cumulative_asset_2_price = cumulative_asset_2_price b+ (((itob(asset_1_reserves) b* TWO_TO_THE_64) b* itob(time_delta)) b/ itob(asset_2_reserves))
-        load 30 // cumulative_asset_2_price
+        load 31 // cumulative_asset_2_price
         load 5 // asset_1_reserves
         itob
         pushbytes "\x01\x00\x00\x00\x00\x00\x00\x00\x00" // TWO_TO_THE_64
         b*
-        load 31 // time_delta
+        load 32 // time_delta
         itob
         b*
         load 6 // asset_2_reserves
         itob
         b/
         b+
-        store 30 // cumulative_asset_2_price
+        store 31 // cumulative_asset_2_price
         // app_local_put(1, "cumulative_asset_1_price", cumulative_asset_1_price)
         pushint 1
         pushbytes "cumulative_asset_1_price"
-        load 29 // cumulative_asset_1_price
+        load 30 // cumulative_asset_1_price
         app_local_put
         // app_local_put(1, "cumulative_asset_2_price", cumulative_asset_2_price)
         pushint 1
         pushbytes "cumulative_asset_2_price"
-        load 30 // cumulative_asset_2_price
+        load 31 // cumulative_asset_2_price
         app_local_put
         // app_local_put(1, "cumulative_price_update_timestamp", Global.LatestTimestamp)
         pushint 1
         pushbytes "cumulative_price_update_timestamp"
         global LatestTimestamp
         app_local_put
-      l24_end: // end
+      l30_end: // end
     // return
     retsub
 
 
 // func calculate_fixed_input_fee_amounts(input_amount: int) int:
 __func__calculate_fixed_input_fee_amounts:
-store 32 // input_amount
-// int poolers_fee_share = app_local_get(1, "poolers_fee_share") [slot 33]
+store 33 // input_amount
+// int poolers_fee_share = app_local_get(1, "poolers_fee_share") [slot 34]
 pushint 1
 pushbytes "poolers_fee_share"
 app_local_get
-store 33 // poolers_fee_share
-// int protocol_fee_share = app_local_get(1, "protocol_fee_share") [slot 34]
+store 34 // poolers_fee_share
+// int protocol_fee_share = app_local_get(1, "protocol_fee_share") [slot 35]
 pushint 1
 pushbytes "protocol_fee_share"
 app_local_get
-store 34 // protocol_fee_share
+store 35 // protocol_fee_share
 
-// int total_fee_share = poolers_fee_share + protocol_fee_share [slot 35]
-load 33 // poolers_fee_share
-load 34 // protocol_fee_share
+// int total_fee_share = poolers_fee_share + protocol_fee_share [slot 36]
+load 34 // poolers_fee_share
+load 35 // protocol_fee_share
 +
-store 35 // total_fee_share
-// int total_fee = (input_amount * total_fee_share) / 10000 [slot 36]
-load 32 // input_amount
-load 35 // total_fee_share
+store 36 // total_fee_share
+// int total_fee = (input_amount * total_fee_share) / 10000 [slot 37]
+load 33 // input_amount
+load 36 // total_fee_share
 *
 pushint 10000
 /
-store 36 // total_fee
-// int protocol_fee = (total_fee * protocol_fee_share) / total_fee_share [slot 37]
-load 36 // total_fee
-load 34 // protocol_fee_share
+store 37 // total_fee
+// int protocol_fee = (total_fee * protocol_fee_share) / total_fee_share [slot 38]
+load 37 // total_fee
+load 35 // protocol_fee_share
 *
-load 35 // total_fee_share
+load 36 // total_fee_share
 /
-store 37 // protocol_fee
-// int poolers_fee = total_fee - protocol_fee [slot 38]
-load 36 // total_fee
-load 37 // protocol_fee
+store 38 // protocol_fee
+// int poolers_fee = total_fee - protocol_fee [slot 39]
+load 37 // total_fee
+load 38 // protocol_fee
 -
-store 38 // poolers_fee
+store 39 // poolers_fee
 // return total_fee, poolers_fee, protocol_fee
-load 37 // protocol_fee
-load 38 // poolers_fee
-load 36 // total_fee
+load 38 // protocol_fee
+load 39 // poolers_fee
+load 37 // total_fee
 retsub
 
 
 // func calculate_fixed_output_fee_amounts(swap_amount: int) int:
 __func__calculate_fixed_output_fee_amounts:
-store 39 // swap_amount
-// int poolers_fee_share = app_local_get(1, "poolers_fee_share") [slot 40]
+store 40 // swap_amount
+// int poolers_fee_share = app_local_get(1, "poolers_fee_share") [slot 41]
 pushint 1
 pushbytes "poolers_fee_share"
 app_local_get
-store 40 // poolers_fee_share
-// int protocol_fee_share = app_local_get(1, "protocol_fee_share") [slot 41]
+store 41 // poolers_fee_share
+// int protocol_fee_share = app_local_get(1, "protocol_fee_share") [slot 42]
 pushint 1
 pushbytes "protocol_fee_share"
 app_local_get
-store 41 // protocol_fee_share
-// int input_amount = (swap_amount * 10000) / (10000 - (poolers_fee_share + protocol_fee_share)) [slot 42]
-load 39 // swap_amount
+store 42 // protocol_fee_share
+// int input_amount = (swap_amount * 10000) / (10000 - (poolers_fee_share + protocol_fee_share)) [slot 43]
+load 40 // swap_amount
 pushint 10000
 *
 pushint 10000
-load 40 // poolers_fee_share
-load 41 // protocol_fee_share
+load 41 // poolers_fee_share
+load 42 // protocol_fee_share
 +
 -
 /
-store 42 // input_amount
+store 43 // input_amount
 
-// int total_fee_share = poolers_fee_share + protocol_fee_share [slot 43]
-load 40 // poolers_fee_share
-load 41 // protocol_fee_share
+// int total_fee_share = poolers_fee_share + protocol_fee_share [slot 44]
+load 41 // poolers_fee_share
+load 42 // protocol_fee_share
 +
-store 43 // total_fee_share
-// int total_fee = (input_amount * total_fee_share) / 10000 [slot 44]
-load 42 // input_amount
-load 43 // total_fee_share
+store 44 // total_fee_share
+// int total_fee = (input_amount * total_fee_share) / 10000 [slot 45]
+load 43 // input_amount
+load 44 // total_fee_share
 *
 pushint 10000
 /
-store 44 // total_fee
-// int protocol_fee = (total_fee * protocol_fee_share) / total_fee_share [slot 45]
-load 44 // total_fee
-load 41 // protocol_fee_share
+store 45 // total_fee
+// int protocol_fee = (total_fee * protocol_fee_share) / total_fee_share [slot 46]
+load 45 // total_fee
+load 42 // protocol_fee_share
 *
-load 43 // total_fee_share
+load 44 // total_fee_share
 /
-store 45 // protocol_fee
-// int poolers_fee = total_fee - protocol_fee [slot 46]
-load 44 // total_fee
-load 45 // protocol_fee
+store 46 // protocol_fee
+// int poolers_fee = total_fee - protocol_fee [slot 47]
+load 45 // total_fee
+load 46 // protocol_fee
 -
-store 46 // poolers_fee
+store 47 // poolers_fee
 // return total_fee, poolers_fee, protocol_fee
-load 45 // protocol_fee
-load 46 // poolers_fee
-load 44 // total_fee
+load 46 // protocol_fee
+load 47 // poolers_fee
+load 45 // total_fee
 retsub
 
 
 // func calculate_fixed_input_swap(input_supply: int, output_supply: int, swap_amount: int) int:
 __func__calculate_fixed_input_swap:
-store 47 // swap_amount
-store 48 // output_supply
-store 49 // input_supply
+store 48 // swap_amount
+store 49 // output_supply
+store 50 // input_supply
 // Calculates the output amount for a fixed-input swap ignoring fees
 // k = input_supply * output_supply
 // output_amount = output_supply - (k / (input_supply + swap_amount))
-// byte k = itob(input_supply) b* itob(output_supply) [slot 50]
-load 49 // input_supply
+// byte k = itob(input_supply) b* itob(output_supply) [slot 51]
+load 50 // input_supply
 itob
-load 48 // output_supply
+load 49 // output_supply
 itob
 b*
-store 50 // k
+store 51 // k
 // +1 for Round Up
-// int output_amount = output_supply - (btoi((k b/ itob(input_supply + swap_amount))) + 1) [slot 51]
-load 48 // output_supply
-load 50 // k
-load 49 // input_supply
-load 47 // swap_amount
+// int output_amount = output_supply - (btoi((k b/ itob(input_supply + swap_amount))) + 1) [slot 52]
+load 49 // output_supply
+load 51 // k
+load 50 // input_supply
+load 48 // swap_amount
 +
 itob
 b/
@@ -2252,127 +2630,127 @@ btoi
 pushint 1
 +
 -
-store 51 // output_amount
+store 52 // output_amount
 // return output_amount
-load 51 // output_amount
+load 52 // output_amount
 retsub
 
 
 // func calculate_fixed_output_swap(input_supply: int, output_supply: int, output_amount: int) int:
 __func__calculate_fixed_output_swap:
-store 52 // output_amount
-store 53 // output_supply
-store 54 // input_supply
+store 53 // output_amount
+store 54 // output_supply
+store 55 // input_supply
 // Calculates the input amount for a fixed-output swap ignoring fees
 // k = input_supply * output_supply
 // input_amount = (k / (output_supply - asset_out_amount)) - input_supply
-// byte k = itob(input_supply) b* itob(output_supply) [slot 55]
-load 54 // input_supply
+// byte k = itob(input_supply) b* itob(output_supply) [slot 56]
+load 55 // input_supply
 itob
-load 53 // output_supply
+load 54 // output_supply
 itob
 b*
-store 55 // k
+store 56 // k
 // +1 for Round Up
-// int input_amount = (btoi((k b/ itob(output_supply - output_amount))) + 1) - input_supply [slot 56]
-load 55 // k
-load 53 // output_supply
-load 52 // output_amount
+// int input_amount = (btoi((k b/ itob(output_supply - output_amount))) + 1) - input_supply [slot 57]
+load 56 // k
+load 54 // output_supply
+load 53 // output_amount
 -
 itob
 b/
 btoi
 pushint 1
 +
-load 54 // input_supply
+load 55 // input_supply
 -
-store 56 // input_amount
+store 57 // input_amount
 // return input_amount
-load 56 // input_amount
+load 57 // input_amount
 retsub
 
 
 // func get_balance(account_idx: int, asset_id: int) int:
 __func__get_balance:
-store 57 // asset_id
-store 58 // account_idx
-// int balance = 0 [slot 59]
+store 58 // asset_id
+store 59 // account_idx
+// int balance = 0 [slot 60]
 pushint 0
-store 59 // balance
+store 60 // balance
 // if asset_id == 0:
-  load 57 // asset_id
+  load 58 // asset_id
   pushint 0
   ==
-  bz l25_else
+  bz l31_else
   // then:
     // balance = balance(account_idx) - min_balance(account_idx)
-    load 58 // account_idx
+    load 59 // account_idx
     balance
-    load 58 // account_idx
+    load 59 // account_idx
     min_balance
     -
-    store 59 // balance
-  b l25_end
-  l25_else:
+    store 60 // balance
+  b l31_end
+  l31_else:
   // else:
     // _, balance = asset_holding_get(AssetBalance, account_idx, asset_id)
-    load 58 // account_idx
-    load 57 // asset_id
+    load 59 // account_idx
+    load 58 // asset_id
     asset_holding_get AssetBalance
     pop // discarding value for _
-    store 59 // balance
-  l25_end: // end
+    store 60 // balance
+  l31_end: // end
 // return balance
-load 59 // balance
+load 60 // balance
 retsub
 
 
 // func transfer(asset_id: int, amount: int, sender: byte, receiver: byte):
 __func__transfer:
-store 60 // receiver
-store 61 // sender
-store 62 // amount
-store 63 // asset_id
+store 61 // receiver
+store 62 // sender
+store 63 // amount
+store 64 // asset_id
 // if asset_id == 0:
-  load 63 // asset_id
+  load 64 // asset_id
   pushint 0
   ==
-  bz l26_else
+  bz l32_else
   // then:
     // 
     itxn_begin
     // inner_txn:
     pushint 1 // Pay
     itxn_field TypeEnum
-    load 61 // sender
+    load 62 // sender
     itxn_field Sender
-    load 60 // receiver
+    load 61 // receiver
     itxn_field Receiver
-    load 62 // amount
+    load 63 // amount
     itxn_field Amount
     pushint 0
     itxn_field Fee
     itxn_submit
-  b l26_end
-  l26_else:
+  b l32_end
+  l32_else:
   // else:
     // 
     itxn_begin
     // inner_txn:
     pushint 4 // Axfer
     itxn_field TypeEnum
-    load 61 // sender
+    load 62 // sender
     itxn_field Sender
-    load 60 // receiver
+    load 61 // receiver
     itxn_field AssetReceiver
-    load 62 // amount
+    load 63 // amount
     itxn_field AssetAmount
-    load 63 // asset_id
+    load 64 // asset_id
     itxn_field XferAsset
     pushint 0
     itxn_field Fee
     itxn_submit
-  l26_end: // end
+  l32_end: // end
 // return
 retsub
 

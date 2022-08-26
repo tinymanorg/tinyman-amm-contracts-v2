@@ -90,7 +90,7 @@ block bootstrap:
     byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
 
     byte pool_address = Txn.Sender
-    
+
     # Ensure pool_address == SHA512_256("program" + bytes from template and args)
     const byte TEMPLATE = "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
     byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
@@ -260,7 +260,7 @@ block main:
 
         # itxn[0]: Transfer Asset 1 to fee_collector from Pool
         # itxn[1]: Transfer Asset 2 to fee_collector from Pool
-        
+
         byte pool_address = Txn.Accounts[1]
         int asset_1_id = app_local_get(1, "asset_1_id")
         int asset_2_id = app_local_get(1, "asset_2_id")
@@ -338,12 +338,16 @@ block main:
             assert(Global.CallerApplicationID == proxy_app_id)
         end
 
+        assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))
+
         switch Txn.ApplicationArgs[0]:
             "add_liquidity": add_liquidity
             "remove_liquidity": remove_liquidity
             "swap": swap
-            "flash": flash
-            "verify_flash": verify_flash
+            "flash_loan": flash_loan
+            "verify_flash_loan": verify_flash_loan
+            "flash_swap": flash_swap
+            "verify_flash_swap": verify_flash_swap
         end
 
 
@@ -446,9 +450,9 @@ block main:
             exit(1)
         end
 
-        block flash:
+        block flash_loan:
             update_price_oracle()
-            # Gtxn[X]: Flash AppCall from User
+            # Gtxn[X]: Flash Loan AppCall from User
             #   itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
             #   itxn: Transfer Asset 2 to User from Pool if Asset 2 is requested
 
@@ -457,12 +461,12 @@ block main:
             int asset_2_amount = btoi(Txn.ApplicationArgs[3])
             assert(asset_1_amount || asset_2_amount)
 
-            int verify_flash_txn_index = Txn.GroupIndex + index_diff
-            assert(Gtxn[verify_flash_txn_index].Sender == Txn.Sender)
-            assert(Gtxn[verify_flash_txn_index].TypeEnum == Appl)
-            assert(Gtxn[verify_flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[0] == "verify_flash")
-            assert(Gtxn[verify_flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            int verify_flash_loan_txn_index = Txn.GroupIndex + index_diff
+            assert(Gtxn[verify_flash_loan_txn_index].Sender == Txn.Sender)
+            assert(Gtxn[verify_flash_loan_txn_index].TypeEnum == Appl)
+            assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[0] == "verify_flash_loan")
+            assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
 
             if asset_1_amount:
                 assert(asset_1_amount <= asset_1_reserves)
@@ -475,23 +479,23 @@ block main:
             exit(1)
         end
 
-        block verify_flash:
+        block verify_flash_loan:
             # if borrowed in two assets:
             #   Gtxn[X-2]: Transfer Asset 1 to Pool
             #   Gtxn[X-1]: Transfer Asset 2 to Pool
             # if borrowed single asset:
             #   Gtxn[X-1]: Transfer borrowed Asset to Pool
 
-            # Gtxn[X]: Verify Flash AppCall from User
+            # Gtxn[X]: Verify Flash Loan AppCall from User
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
-            int flash_txn_index = Txn.GroupIndex - index_diff
-            assert(Gtxn[flash_txn_index].TypeEnum == Appl)
-            assert(Gtxn[flash_txn_index].ApplicationID == Global.CurrentApplicationID)
-            assert(Gtxn[flash_txn_index].ApplicationArgs[0] == "flash")
-            assert(Gtxn[flash_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
-            int asset_1_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[2])
-            int asset_2_amount = btoi(Gtxn[flash_txn_index].ApplicationArgs[3])
+            int flash_loan_txn_index = Txn.GroupIndex - index_diff
+            assert(Gtxn[flash_loan_txn_index].TypeEnum == Appl)
+            assert(Gtxn[flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[flash_loan_txn_index].ApplicationArgs[0] == "flash_loan")
+            assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            int asset_1_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[2])
+            int asset_2_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[3])
 
             if asset_1_amount:
                 int asset_1_total_fee_amount
@@ -558,6 +562,111 @@ block main:
             end
 
             # State updates
+            app_local_put(1, "asset_1_reserves", asset_1_reserves)
+            app_local_put(1, "asset_2_reserves", asset_2_reserves)
+            app_local_put(1, "protocol_fees_asset_1", protocol_fees_asset_1)
+            app_local_put(1, "protocol_fees_asset_2", protocol_fees_asset_2)
+            exit(1)
+        end
+
+        block flash_swap:
+            app_local_put(1, "lock", 1)
+
+            update_price_oracle()
+            # Gtxn[X]: Flash AppCall from User
+            #   itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
+            #   itxn: Transfer Asset 2 to User from Pool if Asset 2 is requested
+
+            int index_diff = btoi(Txn.ApplicationArgs[1])
+            int asset_1_amount = btoi(Txn.ApplicationArgs[2])
+            int asset_2_amount = btoi(Txn.ApplicationArgs[3])
+            assert(asset_1_amount || asset_2_amount)
+
+            int verify_flash_swap_txn_index = Txn.GroupIndex + index_diff
+            assert(Gtxn[verify_flash_swap_txn_index].Sender == Txn.Sender)
+            assert(Gtxn[verify_flash_swap_txn_index].TypeEnum == Appl)
+            assert(Gtxn[verify_flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[0] == "verify_flash_swap")
+            assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+
+            if asset_1_amount:
+                transfer_to_user(asset_1_id, asset_1_amount)
+            end
+            if asset_2_amount:
+                transfer_to_user(asset_2_id, asset_2_amount)
+            end
+
+            log(itob(asset_1_reserves) b* itob(asset_2_reserves))
+            log(itob(get_balance(1, asset_1_id)))
+            log(itob(get_balance(1, asset_2_id)))
+            exit(1)
+        end
+
+        block verify_flash_swap:
+            # if borrowed in two assets:
+            #   Gtxn[X-2]: Transfer Asset 1 to Pool
+            #   Gtxn[X-1]: Transfer Asset 2 to Pool
+            # if borrowed single asset:
+            #   Gtxn[X-1]: Transfer borrowed Asset to Pool
+
+            # Gtxn[X]: Verify Flash AppCall from User
+
+            int index_diff = btoi(Txn.ApplicationArgs[1])
+            int flash_swap_txn_index = Txn.GroupIndex - index_diff
+            assert(Gtxn[flash_swap_txn_index].TypeEnum == Appl)
+            assert(Gtxn[flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
+            assert(Gtxn[flash_swap_txn_index].ApplicationArgs[0] == "flash_swap")
+            assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            int asset_1_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2])
+            int asset_2_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[3])
+
+            byte initial_k = Gtxn[flash_swap_txn_index].Logs[0]
+            int asset_1_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[1])
+            int asset_2_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[2])
+            int asset_1_balance = get_balance(1, asset_1_id)
+            int asset_2_balance = get_balance(1, asset_2_id)
+
+            int asset_1_in = 0
+            int asset_2_in = 0
+            if asset_1_balance > asset_1_balance_after_transfer:
+                asset_1_in = asset_1_balance - asset_1_balance_after_transfer
+            end
+            if asset_2_balance > asset_2_balance_after_transfer:
+                asset_2_in = asset_2_balance - asset_2_balance_after_transfer
+            end
+
+            int asset_1_total_fee_amount
+            int asset_1_poolers_fee_amount
+            int asset_1_protocol_fee_amount
+            if asset_1_in:
+                asset_1_total_fee_amount, asset_1_poolers_fee_amount, asset_1_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_in)
+                log(concat("asset_1_fee %i", itob(asset_1_total_fee_amount)))
+
+                protocol_fees_asset_1 = protocol_fees_asset_1 + asset_1_protocol_fee_amount
+                asset_1_reserves = (asset_1_reserves - asset_1_amount) + (asset_1_in - asset_1_protocol_fee_amount)
+            else:
+                asset_1_poolers_fee_amount = 0
+                asset_1_reserves = asset_1_reserves - asset_1_amount
+            end
+
+            int asset_2_total_fee_amount
+            int asset_2_poolers_fee_amount
+            int asset_2_protocol_fee_amount
+            if asset_2_in:
+                asset_2_total_fee_amount, asset_2_poolers_fee_amount, asset_2_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_2_in)
+                log(concat("asset_2_fee %i", itob(asset_2_total_fee_amount)))
+
+                protocol_fees_asset_2 = protocol_fees_asset_2 + asset_2_protocol_fee_amount
+                asset_2_reserves = (asset_2_reserves - asset_2_amount) + (asset_2_in - asset_2_protocol_fee_amount)
+            else:
+                asset_2_poolers_fee_amount = 0
+                asset_2_reserves = asset_2_reserves - asset_2_amount
+            end
+
+            assert(initial_k b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)), "Initial K < New K")
+
+            # State updates
+            app_local_put(1, "lock", 0)
             app_local_put(1, "asset_1_reserves", asset_1_reserves)
             app_local_put(1, "asset_2_reserves", asset_2_reserves)
             app_local_put(1, "protocol_fees_asset_1", protocol_fees_asset_1)
