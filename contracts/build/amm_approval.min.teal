@@ -52,38 +52,34 @@ txna ApplicationArgs 0
 pushbytes "bootstrap"
 ==
 assert
-txna ApplicationArgs 1
-btoi
+txn RekeyTo
+global CurrentApplicationAddress
+==
+assert
+txna Assets 0
 store 0 // asset_1_id
-txna ApplicationArgs 2
-btoi
+txna Assets 1
 store 1 // asset_2_id
-pushint 0
-store 2 // proxy_app_id
 load 0 // asset_1_id
 load 1 // asset_2_id
 >
 assert
-load 0 // asset_1_id
-txna Assets 0
-==
-assert
-pushbytes ""
-store 4 // asset_1_unit_name
-pushbytes "ALGO"
-store 5 // asset_2_unit_name
+pushint 0
+store 2 // proxy_app_id
+txn Sender
+store 3 // pool_address
 load 0 // asset_1_id
 asset_params_get AssetUnitName
-store 3 // exists
-store 4 // asset_1_unit_name
-load 3 // exists
+store 4 // exists
+store 5 // asset_1_unit_name
+load 4 // exists
 assert
 load 0 // asset_1_id
 asset_params_get AssetTotal
-store 3 // exists
-store 6 // asset_total
-load 3 // exists
-load 6 // asset_total
+store 4 // exists
+store 7 // asset_total
+load 4 // exists
+load 7 // asset_total
 pushint 10000 // ASSET_MIN_TOTAL
 >=
 &&
@@ -92,89 +88,77 @@ load 1 // asset_2_id
 pushint 0
 ==
 bz l1_else
-pushint 1
-txn NumAssets
-==
-assert
+pushbytes "ALGO"
+store 6 // asset_2_unit_name
 b l1_end
 l1_else:
 load 1 // asset_2_id
-txna Assets 1
-==
-assert
-load 1 // asset_2_id
 asset_params_get AssetUnitName
-store 3 // exists
-store 5 // asset_2_unit_name
-load 3 // exists
+store 4 // exists
+store 6 // asset_2_unit_name
+load 4 // exists
 assert
 load 1 // asset_2_id
 asset_params_get AssetTotal
-store 3 // exists
-store 6 // asset_total
-load 3 // exists
-load 6 // asset_total
+store 4 // exists
+store 7 // asset_total
+load 4 // exists
+load 7 // asset_total
 pushint 10000 // ASSET_MIN_TOTAL
 >=
 &&
 assert
 l1_end: // end
 pushbytes "TinymanPool2.0 "
-load 4 // asset_1_unit_name
+load 5 // asset_1_unit_name
 pushbytes "-"
 concat
-load 5 // asset_2_unit_name
+load 6 // asset_2_unit_name
 concat
 concat
-store 7 // pool_token_asset_name
-txn Sender
-store 8 // pool_address
+store 8 // pool_token_asset_name
 pushbytes "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
 global CurrentApplicationID
 itob
 replace2 3
 store 9 // program
 load 9 // program
-txna ApplicationArgs 1
+load 0 // asset_1_id
+itob
 replace2 11
 store 9 // program
 load 9 // program
-txna ApplicationArgs 2
+load 1 // asset_2_id
+itob
 replace2 19
 store 9 // program
 txn NumAppArgs
-pushint 3
+pushint 1
 >
 bz l2_end
-txna ApplicationArgs 3
+txna ApplicationArgs 1
 btoi
 store 2 // proxy_app_id
 load 9 // program
-txna ApplicationArgs 3
+txna ApplicationArgs 1
 replace2 27
 store 9 // program
 l2_end: // end
+load 3 // pool_address
 pushbytes "Program"
 load 9 // program
 concat
 sha512_256
-store 10 // hash
-load 10 // hash
-load 8 // pool_address
-==
-assert
-txn RekeyTo
-global CurrentApplicationAddress
 ==
 assert
 itxn_begin
 pushint 1 // Pay
 itxn_field TypeEnum
-load 8 // pool_address
+load 3 // pool_address
 itxn_field Sender
 global CurrentApplicationAddress
 itxn_field Receiver
-pushint 200000
+pushint 100000
 itxn_field Amount
 pushint 0
 itxn_field Fee
@@ -186,7 +170,7 @@ global CurrentApplicationAddress
 itxn_field Sender
 pushbytes "TMPOOL2"
 itxn_field ConfigAssetUnitName
-load 7 // pool_token_asset_name
+load 8 // pool_token_asset_name
 itxn_field ConfigAssetName
 pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
 itxn_field ConfigAssetTotal
@@ -198,13 +182,13 @@ pushint 0
 itxn_field Fee
 itxn_submit
 itxn CreatedAssetID
-store 11 // pool_token_asset_id
+store 10 // pool_token_asset_id
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 8 // pool_address
+load 3 // pool_address
 itxn_field Sender
-load 8 // pool_address
+load 3 // pool_address
 itxn_field AssetReceiver
 load 0 // asset_1_id
 itxn_field XferAsset
@@ -220,9 +204,9 @@ bz l3_end
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 8 // pool_address
+load 3 // pool_address
 itxn_field Sender
-load 8 // pool_address
+load 3 // pool_address
 itxn_field AssetReceiver
 load 1 // asset_2_id
 itxn_field XferAsset
@@ -235,11 +219,11 @@ l3_end: // end
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 8 // pool_address
+load 3 // pool_address
 itxn_field Sender
-load 8 // pool_address
+load 3 // pool_address
 itxn_field AssetReceiver
-load 11 // pool_token_asset_id
+load 10 // pool_token_asset_id
 itxn_field XferAsset
 pushint 0
 itxn_field Amount
@@ -251,23 +235,15 @@ pushint 4 // Axfer
 itxn_field TypeEnum
 global CurrentApplicationAddress
 itxn_field Sender
-load 8 // pool_address
+load 3 // pool_address
 itxn_field AssetReceiver
-load 11 // pool_token_asset_id
+load 10 // pool_token_asset_id
 itxn_field XferAsset
 pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
 itxn_field AssetAmount
 pushint 0
 itxn_field Fee
 itxn_submit
-pushint 25
-store 12 // poolers_fee_share
-pushint 5
-store 13 // protocol_fee_share
-pushint 0
-pushbytes "pool_token_asset_id"
-load 11 // pool_token_asset_id
-app_local_put
 pushint 0
 pushbytes "asset_1_id"
 load 0 // asset_1_id
@@ -277,16 +253,20 @@ pushbytes "asset_2_id"
 load 1 // asset_2_id
 app_local_put
 pushint 0
-pushbytes "poolers_fee_share"
-load 12 // poolers_fee_share
-app_local_put
-pushint 0
-pushbytes "protocol_fee_share"
-load 13 // protocol_fee_share
+pushbytes "pool_token_asset_id"
+load 10 // pool_token_asset_id
 app_local_put
 pushint 0
 pushbytes "proxy_app_id"
 load 2 // proxy_app_id
+app_local_put
+pushint 0
+pushbytes "poolers_fee_share"
+pushint 25
+app_local_put
+pushint 0
+pushbytes "protocol_fee_share"
+pushint 5
 app_local_put
 pushint 0
 pushbytes "asset_1_reserves"

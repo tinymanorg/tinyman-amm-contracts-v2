@@ -1,10 +1,16 @@
 #pragma version 7
 
+# NOTE: Tinyman assumes that the asset id of ALGO is 0. Algorand cannot have an ASA with id 0.
+
+# NOTE: Fee should be set to 0 for all inner transactions to ensure it is paid by an outer transaction sender instead of the Pool.
+# No need for further fee checks.
+
 const int POOL_TOKEN_TOTAL_SUPPLY = 18446744073709551615
 const int LOCKED_POOL_TOKENS = 1000
 const int ASSET_MIN_TOTAL = 10000
 const byte BYTE_ZERO = "\x00\x00\x00\x00\x00\x00\x00\x00"
 const byte TWO_TO_THE_64 = "\x01\x00\x00\x00\x00\x00\x00\x00\x00"
+const byte TEMPLATE = "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
 
 
 if Txn.ApplicationID == 0:
@@ -39,8 +45,9 @@ end
 
 
 block bootstrap:
-    # Gtxn[0]: Pay Algo to Pool Address from User
-    # Gtxn[1]: AppCall with Optin from Pool Address to Bootstrap pool & ReKey to Application
+    # Prerequisite: Pay Algo to Pool Address from User to cover minimum balance
+    
+    # Txn: AppCall with Optin from Pool Address to Bootstrap pool & ReKey to Application
 
     # itxn[0]: Pay Algo from Pool to Application
     # itxn[1]: Create Pool Token Asset from Application
@@ -52,19 +59,22 @@ block bootstrap:
     # Should fail if:
     # Pool Address (Sender) != SHA512_256("program" + bytes from template and args)
     # Address already opted in to app
+    # Required Algo is not sent to the pool address to cover minimum balance
 
     assert(Txn.ApplicationArgs[0] == "bootstrap")
 
-    # Ensure the same asset ids are included in Txn.ApplicationArgs and Txn.Assets
-    int asset_1_id = btoi(Txn.ApplicationArgs[1])
-    int asset_2_id = btoi(Txn.ApplicationArgs[2])
-    int proxy_app_id = 0
-    assert(asset_1_id > asset_2_id)
-    assert(asset_1_id == Txn.Assets[0])
+    # Ensure Txn includes rekey to application address
+    assert(Txn.RekeyTo == Global.CurrentApplicationAddress)
 
+    int asset_1_id = Txn.Assets[0]
+    int asset_2_id = Txn.Assets[1]
+    assert(asset_1_id > asset_2_id)
+
+    int proxy_app_id = 0
+    byte pool_address = Txn.Sender
     int exists
-    byte asset_1_unit_name = ""
-    byte asset_2_unit_name = "ALGO"
+    byte asset_1_unit_name
+    byte asset_2_unit_name
     int asset_total
 
     exists, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
@@ -74,12 +84,9 @@ block bootstrap:
     exists, asset_total = asset_params_get(AssetTotal, asset_1_id)
     assert(exists && (asset_total >= ASSET_MIN_TOTAL))
 
-
     if asset_2_id == 0:
-        # Asset 2 is Algo
-        assert(1 == Txn.NumAssets)
+        asset_2_unit_name = "ALGO"
     else:
-        assert(asset_2_id == Txn.Assets[1])
         exists, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
         assert(exists)
         # Ensure Asset 2 has total supply >= ASSET_MIN_TOTAL
@@ -89,32 +96,22 @@ block bootstrap:
 
     byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
 
-    byte pool_address = Txn.Sender
-
     # Ensure pool_address == SHA512_256("program" + bytes from template and args)
-    const byte TEMPLATE = "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
     byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
-    program = replace2(11, program, Txn.ApplicationArgs[1])
-    program = replace2(19, program, Txn.ApplicationArgs[2])
-    if Txn.NumAppArgs > 3:
-        proxy_app_id = btoi(Txn.ApplicationArgs[3])
-        program = replace2(27, program, Txn.ApplicationArgs[3])
+    program = replace2(11, program, itob(asset_1_id))
+    program = replace2(19, program, itob(asset_2_id))
+    if Txn.NumAppArgs > 1:
+        proxy_app_id = btoi(Txn.ApplicationArgs[1])
+        program = replace2(27, program, Txn.ApplicationArgs[1])
     end
-    byte hash = sha512_256(concat("Program", program))
-    assert(hash == pool_address)
-
-    # Ensure Txn includes rekey to application address
-    assert(Txn.RekeyTo == Global.CurrentApplicationAddress)
-
-    # NOTE: Fee should be set to 0 for all inner transactions to ensure it is paid by an outer transaction sender instead of the Pool.
-    # No need for further fee checks.
+    assert(pool_address == sha512_256(concat("Program", program)))
 
     # itxn[0]: Pay Algo from Pool to Application to fund Asset Creation
     inner_txn:
         TypeEnum: Pay
         Sender: pool_address
         Receiver: Global.CurrentApplicationAddress
-        Amount: 200000
+        Amount: 100000
         Fee: 0
     end
 
@@ -175,21 +172,19 @@ block bootstrap:
         Fee: 0
     end
 
-    int poolers_fee_share = 25
-    int protocol_fee_share = 5
     # State updates
-    # [pool_token_asset_id]
     # [asset_1]
     # [asset_2]
-    # [poolers_fee_share]
-    # [protocol_fee_share]
-    app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
+    # [pool_token_asset_id]
+    # [proxy_app_id]
     app_local_put(0, "asset_1_id", asset_1_id)
     app_local_put(0, "asset_2_id", asset_2_id)
-    app_local_put(0, "poolers_fee_share", poolers_fee_share)
-    app_local_put(0, "protocol_fee_share", protocol_fee_share)
+    app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
     app_local_put(0, "proxy_app_id", proxy_app_id)
+
     # Set all remaining keys with initials values
+    app_local_put(0, "poolers_fee_share", 25)
+    app_local_put(0, "protocol_fee_share", 5)
     app_local_put(0, "asset_1_reserves", 0)
     app_local_put(0, "asset_2_reserves", 0)
     app_local_put(0, "issued_pool_tokens", 0)
@@ -281,7 +276,7 @@ block main:
         # Transfer any extra donations to the fee_collector
 
         # Gtxn[0]: AppCall from User
-        # Note: must account for min balance when asset_2 is algo
+        # NOTE: must account for min balance when asset_2 is algo
 
         # itxn[0]: Transfer Asset 1 to fee_collector from Pool
         # itxn[1]: Transfer Asset 2 to fee_collector from Pool

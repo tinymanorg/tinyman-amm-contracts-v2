@@ -15,6 +15,7 @@ class BaseTestCase(unittest.TestCase):
             self.ledger.set_account_balance(self.app_creator_address, 1_000_000)
 
         self.ledger.create_app(app_id=APPLICATION_ID, approval_program=amm_approval_program, creator=self.app_creator_address)
+        self.ledger.set_account_balance(APPLICATION_ADDRESS, 100_000)
         self.ledger.set_global_state(
             APPLICATION_ID,
             {

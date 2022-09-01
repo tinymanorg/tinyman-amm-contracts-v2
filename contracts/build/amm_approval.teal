@@ -1,6 +1,11 @@
 #pragma version 7
 
 
+// NOTE: Tinyman assumes that the asset id of ALGO is 0. Algorand cannot have an ASA with id 0.
+
+// NOTE: Fee should be set to 0 for all inner transactions to ensure it is paid by an outer transaction sender instead of the Pool.
+// No need for further fee checks.
+
 
 
 // if Txn.ApplicationID == 0:
@@ -75,8 +80,9 @@ handle_closeout:
 
 // block bootstrap
 bootstrap:
-  // Gtxn[0]: Pay Algo to Pool Address from User
-  // Gtxn[1]: AppCall with Optin from Pool Address to Bootstrap pool & ReKey to Application
+  // Prerequisite: Pay Algo to Pool Address from User to cover minimum balance
+  
+  // Txn: AppCall with Optin from Pool Address to Bootstrap pool & ReKey to Application
   
   // itxn[0]: Pay Algo from Pool to Application
   // itxn[1]: Create Pool Token Asset from Application
@@ -88,168 +94,11 @@ bootstrap:
   // Should fail if:
   // Pool Address (Sender) != SHA512_256("program" + bytes from template and args)
   // Address already opted in to app
+  // Required Algo is not sent to the pool address to cover minimum balance
   
   // assert(Txn.ApplicationArgs[0] == "bootstrap")
   txna ApplicationArgs 0
   pushbytes "bootstrap"
-  ==
-  assert
-  
-  // Ensure the same asset ids are included in Txn.ApplicationArgs and Txn.Assets
-  // int asset_1_id = btoi(Txn.ApplicationArgs[1]) [slot 0]
-  txna ApplicationArgs 1
-  btoi
-  store 0 // asset_1_id
-  // int asset_2_id = btoi(Txn.ApplicationArgs[2]) [slot 1]
-  txna ApplicationArgs 2
-  btoi
-  store 1 // asset_2_id
-  // int proxy_app_id = 0 [slot 2]
-  pushint 0
-  store 2 // proxy_app_id
-  // assert(asset_1_id > asset_2_id)
-  load 0 // asset_1_id
-  load 1 // asset_2_id
-  >
-  assert
-  // assert(asset_1_id == Txn.Assets[0])
-  load 0 // asset_1_id
-  txna Assets 0
-  ==
-  assert
-  
-  // int exists [slot 3]
-  // byte asset_1_unit_name = "" [slot 4]
-  pushbytes ""
-  store 4 // asset_1_unit_name
-  // byte asset_2_unit_name = "ALGO" [slot 5]
-  pushbytes "ALGO"
-  store 5 // asset_2_unit_name
-  // int asset_total [slot 6]
-  
-  // exists, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
-  load 0 // asset_1_id
-  asset_params_get AssetUnitName
-  store 3 // exists
-  store 4 // asset_1_unit_name
-  // assert(exists)
-  load 3 // exists
-  assert
-  
-  // Ensure Asset 1 has total supply >= ASSET_MIN_TOTAL
-  // exists, asset_total = asset_params_get(AssetTotal, asset_1_id)
-  load 0 // asset_1_id
-  asset_params_get AssetTotal
-  store 3 // exists
-  store 6 // asset_total
-  // assert(exists && (asset_total >= ASSET_MIN_TOTAL))
-  load 3 // exists
-  load 6 // asset_total
-  pushint 10000 // ASSET_MIN_TOTAL
-  >=
-  &&
-  assert
-  
-  
-  // if asset_2_id == 0:
-    load 1 // asset_2_id
-    pushint 0
-    ==
-    bz l1_else
-    // then:
-      // Asset 2 is Algo
-      // assert(1 == Txn.NumAssets)
-      pushint 1
-      txn NumAssets
-      ==
-      assert
-    b l1_end
-    l1_else:
-    // else:
-      // assert(asset_2_id == Txn.Assets[1])
-      load 1 // asset_2_id
-      txna Assets 1
-      ==
-      assert
-      // exists, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
-      load 1 // asset_2_id
-      asset_params_get AssetUnitName
-      store 3 // exists
-      store 5 // asset_2_unit_name
-      // assert(exists)
-      load 3 // exists
-      assert
-      // Ensure Asset 2 has total supply >= ASSET_MIN_TOTAL
-      // exists, asset_total = asset_params_get(AssetTotal, asset_2_id)
-      load 1 // asset_2_id
-      asset_params_get AssetTotal
-      store 3 // exists
-      store 6 // asset_total
-      // assert(exists && (asset_total >= ASSET_MIN_TOTAL))
-      load 3 // exists
-      load 6 // asset_total
-      pushint 10000 // ASSET_MIN_TOTAL
-      >=
-      &&
-      assert
-    l1_end: // end
-  
-  // byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name)) [slot 7]
-  pushbytes "TinymanPool2.0 "
-  load 4 // asset_1_unit_name
-  pushbytes "-"
-  concat
-  load 5 // asset_2_unit_name
-  concat
-  concat
-  store 7 // pool_token_asset_name
-  
-  // byte pool_address = Txn.Sender [slot 8]
-  txn Sender
-  store 8 // pool_address
-  
-  // Ensure pool_address == SHA512_256("program" + bytes from template and args)
-  // byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID)) [slot 9]
-  pushbytes "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
-  global CurrentApplicationID
-  itob
-  replace2 3
-  store 9 // program
-  // program = replace2(11, program, Txn.ApplicationArgs[1])
-  load 9 // program
-  txna ApplicationArgs 1
-  replace2 11
-  store 9 // program
-  // program = replace2(19, program, Txn.ApplicationArgs[2])
-  load 9 // program
-  txna ApplicationArgs 2
-  replace2 19
-  store 9 // program
-  // if Txn.NumAppArgs > 3:
-    txn NumAppArgs
-    pushint 3
-    >
-    bz l2_end
-    // then:
-      // proxy_app_id = btoi(Txn.ApplicationArgs[3])
-      txna ApplicationArgs 3
-      btoi
-      store 2 // proxy_app_id
-      // program = replace2(27, program, Txn.ApplicationArgs[3])
-      load 9 // program
-      txna ApplicationArgs 3
-      replace2 27
-      store 9 // program
-    l2_end: // end
-  // byte hash = sha512_256(concat("Program", program)) [slot 10]
-  pushbytes "Program"
-  load 9 // program
-  concat
-  sha512_256
-  store 10 // hash
-  // assert(hash == pool_address)
-  load 10 // hash
-  load 8 // pool_address
   ==
   assert
   
@@ -260,8 +109,140 @@ bootstrap:
   ==
   assert
   
-  // NOTE: Fee should be set to 0 for all inner transactions to ensure it is paid by an outer transaction sender instead of the Pool.
-  // No need for further fee checks.
+  // int asset_1_id = Txn.Assets[0] [slot 0]
+  txna Assets 0
+  store 0 // asset_1_id
+  // int asset_2_id = Txn.Assets[1] [slot 1]
+  txna Assets 1
+  store 1 // asset_2_id
+  // assert(asset_1_id > asset_2_id)
+  load 0 // asset_1_id
+  load 1 // asset_2_id
+  >
+  assert
+  
+  // int proxy_app_id = 0 [slot 2]
+  pushint 0
+  store 2 // proxy_app_id
+  // byte pool_address = Txn.Sender [slot 3]
+  txn Sender
+  store 3 // pool_address
+  // int exists [slot 4]
+  // byte asset_1_unit_name [slot 5]
+  // byte asset_2_unit_name [slot 6]
+  // int asset_total [slot 7]
+  
+  // exists, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
+  load 0 // asset_1_id
+  asset_params_get AssetUnitName
+  store 4 // exists
+  store 5 // asset_1_unit_name
+  // assert(exists)
+  load 4 // exists
+  assert
+  
+  // Ensure Asset 1 has total supply >= ASSET_MIN_TOTAL
+  // exists, asset_total = asset_params_get(AssetTotal, asset_1_id)
+  load 0 // asset_1_id
+  asset_params_get AssetTotal
+  store 4 // exists
+  store 7 // asset_total
+  // assert(exists && (asset_total >= ASSET_MIN_TOTAL))
+  load 4 // exists
+  load 7 // asset_total
+  pushint 10000 // ASSET_MIN_TOTAL
+  >=
+  &&
+  assert
+  
+  // if asset_2_id == 0:
+    load 1 // asset_2_id
+    pushint 0
+    ==
+    bz l1_else
+    // then:
+      // asset_2_unit_name = "ALGO"
+      pushbytes "ALGO"
+      store 6 // asset_2_unit_name
+    b l1_end
+    l1_else:
+    // else:
+      // exists, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
+      load 1 // asset_2_id
+      asset_params_get AssetUnitName
+      store 4 // exists
+      store 6 // asset_2_unit_name
+      // assert(exists)
+      load 4 // exists
+      assert
+      // Ensure Asset 2 has total supply >= ASSET_MIN_TOTAL
+      // exists, asset_total = asset_params_get(AssetTotal, asset_2_id)
+      load 1 // asset_2_id
+      asset_params_get AssetTotal
+      store 4 // exists
+      store 7 // asset_total
+      // assert(exists && (asset_total >= ASSET_MIN_TOTAL))
+      load 4 // exists
+      load 7 // asset_total
+      pushint 10000 // ASSET_MIN_TOTAL
+      >=
+      &&
+      assert
+    l1_end: // end
+  
+  // byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name)) [slot 8]
+  pushbytes "TinymanPool2.0 "
+  load 5 // asset_1_unit_name
+  pushbytes "-"
+  concat
+  load 6 // asset_2_unit_name
+  concat
+  concat
+  store 8 // pool_token_asset_name
+  
+  // Ensure pool_address == SHA512_256("program" + bytes from template and args)
+  // byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID)) [slot 9]
+  pushbytes "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
+  global CurrentApplicationID
+  itob
+  replace2 3
+  store 9 // program
+  // program = replace2(11, program, itob(asset_1_id))
+  load 9 // program
+  load 0 // asset_1_id
+  itob
+  replace2 11
+  store 9 // program
+  // program = replace2(19, program, itob(asset_2_id))
+  load 9 // program
+  load 1 // asset_2_id
+  itob
+  replace2 19
+  store 9 // program
+  // if Txn.NumAppArgs > 1:
+    txn NumAppArgs
+    pushint 1
+    >
+    bz l2_end
+    // then:
+      // proxy_app_id = btoi(Txn.ApplicationArgs[1])
+      txna ApplicationArgs 1
+      btoi
+      store 2 // proxy_app_id
+      // program = replace2(27, program, Txn.ApplicationArgs[1])
+      load 9 // program
+      txna ApplicationArgs 1
+      replace2 27
+      store 9 // program
+    l2_end: // end
+  // assert(pool_address == sha512_256(concat("Program", program)))
+  load 3 // pool_address
+  pushbytes "Program"
+  load 9 // program
+  concat
+  sha512_256
+  ==
+  assert
   
   // itxn[0]: Pay Algo from Pool to Application to fund Asset Creation
   // 
@@ -269,11 +250,11 @@ bootstrap:
   // inner_txn:
   pushint 1 // Pay
   itxn_field TypeEnum
-  load 8 // pool_address
+  load 3 // pool_address
   itxn_field Sender
   global CurrentApplicationAddress
   itxn_field Receiver
-  pushint 200000
+  pushint 100000
   itxn_field Amount
   pushint 0
   itxn_field Fee
@@ -289,7 +270,7 @@ bootstrap:
   itxn_field Sender
   pushbytes "TMPOOL2"
   itxn_field ConfigAssetUnitName
-  load 7 // pool_token_asset_name
+  load 8 // pool_token_asset_name
   itxn_field ConfigAssetName
   pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
   itxn_field ConfigAssetTotal
@@ -302,9 +283,9 @@ bootstrap:
   itxn_submit
   
   // Get the id of the asset just created
-  // int pool_token_asset_id = Itxn.CreatedAssetID [slot 11]
+  // int pool_token_asset_id = Itxn.CreatedAssetID [slot 10]
   itxn CreatedAssetID
-  store 11 // pool_token_asset_id
+  store 10 // pool_token_asset_id
   
   // itxn[2]: Optin Pool to Asset 1
   // 
@@ -312,9 +293,9 @@ bootstrap:
   // inner_txn:
   pushint 4 // Axfer
   itxn_field TypeEnum
-  load 8 // pool_address
+  load 3 // pool_address
   itxn_field Sender
-  load 8 // pool_address
+  load 3 // pool_address
   itxn_field AssetReceiver
   load 0 // asset_1_id
   itxn_field XferAsset
@@ -336,9 +317,9 @@ bootstrap:
       // inner_txn:
       pushint 4 // Axfer
       itxn_field TypeEnum
-      load 8 // pool_address
+      load 3 // pool_address
       itxn_field Sender
-      load 8 // pool_address
+      load 3 // pool_address
       itxn_field AssetReceiver
       load 1 // asset_2_id
       itxn_field XferAsset
@@ -355,11 +336,11 @@ bootstrap:
   // inner_txn:
   pushint 4 // Axfer
   itxn_field TypeEnum
-  load 8 // pool_address
+  load 3 // pool_address
   itxn_field Sender
-  load 8 // pool_address
+  load 3 // pool_address
   itxn_field AssetReceiver
-  load 11 // pool_token_asset_id
+  load 10 // pool_token_asset_id
   itxn_field XferAsset
   pushint 0
   itxn_field Amount
@@ -375,9 +356,9 @@ bootstrap:
   itxn_field TypeEnum
   global CurrentApplicationAddress
   itxn_field Sender
-  load 8 // pool_address
+  load 3 // pool_address
   itxn_field AssetReceiver
-  load 11 // pool_token_asset_id
+  load 10 // pool_token_asset_id
   itxn_field XferAsset
   pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
   itxn_field AssetAmount
@@ -385,23 +366,11 @@ bootstrap:
   itxn_field Fee
   itxn_submit
   
-  // int poolers_fee_share = 25 [slot 12]
-  pushint 25
-  store 12 // poolers_fee_share
-  // int protocol_fee_share = 5 [slot 13]
-  pushint 5
-  store 13 // protocol_fee_share
   // State updates
-  // [pool_token_asset_id]
   // [asset_1]
   // [asset_2]
-  // [poolers_fee_share]
-  // [protocol_fee_share]
-  // app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
-  pushint 0
-  pushbytes "pool_token_asset_id"
-  load 11 // pool_token_asset_id
-  app_local_put
+  // [pool_token_asset_id]
+  // [proxy_app_id]
   // app_local_put(0, "asset_1_id", asset_1_id)
   pushint 0
   pushbytes "asset_1_id"
@@ -412,22 +381,28 @@ bootstrap:
   pushbytes "asset_2_id"
   load 1 // asset_2_id
   app_local_put
-  // app_local_put(0, "poolers_fee_share", poolers_fee_share)
+  // app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
   pushint 0
-  pushbytes "poolers_fee_share"
-  load 12 // poolers_fee_share
-  app_local_put
-  // app_local_put(0, "protocol_fee_share", protocol_fee_share)
-  pushint 0
-  pushbytes "protocol_fee_share"
-  load 13 // protocol_fee_share
+  pushbytes "pool_token_asset_id"
+  load 10 // pool_token_asset_id
   app_local_put
   // app_local_put(0, "proxy_app_id", proxy_app_id)
   pushint 0
   pushbytes "proxy_app_id"
   load 2 // proxy_app_id
   app_local_put
+  
   // Set all remaining keys with initials values
+  // app_local_put(0, "poolers_fee_share", 25)
+  pushint 0
+  pushbytes "poolers_fee_share"
+  pushint 25
+  app_local_put
+  // app_local_put(0, "protocol_fee_share", 5)
+  pushint 0
+  pushbytes "protocol_fee_share"
+  pushint 5
+  app_local_put
   // app_local_put(0, "asset_1_reserves", 0)
   pushint 0
   pushbytes "asset_1_reserves"
@@ -651,7 +626,7 @@ main:
     // Transfer any extra donations to the fee_collector
     
     // Gtxn[0]: AppCall from User
-    // Note: must account for min balance when asset_2 is algo
+    // NOTE: must account for min balance when asset_2 is algo
     
     // itxn[0]: Transfer Asset 1 to fee_collector from Pool
     // itxn[1]: Transfer Asset 2 to fee_collector from Pool

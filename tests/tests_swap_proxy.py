@@ -169,14 +169,14 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
     def test_bootstrap(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id, proxy_app_id=PROXY_APP_ID)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, 2_000_000)
+        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_1_id, self.asset_2_id, PROXY_APP_ID],
+                    app_args=[METHOD_BOOTSTRAP, PROXY_APP_ID],
                     foreign_assets=[self.asset_1_id, self.asset_2_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -193,7 +193,7 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
         self.assertEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'bootstrap', self.asset_1_id.to_bytes(8, "big"), self.asset_2_id.to_bytes(8, "big"), PROXY_APP_ID.to_bytes(8, "big")],
+                b'apaa': [b'bootstrap', PROXY_APP_ID.to_bytes(8, "big")],
                 b'apan': transaction.OnComplete.OptInOC,
                 b'apas': [self.asset_1_id, self.asset_2_id],
                 b'apid': APPLICATION_ID,
@@ -214,7 +214,7 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
         self.assertDictEqual(
             inner_transactions[0][b'txn'],
             {
-                b'amt': 200000,
+                b'amt': 100000,
                 b'fv': self.sp.first,
                 b'lv': self.sp.last,
                 b'rcv': decode_address(APPLICATION_ADDRESS),
