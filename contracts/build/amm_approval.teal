@@ -891,7 +891,7 @@ main:
       txna ApplicationArgs 3
       btoi
       store 14 // min_output
-      // int mode = Txn.ApplicationArgs[4] [slot 15]
+      // byte mode = Txn.ApplicationArgs[4] [slot 15]
       txna ApplicationArgs 4
       store 15 // mode
       
@@ -2476,7 +2476,7 @@ main:
     retsub
 
 
-// func calculate_fixed_input_fee_amounts(input_amount: int) int:
+// func calculate_fixed_input_fee_amounts(input_amount: int) int, int, int:
 __func__calculate_fixed_input_fee_amounts:
 store 33 // input_amount
 // int poolers_fee_share = app_local_get(1, "poolers_fee_share") [slot 34]
@@ -2521,7 +2521,7 @@ load 37 // total_fee
 retsub
 
 
-// func calculate_fixed_output_fee_amounts(swap_amount: int) int:
+// func calculate_fixed_output_fee_amounts(swap_amount: int) int, int, int:
 __func__calculate_fixed_output_fee_amounts:
 store 40 // swap_amount
 // int poolers_fee_share = app_local_get(1, "poolers_fee_share") [slot 41]

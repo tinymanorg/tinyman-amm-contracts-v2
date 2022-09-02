@@ -357,7 +357,7 @@ block main:
             int input_asset_id = btoi(Txn.ApplicationArgs[1])
             int output_asset_id = btoi(Txn.ApplicationArgs[2])
             int min_output = btoi(Txn.ApplicationArgs[3])
-            int mode = Txn.ApplicationArgs[4]
+            byte mode = Txn.ApplicationArgs[4]
 
             int input_amount
             int input_txn_index = Txn.GroupIndex - 1
@@ -814,7 +814,7 @@ block main:
 end
 
 
-func calculate_fixed_input_fee_amounts(input_amount: int) int:
+func calculate_fixed_input_fee_amounts(input_amount: int) int, int, int:
     int poolers_fee_share = app_local_get(1, "poolers_fee_share")
     int protocol_fee_share = app_local_get(1, "protocol_fee_share")
     
@@ -826,7 +826,7 @@ func calculate_fixed_input_fee_amounts(input_amount: int) int:
 end
 
 
-func calculate_fixed_output_fee_amounts(swap_amount: int) int:
+func calculate_fixed_output_fee_amounts(swap_amount: int) int, int, int:
     int poolers_fee_share = app_local_get(1, "poolers_fee_share")
     int protocol_fee_share = app_local_get(1, "protocol_fee_share")
     int input_amount = (swap_amount * 10000) / (10000 - (poolers_fee_share + protocol_fee_share))
