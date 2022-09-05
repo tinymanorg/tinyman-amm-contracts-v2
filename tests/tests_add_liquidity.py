@@ -516,11 +516,18 @@ class TestAddLiquidity(BaseTestCase):
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], 'int asset_1_id = app_local_get(1, "asset_1_id")')
 
-    def test_pass_composability(self):
-        pass
-
     def test_fail_wrong_asset_transfer_order(self):
-        pass
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[0].index, txn_group[1].index = txn_group[1].index, txn_group[0].index
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_1_txn_index].XferAsset == asset_1_id)')
 
 
 class TestAddLiquidityAlgoPair(BaseTestCase):

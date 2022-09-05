@@ -190,7 +190,6 @@ class TestBootstrap(BaseTestCase):
         pool_address = lsig.address()
         self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
 
-        # TODO: Isn't this transaction rejected by the pool logic sig?
         # Rekey is missing
         transactions = [
             transaction.LogicSigTransaction(

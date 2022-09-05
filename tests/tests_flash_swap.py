@@ -1,6 +1,6 @@
 from unittest.mock import ANY
 
-from algojig import get_suggested_params
+from algojig import get_suggested_params, LogicEvalError
 from algojig.ledger import JigLedger
 from algosdk.account import generate_account
 from algosdk.encoding import decode_address
@@ -499,3 +499,75 @@ class TestFlashSwap(BaseTestCase):
                 bytes(bytearray(b'asset_2_total_fee_amount %i') + bytearray((12).to_bytes(8, "big"))),
             ]
         )
+
+    def test_flash_swap_lock(self):
+        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
+        self.ledger.update_local_state(
+            address=self.pool_address,
+            app_id=APPLICATION_ID,
+            state_delta={
+                b'asset_1_reserves': 1_000_000,
+                b'asset_2_reserves': 1_000_000,
+                b'issued_pool_tokens': 1_000_000,
+            }
+        )
+
+        asset_1_amount = 500_000
+        asset_2_repayment_amount = 750_000
+        asset_2_amount = 0
+        index_diff = 4
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_FLASH_SWAP, index_diff, asset_1_amount, asset_2_amount],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+
+            # SWAP
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=10_000,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SWAP, 0, "fixed-input"],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+            # SWAP END
+
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_2_id,
+                amt=asset_2_repayment_amount,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_VERIFY_FLASH_SWAP, index_diff],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = 2000
+        txn_group[2].fee = 2000
+        txn_group[4].fee = 1000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))')
+        self.assertEqual(e.exception.txn_id, txn_group[2].get_txid())
