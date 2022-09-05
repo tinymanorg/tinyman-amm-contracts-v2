@@ -232,7 +232,9 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
                     b'au': b'https://tinyman.org',
                     b'dc': 6,
                     b't': self.pool_token_total_supply,
-                    b'un': b'TMPOOL2'
+                    b'un': b'TMPOOL2',
+                    b'r': decode_address(pool_address),
+                    b'am': self.asset_1_id.to_bytes(8, 'big') + self.asset_2_id.to_bytes(8, 'big') + (0).to_bytes(16, 'big')
                 },
                 b'fv': self.sp.first,
                 b'lv': self.sp.last,
