@@ -104,6 +104,11 @@ block bootstrap:
     end
     assert(pool_address == sha512_256(concat("Program", program)))
 
+
+    # Use the metadata hash field of the Pool Token asset to store the asset_1_id & asset_2_id.
+    # uint64 (8 bytes) + uint64 (8 bytes) + zeros (16 bytes)
+    byte metadata_hash = concat(itob(asset_1_id), concat(itob(asset_2_id), bzero(16)))
+
     # itxn[0]: Pay Algo from Pool to Application to fund Asset Creation
     inner_txn:
         TypeEnum: Pay
@@ -122,6 +127,8 @@ block bootstrap:
         ConfigAssetTotal: POOL_TOKEN_TOTAL_SUPPLY
         ConfigAssetDecimals: 6
         ConfigAssetURL: "https://tinyman.org"
+        ConfigAssetReserve: pool_address
+        ConfigAssetMetadataHash: metadata_hash
         Fee: 0
     end
 

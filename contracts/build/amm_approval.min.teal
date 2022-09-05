@@ -151,6 +151,15 @@ concat
 sha512_256
 ==
 assert
+load 0 // asset_1_id
+itob
+load 1 // asset_2_id
+itob
+pushint 16
+bzero
+concat
+concat
+store 10 // metadata_hash
 itxn_begin
 pushint 1 // Pay
 itxn_field TypeEnum
@@ -178,11 +187,15 @@ pushint 6
 itxn_field ConfigAssetDecimals
 pushbytes "https://tinyman.org"
 itxn_field ConfigAssetURL
+load 3 // pool_address
+itxn_field ConfigAssetReserve
+load 10 // metadata_hash
+itxn_field ConfigAssetMetadataHash
 pushint 0
 itxn_field Fee
 itxn_submit
 itxn CreatedAssetID
-store 10 // pool_token_asset_id
+store 11 // pool_token_asset_id
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
@@ -223,7 +236,7 @@ load 3 // pool_address
 itxn_field Sender
 load 3 // pool_address
 itxn_field AssetReceiver
-load 10 // pool_token_asset_id
+load 11 // pool_token_asset_id
 itxn_field XferAsset
 pushint 0
 itxn_field Amount
@@ -237,7 +250,7 @@ global CurrentApplicationAddress
 itxn_field Sender
 load 3 // pool_address
 itxn_field AssetReceiver
-load 10 // pool_token_asset_id
+load 11 // pool_token_asset_id
 itxn_field XferAsset
 pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
 itxn_field AssetAmount
@@ -254,7 +267,7 @@ load 1 // asset_2_id
 app_local_put
 pushint 0
 pushbytes "pool_token_asset_id"
-load 10 // pool_token_asset_id
+load 11 // pool_token_asset_id
 app_local_put
 pushint 0
 pushbytes "proxy_app_id"
