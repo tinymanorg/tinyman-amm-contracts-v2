@@ -36,6 +36,8 @@ pushint 5 // DeleteApplication
 ==
 bnz handle_deleteapp
 err // unexpected value
+pushint 0
+return
 handle_updateapp:
 pushint 0
 return

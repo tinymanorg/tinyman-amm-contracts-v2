@@ -28,6 +28,8 @@ switch Txn.OnCompletion:
     DeleteApplication: handle_deleteapp
 end
 
+exit(0)
+
 block handle_updateapp:
     exit(0)
 end
@@ -364,7 +366,7 @@ block main:
                 error()
             end
             assert(Gtxn[input_txn_index].Sender == user_address)
-            
+
             int input_supply
             int output_supply
             if input_asset_id == asset_1_id:
@@ -448,7 +450,7 @@ block main:
             # Gtxn[N]: Flash Loan AppCall from User
             #   itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
             #   itxn: Transfer Asset 2 to User from Pool if Asset 2 is requested
-            
+
             # Gtxn[N+X]: Verify Flash Loan AppCall from User
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
