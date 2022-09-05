@@ -14,7 +14,15 @@ class BaseTestCase(unittest.TestCase):
         if self.app_creator_address not in self.ledger.accounts:
             self.ledger.set_account_balance(self.app_creator_address, 1_000_000)
 
-        self.ledger.create_app(app_id=APPLICATION_ID, approval_program=amm_approval_program, creator=self.app_creator_address)
+        self.ledger.create_app(
+            app_id=APPLICATION_ID,
+            approval_program=amm_approval_program,
+            creator=self.app_creator_address,
+            local_ints=APP_LOCAL_INTS,
+            local_bytes=APP_LOCAL_BYTES,
+            global_ints=APP_GLOBAL_INTS,
+            global_bytes=APP_GLOBAL_BYTES
+        )
         self.ledger.set_account_balance(APPLICATION_ADDRESS, 100_000)
         self.ledger.set_global_state(
             APPLICATION_ID,
@@ -27,7 +35,15 @@ class BaseTestCase(unittest.TestCase):
 
     def bootstrap_pool(self, proxy_app_id=0):
         asset_2_id = getattr(self, "asset_2_id", ALGO_ASSET_ID)
-        minimum_balance = 500_000 if asset_2_id else 400_000
+
+        if asset_2_id:
+            minimum_balance = MIN_POOL_BALANCE_ASA_ASA_PAIR
+        else:
+            minimum_balance = MIN_POOL_BALANCE_ASA_ALGO_PAIR
+
+        # Algojig cannot account application opt-in requirements right now.
+        local_state_requirements = (25000+3500)*APP_LOCAL_INTS + (25000+25000)*APP_LOCAL_BYTES
+        minimum_balance -= local_state_requirements
 
         # Set Algo balance
         self.ledger.set_account_balance(self.pool_address, minimum_balance)
@@ -44,7 +60,7 @@ class BaseTestCase(unittest.TestCase):
         self.pool_token_asset_id = self.ledger.create_asset(asset_id=None, params=dict(creator=APPLICATION_ADDRESS))
 
         # Transfer Algo to application address
-        self.ledger.set_account_balance(APPLICATION_ADDRESS, 200_000)
+        self.ledger.set_account_balance(APPLICATION_ADDRESS, 100_000)
 
         # Transfer pool tokens from application adress to pool
         self.ledger.set_account_balance(APPLICATION_ADDRESS, 0, asset_id=self.pool_token_asset_id)
@@ -68,6 +84,8 @@ class BaseTestCase(unittest.TestCase):
                 b'asset_1_cumulative_price': BYTE_ZERO,
                 b'asset_2_cumulative_price': BYTE_ZERO,
                 b'cumulative_price_update_timestamp': 0,
+
+                b'lock': 0,
 
                 b'asset_1_protocol_fees': 0,
                 b'asset_2_protocol_fees': 0,

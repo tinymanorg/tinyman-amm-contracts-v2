@@ -36,7 +36,7 @@ class TestBootstrap(BaseTestCase):
     def test_pass(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -178,6 +178,7 @@ class TestBootstrap(BaseTestCase):
                 b'asset_2_cumulative_price': {b'at': 1, b'bs': BYTE_ZERO},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
                 b'issued_pool_tokens': {b'at': 2},
+                b'lock': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
@@ -190,7 +191,7 @@ class TestBootstrap(BaseTestCase):
     def test_fail_rekey(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
 
         # Rekey is missing
         transactions = [
@@ -233,7 +234,7 @@ class TestBootstrap(BaseTestCase):
         wrong_asset_1_id = self.asset_1_id + 1
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, wrong_asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -255,7 +256,7 @@ class TestBootstrap(BaseTestCase):
     def test_fail_wrong_asset_order(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_2_id, self.asset_1_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -277,7 +278,7 @@ class TestBootstrap(BaseTestCase):
     def test_fail_insufficient_fee(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -300,7 +301,7 @@ class TestBootstrap(BaseTestCase):
     def test_fail_wrong_method_name(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -324,7 +325,7 @@ class TestBootstrap(BaseTestCase):
         self.asset_1_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="BTC"))
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -349,7 +350,7 @@ class TestBootstrap(BaseTestCase):
         self.asset_1_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="NFT", total=1))
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -411,7 +412,7 @@ class TestBootstrap(BaseTestCase):
         self.assertEqual(len(block_txns), 2)
 
 
-class TestBootstralgoPair(BaseTestCase):
+class TestBootstrapAlgoPair(BaseTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -434,7 +435,7 @@ class TestBootstralgoPair(BaseTestCase):
     def test_pass(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, ALGO_ASSET_ID)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE - 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ALGO_PAIR + self.minimum_fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -562,6 +563,7 @@ class TestBootstralgoPair(BaseTestCase):
                 b'asset_2_cumulative_price': {b'at': 1, b'bs': BYTE_ZERO},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
                 b'issued_pool_tokens': {b'at': 2},
+                b'lock': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},

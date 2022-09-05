@@ -28,8 +28,6 @@ switch Txn.OnCompletion:
     DeleteApplication: handle_deleteapp
 end
 
-exit(0)
-
 block handle_updateapp:
     exit(0)
 end
@@ -46,13 +44,12 @@ block bootstrap:
     # Prerequisite: Pay Algo to Pool Address from User to cover minimum balance
     
     # Txn: AppCall with Optin from Pool Address to Bootstrap pool & ReKey to Application
-
-    # itxn[0]: Pay Algo from Pool to Application
-    # itxn[1]: Create Pool Token Asset from Application
-    # itxn[2]: Optin Pool to Asset 1
-    # itxn[3]: Optin Pool to Asset 2
-    # itxn[4]: Optin Pool to Pool Token Asset
-    # itxn[5]: Transfer Pool Token total supply to Pool Account
+    #   itxn[0]: Pay Algo from Pool to Application
+    #   itxn[1]: Create Pool Token Asset from Application
+    #   itxn[2]: Optin Pool to Asset 1
+    #   itxn[3]: Optin Pool to Asset 2
+    #   itxn[4]: Optin Pool to Pool Token Asset
+    #   itxn[5]: Transfer Pool Token total supply to Pool Account
 
     # Should fail if:
     # Pool Address (Sender) != SHA512_256("program" + bytes from template and args)
@@ -195,6 +192,7 @@ block bootstrap:
     app_local_put(0, "issued_pool_tokens", 0)
     app_local_put(0, "asset_1_protocol_fees", 0)
     app_local_put(0, "asset_2_protocol_fees", 0)
+    app_local_put(0, "lock", 0)
     app_local_put(0, "asset_1_cumulative_price", BYTE_ZERO)
     app_local_put(0, "asset_2_cumulative_price", BYTE_ZERO)
     app_local_put(0, "cumulative_price_update_timestamp", Global.LatestTimestamp)
@@ -251,11 +249,9 @@ block main:
 
     block claim_fees:
         # Transfer accumulated fees from the pool to the fee_collector
-
-        # Gtxn[0]: AppCall from User
-
-        # itxn[0]: Transfer Asset 1 to fee_collector from Pool
-        # itxn[1]: Transfer Asset 2 to fee_collector from Pool
+        # Txn: AppCall from User
+        #   itxn[0]: Transfer Asset 1 to fee_collector from Pool
+        #   itxn[1]: Transfer Asset 2 to fee_collector from Pool
 
         byte pool_address = Txn.Accounts[1]
         int asset_1_id = app_local_get(1, "asset_1_id")
@@ -274,13 +270,12 @@ block main:
     end
 
     block claim_extra:
-        # Transfer any extra donations to the fee_collector
+        # Transfer any extra (donations) to the fee_collector
 
-        # Gtxn[0]: AppCall from User
+        # Txn: AppCall from User
         # NOTE: must account for min balance when asset_2 is algo
-
-        # itxn[0]: Transfer Asset 1 to fee_collector from Pool
-        # itxn[1]: Transfer Asset 2 to fee_collector from Pool
+        #   itxn[0]: Transfer Asset 1 to fee_collector from Pool
+        #   itxn[1]: Transfer Asset 2 to fee_collector from Pool
 
         byte pool_address = Txn.Accounts[1]
         int asset_1_id = app_local_get(1, "asset_1_id")
@@ -350,8 +345,7 @@ block main:
             update_price_oracle()
             # Gtxn[N-1]: Transfer Asset1 to Pool from User
             # Gtxn[N]: AppCall from User
-
-            # itxn[0]: Transfer Asset 2 to User from Pool
+            #   itxn[0]: Transfer Asset 2 to User from Pool
 
             byte k_initial = itob(asset_1_reserves) b* itob(asset_2_reserves)
             int input_txn_index = Txn.GroupIndex - 1
@@ -704,9 +698,8 @@ block main:
             # Gtxn[N-2]: Transfer Asset1 to Pool from User
             # Gtxn[N-1]: Transfer Asset2 to Pool from User
             # Gtxn[N]: AppCall from User
-
-            # itxn[0]: Transfer Pool Token to User from Pool
-            # itxn[1]: Transfer Asset 1 or 2 to User from Pool (change)
+            #   itxn[0]: Transfer Pool Token to User from Pool
+            #   itxn[1]: Transfer Asset 1 or 2 to User from Pool (change)
 
             int asset_1_txn_index = Txn.GroupIndex - 2
             int asset_2_txn_index = Txn.GroupIndex - 1
@@ -794,9 +787,8 @@ block main:
         block remove_liquidity:
             # Gtxn[N-1]: Transfer Pool Token to Pool from User
             # Gtxn[N]: AppCall from User
-
-            # itxn[0]: Transfer Asset 1 to User from Pool
-            # itxn[1]: Transfer Asset 2 to User from Pool
+            #   itxn[0]: Transfer Asset 1 to User from Pool
+            #   itxn[1]: Transfer Asset 2 to User from Pool
 
             int pool_token_txn_index = Txn.GroupIndex - 1
             assert(Gtxn[pool_token_txn_index].TypeEnum == Axfer)

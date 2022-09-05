@@ -6,6 +6,7 @@ from algosdk.account import generate_account
 from algosdk.encoding import decode_address
 from algosdk.future import transaction
 
+from .constants import APP_GLOBAL_BYTES, APP_GLOBAL_INTS, APP_LOCAL_BYTES, APP_LOCAL_INTS
 from .core import BaseTestCase, amm_approval_program, amm_clear_state_program
 
 
@@ -22,15 +23,15 @@ class TestCreateApp(BaseTestCase):
         self.ledger.set_account_balance(self.app_creator_address, 1_000_000)
 
     def test_create_app(self):
-        extra_pages = 2
+        extra_pages = 3
         txn = transaction.ApplicationCreateTxn(
             sender=self.app_creator_address,
             sp=self.sp,
             on_complete=transaction.OnComplete.NoOpOC,
             approval_program=amm_approval_program.bytecode,
             clear_program=amm_clear_state_program.bytecode,
-            global_schema=transaction.StateSchema(num_uints=1, num_byte_slices=3),
-            local_schema=transaction.StateSchema(num_uints=11, num_byte_slices=0),
+            global_schema=transaction.StateSchema(num_uints=APP_GLOBAL_INTS, num_byte_slices=APP_GLOBAL_BYTES),
+            local_schema=transaction.StateSchema(num_uints=APP_LOCAL_INTS, num_byte_slices=APP_LOCAL_BYTES),
             extra_pages=extra_pages,
         )
         stxn = txn.sign(self.app_creator_sk)

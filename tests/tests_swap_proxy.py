@@ -167,7 +167,7 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
     def test_bootstrap(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id, proxy_app_id=PROXY_APP_ID)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_REQUIRED_POOL_BALANCE)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -307,6 +307,7 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
                 b'asset_2_cumulative_price': {b'at': 1, b'bs': BYTE_ZERO},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
                 b'issued_pool_tokens': {b'at': 2},
+                b'lock': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},

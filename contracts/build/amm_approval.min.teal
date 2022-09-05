@@ -36,8 +36,6 @@ pushint 5 // DeleteApplication
 ==
 bnz handle_deleteapp
 err // unexpected value
-pushint 0
-return
 handle_updateapp:
 pushint 0
 return
@@ -299,6 +297,10 @@ pushint 0
 app_local_put
 pushint 0
 pushbytes "asset_2_protocol_fees"
+pushint 0
+app_local_put
+pushint 0
+pushbytes "lock"
 pushint 0
 app_local_put
 pushint 0
