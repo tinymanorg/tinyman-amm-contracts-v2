@@ -242,6 +242,20 @@ bootstrap:
   ==
   assert
   
+  
+  // Use the metadata hash field of the Pool Token asset to store the asset_1_id & asset_2_id.
+  // uint64 (8 bytes) + uint64 (8 bytes) + zeros (16 bytes)
+  // byte metadata_hash = concat(itob(asset_1_id), concat(itob(asset_2_id), bzero(16))) [slot 10]
+  load 0 // asset_1_id
+  itob
+  load 1 // asset_2_id
+  itob
+  pushint 16
+  bzero
+  concat
+  concat
+  store 10 // metadata_hash
+  
   // itxn[0]: Pay Algo from Pool to Application to fund Asset Creation
   // 
   itxn_begin
@@ -276,14 +290,18 @@ bootstrap:
   itxn_field ConfigAssetDecimals
   pushbytes "https://tinyman.org"
   itxn_field ConfigAssetURL
+  load 3 // pool_address
+  itxn_field ConfigAssetReserve
+  load 10 // metadata_hash
+  itxn_field ConfigAssetMetadataHash
   pushint 0
   itxn_field Fee
   itxn_submit
   
   // Get the id of the asset just created
-  // int pool_token_asset_id = Itxn.CreatedAssetID [slot 10]
+  // int pool_token_asset_id = Itxn.CreatedAssetID [slot 11]
   itxn CreatedAssetID
-  store 10 // pool_token_asset_id
+  store 11 // pool_token_asset_id
   
   // itxn[2]: Optin Pool to Asset 1
   // 
@@ -338,7 +356,7 @@ bootstrap:
   itxn_field Sender
   load 3 // pool_address
   itxn_field AssetReceiver
-  load 10 // pool_token_asset_id
+  load 11 // pool_token_asset_id
   itxn_field XferAsset
   pushint 0
   itxn_field Amount
@@ -356,7 +374,7 @@ bootstrap:
   itxn_field Sender
   load 3 // pool_address
   itxn_field AssetReceiver
-  load 10 // pool_token_asset_id
+  load 11 // pool_token_asset_id
   itxn_field XferAsset
   pushint 18446744073709551615 // POOL_TOKEN_TOTAL_SUPPLY
   itxn_field AssetAmount
@@ -382,7 +400,7 @@ bootstrap:
   // app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
   pushint 0
   pushbytes "pool_token_asset_id"
-  load 10 // pool_token_asset_id
+  load 11 // pool_token_asset_id
   app_local_put
   // app_local_put(0, "proxy_app_id", proxy_app_id)
   pushint 0
