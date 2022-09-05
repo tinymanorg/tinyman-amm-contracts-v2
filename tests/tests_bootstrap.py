@@ -112,8 +112,6 @@ class TestBootstrap(BaseTestCase):
             }
         )
 
-        print(self.ledger.get_raw_account(APPLICATION_ADDRESS))
-
         # inner transactions - [2]
         self.assertDictEqual(
             inner_transactions[2][b'txn'],
