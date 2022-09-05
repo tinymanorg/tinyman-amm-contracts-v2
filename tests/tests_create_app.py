@@ -23,7 +23,7 @@ class TestCreateApp(BaseTestCase):
         self.ledger.set_account_balance(self.app_creator_address, 1_000_000)
 
     def test_create_app(self):
-        extra_pages = 3
+        extra_pages = 2
         txn = transaction.ApplicationCreateTxn(
             sender=self.app_creator_address,
             sp=self.sp,
