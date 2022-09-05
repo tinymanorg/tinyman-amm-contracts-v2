@@ -24,29 +24,29 @@ class TestFlash(BaseTestCase):
     def setUp(self):
         self.ledger = JigLedger()
         self.create_amm_app()
-        self.ledger.set_account_balance(self.user_addr, 1_000_000)
-        self.ledger.set_account_balance(self.user_addr, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.user_addr, 1_000_000, asset_id=self.asset_2_id)
+        self.ledger.set_account_balance(self.user_addr, 100_000_000)
+        self.ledger.set_account_balance(self.user_addr, 100_000_000, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(self.user_addr, 100_000_000, asset_id=self.asset_2_id)
 
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
         self.bootstrap_pool()
 
-    def test_flash_asset_1_and_asset_2_pass(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
+    def test_flash_loan_asset_1_and_asset_2_pass(self):
+        self.ledger.set_account_balance(self.pool_address, 100_000_000, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(self.pool_address, 100_000_000, asset_id=self.asset_2_id)
         self.ledger.update_local_state(
             address=self.pool_address,
             app_id=APPLICATION_ID,
             state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
+                b'asset_1_reserves': 100_000_000,
+                b'asset_2_reserves': 100_000_000,
+                b'issued_pool_tokens': 100_000_000,
             }
         )
 
-        asset_1_amount = 1000
-        asset_2_amount = 2000
+        asset_1_amount = 10_000_000
+        asset_2_amount = 20_000_000
         index_diff = 3
         txn_group = [
             transaction.ApplicationNoOpTxn(
@@ -62,14 +62,14 @@ class TestFlash(BaseTestCase):
                 sp=self.sp,
                 receiver=self.pool_address,
                 index=self.asset_1_id,
-                amt=10_000,
+                amt=15_000_000,
             ),
             transaction.AssetTransferTxn(
                 sender=self.user_addr,
                 sp=self.sp,
                 receiver=self.pool_address,
                 index=self.asset_2_id,
-                amt=10_000,
+                amt=25_000_000,
             ),
             transaction.ApplicationNoOpTxn(
                 sender=self.user_addr,
@@ -175,31 +175,33 @@ class TestFlash(BaseTestCase):
         self.assertDictEqual(
             txn[b'dt'][b'ld'][1],
             {
-                b'asset_1_reserves': {b'at': 2, b'ui': 1000003},
-                b'asset_2_reserves': {b'at': 2, b'ui': 1000005},
-                b'asset_2_protocol_fees': {b'at': 2, b'ui': 1}}
+                b'asset_1_protocol_fees': {b'at': 2, b'ui': 5000},
+                b'asset_1_reserves': {b'at': 2, b'ui': 100025000},
+                b'asset_2_protocol_fees': {b'at': 2, b'ui': 10000},
+                b'asset_2_reserves': {b'at': 2, b'ui': 100050000}
+            }
         )
         # Logs
         self.assertListEqual(
             txn[b'dt'][b'lg'],
             [
-                bytes(bytearray(b'asset_1_output_amount %i') + bytearray((1000).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_1_input_amount %i') + bytearray((10000).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_1_donation_amount %i') + bytearray((8997).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_1_poolers_fee_amount %i') + bytearray((3).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_1_protocol_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_1_total_fee_amount %i') + bytearray((3).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_output_amount %i') + bytearray((10000000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_input_amount %i') + bytearray((15000000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_donation_amount %i') + bytearray((4970000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_poolers_fee_amount %i') + bytearray((25000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_protocol_fee_amount %i') + bytearray((5000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_total_fee_amount %i') + bytearray((30000).to_bytes(8, "big"))),
 
-                bytes(bytearray(b'asset_2_output_amount %i') + bytearray((2000).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_2_input_amount %i') + bytearray((10000).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_2_donation_amount %i') + bytearray((7994).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_2_poolers_fee_amount %i') + bytearray((5).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_2_protocol_fee_amount %i') + bytearray((1).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_2_total_fee_amount %i') + bytearray((6).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_output_amount %i') + bytearray((20000000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_input_amount %i') + bytearray((25000000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_donation_amount %i') + bytearray((4940000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_poolers_fee_amount %i') + bytearray((50000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_protocol_fee_amount %i') + bytearray((10000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_total_fee_amount %i') + bytearray((60000).to_bytes(8, "big"))),
             ]
         )
 
-    def test_flash_asset_1_pass(self):
+    def test_flash_loan_asset_1_pass(self):
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
         self.ledger.update_local_state(
