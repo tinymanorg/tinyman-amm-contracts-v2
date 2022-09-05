@@ -180,8 +180,8 @@ class TestBootstrap(BaseTestCase):
                 b'issued_pool_tokens': {b'at': 2},
                 b'lock': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
-                b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
-                b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
+                b'total_fee_share': {b'at': 2, b'ui': TOTAL_FEE_SHARE},
+                b'protocol_fee_ratio': {b'at': 2, b'ui': PROTOCOL_FEE_RATIO},
                 b'asset_1_protocol_fees': {b'at': 2},
                 b'asset_2_protocol_fees': {b'at': 2},
                 b'proxy_app_id': {b'at': 2}
@@ -565,8 +565,8 @@ class TestBootstrapAlgoPair(BaseTestCase):
                 b'issued_pool_tokens': {b'at': 2},
                 b'lock': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
-                b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
-                b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
+                b'total_fee_share': {b'at': 2, b'ui': TOTAL_FEE_SHARE},
+                b'protocol_fee_ratio': {b'at': 2, b'ui': PROTOCOL_FEE_RATIO},
                 b'asset_1_protocol_fees': {b'at': 2},
                 b'asset_2_protocol_fees': {b'at': 2},
                 b'proxy_app_id': {b'at': 2}

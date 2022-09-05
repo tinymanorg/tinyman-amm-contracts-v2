@@ -39,52 +39,55 @@ class TestSetFee(BaseTestCase):
             dict(
                 msg="Test maximum.",
                 inputs=dict(
-                    poolers_fee_share=50,
-                    protocol_fee_share=10
+                    total_fee_share=100,
+                    protocol_fee_ratio=10
                 ),
             ),
             dict(
                 msg="Test minimums.",
                 inputs=dict(
-                    poolers_fee_share=0,
-                    protocol_fee_share=0
+                    total_fee_share=1,
+                    protocol_fee_ratio=3
                 ),
             ),
             dict(
-                msg="Protocol fee is 0.",
+                msg="Test total share upper bound.",
                 inputs=dict(
-                    poolers_fee_share=10,
-                    protocol_fee_share=0
-                ),
-            ),
-            dict(
-                msg="Test invalid poolers share.",
-                inputs=dict(
-                    poolers_fee_share=51,
-                    protocol_fee_share=10
+                    total_fee_share=101,
+                    protocol_fee_ratio=10
                 ),
                 exception=dict(
-                    source_line='assert(poolers_fee_share <= 50)',
+                    source_line='assert(total_fee_share <= 100)',
                 )
             ),
             dict(
-                msg="Test invalid protocol share.",
+                msg="Test total share lower bound.",
                 inputs=dict(
-                    poolers_fee_share=50,
-                    protocol_fee_share=11
+                    total_fee_share=0,
+                    protocol_fee_ratio=10
                 ),
                 exception=dict(
-                    source_line='assert(protocol_fee_share <= 10)',
+                    source_line='assert(total_fee_share >= 1)',
                 )
             ),
             dict(
-                msg="Tes invalid ratio.",
+                msg="Test protocol ratio upper bound.",
                 inputs=dict(
-                    poolers_fee_share=14,
-                    protocol_fee_share=3
+                    total_fee_share=50,
+                    protocol_fee_ratio=11
                 ),
                 exception=dict(
-                    source_line='assert(poolers_fee_share >= (protocol_fee_share * 5))',
+                    source_line='assert(protocol_fee_ratio <= 10)',
+                )
+            ),
+            dict(
+                msg="Test protocol ratio lower bound.",
+                inputs=dict(
+                    total_fee_share=50,
+                    protocol_fee_ratio=2
+                ),
+                exception=dict(
+                    source_line='assert(protocol_fee_ratio >= 3)',
                 )
             ),
         ]
@@ -99,7 +102,7 @@ class TestSetFee(BaseTestCase):
                         sender=self.app_creator_address,
                         sp=self.sp,
                         index=APPLICATION_ID,
-                        app_args=[METHOD_SET_FEE, inputs["poolers_fee_share"], inputs["protocol_fee_share"]],
+                        app_args=[METHOD_SET_FEE, inputs["total_fee_share"], inputs["protocol_fee_ratio"]],
                         accounts=[self.pool_address],
                     ).sign(self.app_creator_sk)
                 ]
@@ -124,7 +127,7 @@ class TestSetFee(BaseTestCase):
                     self.assertDictEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'set_fee', inputs["poolers_fee_share"].to_bytes(8, 'big'), inputs["protocol_fee_share"].to_bytes(8, 'big')],
+                            b'apaa': [b'set_fee', inputs["total_fee_share"].to_bytes(8, 'big'), inputs["protocol_fee_ratio"].to_bytes(8, 'big')],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
                             b'fee': self.sp.fee,
@@ -140,8 +143,8 @@ class TestSetFee(BaseTestCase):
                         txn[b'dt'][b'ld'],
                         {
                             1: {
-                                b'poolers_fee_share': {b'at': 2, **({b'ui': inputs["poolers_fee_share"]} if inputs["poolers_fee_share"] else {})},
-                                b'protocol_fee_share': {b'at': 2, **({b'ui': inputs["protocol_fee_share"]} if inputs["protocol_fee_share"] else {})}
+                                b'total_fee_share': {b'at': 2, **({b'ui': inputs["total_fee_share"]} if inputs["total_fee_share"] else {})},
+                                b'protocol_fee_ratio': {b'at': 2, **({b'ui': inputs["protocol_fee_ratio"]} if inputs["protocol_fee_ratio"] else {})}
                             }
                         }
                     )
@@ -152,12 +155,14 @@ class TestSetFee(BaseTestCase):
         # Sender is not fee setter (app creator default)
         new_account_sk, new_account_address = generate_account()
         self.ledger.set_account_balance(new_account_address, 1_000_000)
+        total_fee_share = 10
+        protocol_fee_ratio = 3
         stxns = [
             transaction.ApplicationNoOpTxn(
                 sender=new_account_address,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SET_FEE, 10, 2],
+                app_args=[METHOD_SET_FEE, total_fee_share, protocol_fee_ratio],
                 accounts=[self.pool_address],
             ).sign(new_account_sk)
         ]
@@ -180,7 +185,7 @@ class TestSetFee(BaseTestCase):
         self.assertDictEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'set_fee', (10).to_bytes(8, 'big'), (2).to_bytes(8, 'big')],
+                b'apaa': [b'set_fee', total_fee_share.to_bytes(8, 'big'), protocol_fee_ratio.to_bytes(8, 'big')],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
                 b'fee': self.sp.fee,
@@ -196,8 +201,8 @@ class TestSetFee(BaseTestCase):
             txn[b'dt'][b'ld'],
             {
                 1: {
-                    b'poolers_fee_share': {b'at': 2, b'ui': 10},
-                    b'protocol_fee_share': {b'at': 2, b'ui': 2}
+                    b'total_fee_share': {b'at': 2, b'ui': total_fee_share},
+                    b'protocol_fee_ratio': {b'at': 2, b'ui': protocol_fee_ratio}
                 }
             }
         )

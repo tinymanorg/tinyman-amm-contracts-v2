@@ -50,8 +50,8 @@ class TestGroupedSwap(BaseTestCase):
                 b'asset_2_id': self.asset_2_id,
                 b'asset_1_reserves': 1_000_000,
                 b'asset_2_reserves': 1_000_000,
-                b'poolers_fee_share': POOLERS_FEE_SHARE,
-                b'protocol_fee_share': PROTOCOL_FEE_SHARE,
+                b'total_fee_share': TOTAL_FEE_SHARE,
+                b'protocol_fee_ratio': PROTOCOL_FEE_RATIO,
             }
         )
 
@@ -65,8 +65,8 @@ class TestGroupedSwap(BaseTestCase):
                 b'asset_2_id': self.asset_3_id,
                 b'asset_1_reserves': 1_000_000,
                 b'asset_2_reserves': 1_000_000,
-                b'poolers_fee_share': POOLERS_FEE_SHARE,
-                b'protocol_fee_share': PROTOCOL_FEE_SHARE,
+                b'total_fee_share': TOTAL_FEE_SHARE,
+                b'protocol_fee_ratio': PROTOCOL_FEE_RATIO,
             }
         )
 

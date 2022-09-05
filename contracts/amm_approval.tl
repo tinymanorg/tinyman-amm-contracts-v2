@@ -185,8 +185,8 @@ block bootstrap:
     app_local_put(0, "proxy_app_id", proxy_app_id)
 
     # Set all remaining keys with initials values
-    app_local_put(0, "poolers_fee_share", 25)
-    app_local_put(0, "protocol_fee_share", 5)
+    app_local_put(0, "total_fee_share", 30)
+    app_local_put(0, "protocol_fee_ratio", 6)
     app_local_put(0, "asset_1_reserves", 0)
     app_local_put(0, "asset_2_reserves", 0)
     app_local_put(0, "issued_pool_tokens", 0)
@@ -295,20 +295,19 @@ block main:
         # Txn: AppCall from fee_setter
         assert(user_address == app_global_get("fee_setter"))
 
-        int poolers_fee_share = btoi(Txn.ApplicationArgs[1])
-        int protocol_fee_share = btoi(Txn.ApplicationArgs[2])
+        int total_fee_share = btoi(Txn.ApplicationArgs[1])
+        int protocol_fee_ratio = btoi(Txn.ApplicationArgs[2])
 
-        # TODO: Dummy validation for now
-        assert(poolers_fee_share <= 50)
-        assert(protocol_fee_share <= 10)
-        assert(poolers_fee_share >= protocol_fee_share)
-        assert(poolers_fee_share >= (protocol_fee_share * 5))
+        assert(total_fee_share <= 100)
+        assert(total_fee_share >= 1)
+        assert(protocol_fee_ratio <= 10)
+        assert(protocol_fee_ratio >= 3)
 
         # State updates
-        # [poolers_fee_share]
-        # [protocol_fee_share]
-        app_local_put(1, "poolers_fee_share", poolers_fee_share)
-        app_local_put(1, "protocol_fee_share", protocol_fee_share)
+        # [total_fee_share]
+        # [protocol_fee_ratio]
+        app_local_put(1, "total_fee_share", total_fee_share)
+        app_local_put(1, "protocol_fee_ratio", protocol_fee_ratio)
         exit(1)
     end
 
@@ -841,24 +840,22 @@ block main:
 end
 
 func calculate_fixed_input_fee_amounts(input_amount: int) int, int, int:
-    int poolers_fee_share = app_local_get(1, "poolers_fee_share")
-    int protocol_fee_share = app_local_get(1, "protocol_fee_share")
+    int total_fee_share = app_local_get(1, "total_fee_share")
+    int protocol_fee_ratio = app_local_get(1, "protocol_fee_ratio")
     
-    int total_fee_share = poolers_fee_share + protocol_fee_share
     int total_fee = (input_amount * total_fee_share) / 10000
-    int protocol_fee = (total_fee * protocol_fee_share) / total_fee_share
+    int protocol_fee = total_fee / protocol_fee_ratio
     int poolers_fee = total_fee - protocol_fee
     return total_fee, poolers_fee, protocol_fee
 end
 
 func calculate_fixed_output_fee_amounts(swap_amount: int) int, int, int:
-    int poolers_fee_share = app_local_get(1, "poolers_fee_share")
-    int protocol_fee_share = app_local_get(1, "protocol_fee_share")
-    int input_amount = (swap_amount * 10000) / (10000 - (poolers_fee_share + protocol_fee_share))
+    int total_fee_share = app_local_get(1, "total_fee_share")
+    int protocol_fee_ratio = app_local_get(1, "protocol_fee_ratio")
+    int input_amount = (swap_amount * 10000) / (10000 - total_fee_share)
 
-    int total_fee_share = poolers_fee_share + protocol_fee_share
     int total_fee = (input_amount * total_fee_share) / 10000
-    int protocol_fee = (total_fee * protocol_fee_share) / total_fee_share
+    int protocol_fee = total_fee / protocol_fee_ratio
     int poolers_fee = total_fee - protocol_fee
     return total_fee, poolers_fee, protocol_fee
 end

@@ -74,8 +74,8 @@ class BaseTestCase(unittest.TestCase):
                 b'asset_2_id': asset_2_id,
                 b'pool_token_asset_id': self.pool_token_asset_id,
 
-                b'poolers_fee_share': POOLERS_FEE_SHARE,
-                b'protocol_fee_share': PROTOCOL_FEE_SHARE,
+                b'total_fee_share': TOTAL_FEE_SHARE,
+                b'protocol_fee_ratio': PROTOCOL_FEE_RATIO,
 
                 b'asset_1_reserves': 0,
                 b'asset_2_reserves': 0,

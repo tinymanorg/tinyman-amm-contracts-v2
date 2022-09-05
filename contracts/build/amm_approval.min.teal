@@ -272,12 +272,12 @@ pushbytes "proxy_app_id"
 load 2 // proxy_app_id
 app_local_put
 pushint 0
-pushbytes "poolers_fee_share"
-pushint 25
+pushbytes "total_fee_share"
+pushint 30
 app_local_put
 pushint 0
-pushbytes "protocol_fee_share"
-pushint 5
+pushbytes "protocol_fee_ratio"
+pushint 6
 app_local_put
 pushint 0
 pushbytes "asset_1_reserves"
@@ -484,35 +484,33 @@ app_global_get
 assert
 txna ApplicationArgs 1
 btoi
-store 1 // poolers_fee_share
+store 1 // total_fee_share
 txna ApplicationArgs 2
 btoi
-store 2 // protocol_fee_share
-load 1 // poolers_fee_share
-pushint 50
+store 2 // protocol_fee_ratio
+load 1 // total_fee_share
+pushint 100
 <=
 assert
-load 2 // protocol_fee_share
+load 1 // total_fee_share
+pushint 1
+>=
+assert
+load 2 // protocol_fee_ratio
 pushint 10
 <=
 assert
-load 1 // poolers_fee_share
-load 2 // protocol_fee_share
->=
-assert
-load 1 // poolers_fee_share
-load 2 // protocol_fee_share
-pushint 5
-*
+load 2 // protocol_fee_ratio
+pushint 3
 >=
 assert
 pushint 1
-pushbytes "poolers_fee_share"
-load 1 // poolers_fee_share
+pushbytes "total_fee_share"
+load 1 // total_fee_share
 app_local_put
 pushint 1
-pushbytes "protocol_fee_share"
-load 2 // protocol_fee_share
+pushbytes "protocol_fee_ratio"
+load 2 // protocol_fee_ratio
 app_local_put
 pushint 1
 return
@@ -1896,95 +1894,81 @@ retsub
 __func__calculate_fixed_input_fee_amounts:
 store 34 // input_amount
 pushint 1
-pushbytes "poolers_fee_share"
+pushbytes "total_fee_share"
 app_local_get
-store 35 // poolers_fee_share
+store 35 // total_fee_share
 pushint 1
-pushbytes "protocol_fee_share"
+pushbytes "protocol_fee_ratio"
 app_local_get
-store 36 // protocol_fee_share
-load 35 // poolers_fee_share
-load 36 // protocol_fee_share
-+
-store 37 // total_fee_share
+store 36 // protocol_fee_ratio
 load 34 // input_amount
-load 37 // total_fee_share
+load 35 // total_fee_share
 *
 pushint 10000
 /
-store 38 // total_fee
-load 38 // total_fee
-load 36 // protocol_fee_share
-*
-load 37 // total_fee_share
+store 37 // total_fee
+load 37 // total_fee
+load 36 // protocol_fee_ratio
 /
-store 39 // protocol_fee
-load 38 // total_fee
-load 39 // protocol_fee
+store 38 // protocol_fee
+load 37 // total_fee
+load 38 // protocol_fee
 -
-store 40 // poolers_fee
-load 39 // protocol_fee
-load 40 // poolers_fee
-load 38 // total_fee
+store 39 // poolers_fee
+load 38 // protocol_fee
+load 39 // poolers_fee
+load 37 // total_fee
 retsub
 __func__calculate_fixed_output_fee_amounts:
-store 41 // swap_amount
+store 40 // swap_amount
 pushint 1
-pushbytes "poolers_fee_share"
+pushbytes "total_fee_share"
 app_local_get
-store 42 // poolers_fee_share
+store 41 // total_fee_share
 pushint 1
-pushbytes "protocol_fee_share"
+pushbytes "protocol_fee_ratio"
 app_local_get
-store 43 // protocol_fee_share
-load 41 // swap_amount
+store 42 // protocol_fee_ratio
+load 40 // swap_amount
 pushint 10000
 *
 pushint 10000
-load 42 // poolers_fee_share
-load 43 // protocol_fee_share
-+
+load 41 // total_fee_share
 -
 /
-store 44 // input_amount
-load 42 // poolers_fee_share
-load 43 // protocol_fee_share
-+
-store 45 // total_fee_share
-load 44 // input_amount
-load 45 // total_fee_share
+store 43 // input_amount
+load 43 // input_amount
+load 41 // total_fee_share
 *
 pushint 10000
 /
-store 46 // total_fee
-load 46 // total_fee
-load 43 // protocol_fee_share
-*
-load 45 // total_fee_share
+store 44 // total_fee
+load 44 // total_fee
+load 42 // protocol_fee_ratio
 /
-store 47 // protocol_fee
-load 46 // total_fee
-load 47 // protocol_fee
+store 45 // protocol_fee
+load 44 // total_fee
+load 45 // protocol_fee
 -
-store 48 // poolers_fee
-load 47 // protocol_fee
-load 48 // poolers_fee
-load 46 // total_fee
+store 46 // poolers_fee
+load 45 // protocol_fee
+load 46 // poolers_fee
+load 44 // total_fee
 retsub
 __func__calculate_fixed_input_swap:
-store 49 // swap_amount
-store 50 // output_supply
-store 51 // input_supply
-load 51 // input_supply
+store 47 // swap_amount
+store 48 // output_supply
+store 49 // input_supply
+load 49 // input_supply
 itob
-load 50 // output_supply
+load 48 // output_supply
 itob
 b*
-store 52 // k
-load 50 // output_supply
-load 52 // k
-load 51 // input_supply
-load 49 // swap_amount
+store 50 // k
+load 48 // output_supply
+load 50 // k
+load 49 // input_supply
+load 47 // swap_amount
 +
 itob
 b/
@@ -1992,75 +1976,75 @@ btoi
 pushint 1
 +
 -
-store 53 // output_amount
-load 53 // output_amount
+store 51 // output_amount
+load 51 // output_amount
 retsub
 __func__calculate_fixed_output_swap:
-store 54 // output_amount
-store 55 // output_supply
-store 56 // input_supply
-load 56 // input_supply
+store 52 // output_amount
+store 53 // output_supply
+store 54 // input_supply
+load 54 // input_supply
 itob
-load 55 // output_supply
+load 53 // output_supply
 itob
 b*
-store 57 // k
-load 57 // k
-load 55 // output_supply
-load 54 // output_amount
+store 55 // k
+load 55 // k
+load 53 // output_supply
+load 52 // output_amount
 -
 itob
 b/
 btoi
 pushint 1
 +
-load 56 // input_supply
+load 54 // input_supply
 -
-store 58 // input_amount
-load 58 // input_amount
+store 56 // input_amount
+load 56 // input_amount
 retsub
 __func__get_balance:
-store 59 // asset_id
-store 60 // account_idx
+store 57 // asset_id
+store 58 // account_idx
 pushint 0
-store 61 // balance
-load 59 // asset_id
+store 59 // balance
+load 57 // asset_id
 pushint 0
 ==
 bz l29_else
-load 60 // account_idx
+load 58 // account_idx
 balance
-load 60 // account_idx
+load 58 // account_idx
 min_balance
 -
-store 61 // balance
+store 59 // balance
 b l29_end
 l29_else:
-load 60 // account_idx
-load 59 // asset_id
+load 58 // account_idx
+load 57 // asset_id
 asset_holding_get AssetBalance
 pop // discarding value for _
-store 61 // balance
+store 59 // balance
 l29_end: // end
-load 61 // balance
+load 59 // balance
 retsub
 __func__transfer:
-store 62 // receiver
-store 63 // sender
-store 64 // amount
-store 65 // asset_id
-load 65 // asset_id
+store 60 // receiver
+store 61 // sender
+store 62 // amount
+store 63 // asset_id
+load 63 // asset_id
 pushint 0
 ==
 bz l30_else
 itxn_begin
 pushint 1 // Pay
 itxn_field TypeEnum
-load 63 // sender
+load 61 // sender
 itxn_field Sender
-load 62 // receiver
+load 60 // receiver
 itxn_field Receiver
-load 64 // amount
+load 62 // amount
 itxn_field Amount
 pushint 0
 itxn_field Fee
@@ -2070,13 +2054,13 @@ l30_else:
 itxn_begin
 pushint 4 // Axfer
 itxn_field TypeEnum
-load 63 // sender
+load 61 // sender
 itxn_field Sender
-load 62 // receiver
+load 60 // receiver
 itxn_field AssetReceiver
-load 64 // amount
+load 62 // amount
 itxn_field AssetAmount
-load 65 // asset_id
+load 63 // asset_id
 itxn_field XferAsset
 pushint 0
 itxn_field Fee
