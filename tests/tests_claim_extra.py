@@ -236,7 +236,7 @@ class TestClaimExtraAlgoPair(BaseTestCase):
             txn[b'txn'],
             {
                 b'apaa': [b'claim_extra'],
-                b'apas': [self.asset_1_id],
+                b'apas': [self.asset_1_id, self.asset_2_id],
                 b'apat': [decode_address(self.pool_address), decode_address(fee_collector)],
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
@@ -302,7 +302,7 @@ class TestClaimExtraAlgoPair(BaseTestCase):
             txn[b'txn'],
             {
                 b'apaa': [b'claim_extra'],
-                b'apas': [self.asset_1_id],
+                b'apas': [self.asset_1_id, self.asset_2_id],
                 b'apat': [decode_address(self.pool_address), decode_address(fee_collector)],
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,

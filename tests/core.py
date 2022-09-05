@@ -65,12 +65,12 @@ class BaseTestCase(unittest.TestCase):
                 b'asset_2_reserves': 0,
                 b'issued_pool_tokens': 0,
 
-                b'cumulative_asset_1_price': BYTE_ZERO,
-                b'cumulative_asset_2_price': BYTE_ZERO,
+                b'asset_1_cumulative_price': BYTE_ZERO,
+                b'asset_2_cumulative_price': BYTE_ZERO,
                 b'cumulative_price_update_timestamp': 0,
 
-                b'protocol_fees_asset_1': 0,
-                b'protocol_fees_asset_2': 0,
+                b'asset_1_protocol_fees': 0,
+                b'asset_2_protocol_fees': 0,
                 b'proxy_app_id': proxy_app_id,
             }
         )
@@ -94,18 +94,18 @@ class BaseTestCase(unittest.TestCase):
         self.ledger.move(sender=liquidity_provider_address, receiver=self.pool_address, amount=asset_2_reserves, asset_id=self.asset_2_id)
         self.ledger.move(sender=self.pool_address, receiver=liquidity_provider_address, amount=pool_token_out_amount, asset_id=self.pool_token_asset_id)
 
-    def set_pool_protocol_fees(self, protocol_fees_asset_1, protocol_fees_asset_2):
+    def set_pool_protocol_fees(self, asset_1_protocol_fees, asset_2_protocol_fees):
         self.ledger.update_local_state(
             address=self.pool_address,
             app_id=APPLICATION_ID,
             state_delta={
-                b'protocol_fees_asset_1': protocol_fees_asset_1,
-                b'protocol_fees_asset_2': protocol_fees_asset_2,
+                b'asset_1_protocol_fees': asset_1_protocol_fees,
+                b'asset_2_protocol_fees': asset_2_protocol_fees,
             }
         )
 
-        self.ledger.move(receiver=self.pool_address, amount=protocol_fees_asset_1, asset_id=self.asset_1_id)
-        self.ledger.move(receiver=self.pool_address, amount=protocol_fees_asset_2, asset_id=self.asset_1_id)
+        self.ledger.move(receiver=self.pool_address, amount=asset_1_protocol_fees, asset_id=self.asset_1_id)
+        self.ledger.move(receiver=self.pool_address, amount=asset_2_protocol_fees, asset_id=self.asset_1_id)
 
     def get_add_liquidity_transactions(self, asset_1_amount, asset_2_amount, app_call_fee=None):
         txn_group = [
@@ -133,7 +133,7 @@ class BaseTestCase(unittest.TestCase):
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_ADD_LIQUIDITY],
-                foreign_assets=[self.asset_1_id, self.asset_2_id, self.pool_token_asset_id] if self.asset_2_id else [self.asset_1_id, self.pool_token_asset_id],
+                foreign_assets=[self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
                 accounts=[self.pool_address],
             )
         ]
@@ -154,7 +154,7 @@ class BaseTestCase(unittest.TestCase):
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_REMOVE_LIQUIDITY],
-                foreign_assets=[self.asset_1_id, self.asset_2_id] if self.asset_2_id else [self.asset_1_id],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
         ]
@@ -168,7 +168,7 @@ class BaseTestCase(unittest.TestCase):
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_CLAIM_FEES],
-                foreign_assets=[self.asset_1_id, self.asset_2_id] if self.asset_2_id else [self.asset_1_id],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address, fee_collector],
             )
         ]
@@ -182,7 +182,7 @@ class BaseTestCase(unittest.TestCase):
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_CLAIM_EXTRA],
-                foreign_assets=[self.asset_1_id, self.asset_2_id] if self.asset_2_id else [self.asset_1_id],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address, fee_collector],
             )
         ]

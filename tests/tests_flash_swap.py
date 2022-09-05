@@ -140,7 +140,7 @@ class TestFlashSwap(BaseTestCase):
 
         # local delta
         txn[b'dt'][b'ld'][1].keys()
-        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'cumulative_asset_1_price', b'cumulative_asset_2_price', b'cumulative_price_update_timestamp', b'lock'})
+        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'asset_1_cumulative_price', b'asset_2_cumulative_price', b'cumulative_price_update_timestamp', b'lock'})
         self.assertDictEqual(txn[b'dt'][b'ld'][1][b'lock'], {b'at': 2, b'ui': 1})
 
         # Verify Flash
@@ -171,7 +171,7 @@ class TestFlashSwap(BaseTestCase):
             {
                 b'asset_1_reserves': {b'at': 2, b'ui': 1020485},
                 b'asset_2_reserves': {b'at': 2, b'ui': 980000},
-                b'protocol_fees_asset_1': {b'at': 2, b'ui': 15},
+                b'asset_1_protocol_fees': {b'at': 2, b'ui': 15},
                 b'lock': {b'at': 2}
             }
         )
@@ -179,7 +179,17 @@ class TestFlashSwap(BaseTestCase):
         self.assertListEqual(
             txn[b'dt'][b'lg'],
             [
-                bytes(bytearray(b'asset_1_fee %i') + bytearray((91).to_bytes(8, "big")))
+                bytes(bytearray(b'asset_1_output_amount %i') + bytearray((10000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_input_amount %i') + bytearray((30500).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_poolers_fee_amount %i') + bytearray((76).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_protocol_fee_amount %i') + bytearray((15).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_total_fee_amount %i') + bytearray((91).to_bytes(8, "big"))),
+
+                bytes(bytearray(b'asset_2_output_amount %i') + bytearray((20000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_input_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_poolers_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_protocol_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_total_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
             ]
         )
 
@@ -199,7 +209,7 @@ class TestFlashSwap(BaseTestCase):
         asset_1_amount = 4001
         asset_1_repayment_amount = asset_1_amount * 10030 // 10000 + 1
         asset_1_reserves = 1000_011
-        protocol_fees_asset_1 = 2
+        asset_1_protocol_fees = 2
 
         asset_2_amount = 0
         index_diff = 2
@@ -282,7 +292,7 @@ class TestFlashSwap(BaseTestCase):
 
         # local delta
         txn[b'dt'][b'ld'][1].keys()
-        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'cumulative_asset_1_price', b'cumulative_asset_2_price', b'cumulative_price_update_timestamp', b'lock'})
+        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'asset_1_cumulative_price', b'asset_2_cumulative_price', b'cumulative_price_update_timestamp', b'lock'})
         self.assertDictEqual(txn[b'dt'][b'ld'][1][b'lock'], {b'at': 2, b'ui': 1})
 
         # Verify Flash
@@ -312,7 +322,7 @@ class TestFlashSwap(BaseTestCase):
             txn[b'dt'][b'ld'][1],
             {
                 b'asset_1_reserves': {b'at': 2, b'ui': asset_1_reserves},
-                b'protocol_fees_asset_1': {b'at': 2, b'ui': protocol_fees_asset_1},
+                b'asset_1_protocol_fees': {b'at': 2, b'ui': asset_1_protocol_fees},
                 b'lock': {b'at': 2}
             }
         )
@@ -321,7 +331,17 @@ class TestFlashSwap(BaseTestCase):
         self.assertEqual(
             txn[b'dt'][b'lg'],
             [
-                bytes(bytearray(b'asset_1_fee %i') + bytearray((12).to_bytes(8, "big")))
+                bytes(bytearray(b'asset_1_output_amount %i') + bytearray((4001).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_input_amount %i') + bytearray((4014).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_poolers_fee_amount %i') + bytearray((10).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_protocol_fee_amount %i') + bytearray((2).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_total_fee_amount %i') + bytearray((12).to_bytes(8, "big"))),
+
+                bytes(bytearray(b'asset_2_output_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_input_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_poolers_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_protocol_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_total_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
             ]
         )
 
@@ -426,7 +446,7 @@ class TestFlashSwap(BaseTestCase):
 
         # local delta
         txn[b'dt'][b'ld'][1].keys()
-        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'cumulative_asset_1_price', b'cumulative_asset_2_price', b'cumulative_price_update_timestamp', b'lock'})
+        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'asset_1_cumulative_price', b'asset_2_cumulative_price', b'cumulative_price_update_timestamp', b'lock'})
         self.assertDictEqual(txn[b'dt'][b'ld'][1][b'lock'], {b'at': 2, b'ui': 1})
 
         # Verify Flash
@@ -457,7 +477,7 @@ class TestFlashSwap(BaseTestCase):
             {
                 b'asset_1_reserves': {b'at': 2, b'ui': asset_1_reserves},
                 b'asset_2_reserves': {b'at': 2, b'ui': asset_2_reserves},
-                b'protocol_fees_asset_2': {b'at': 2, b'ui': protocol_fee},
+                b'asset_2_protocol_fees': {b'at': 2, b'ui': protocol_fee},
                 b'lock': {b'at': 2}
             }
         )
@@ -466,6 +486,16 @@ class TestFlashSwap(BaseTestCase):
         self.assertEqual(
             txn[b'dt'][b'lg'],
             [
-                bytes(bytearray(b'asset_2_fee %i') + bytearray(total_fee.to_bytes(8, "big")))
+                bytes(bytearray(b'asset_1_output_amount %i') + bytearray((4001).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_input_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_poolers_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_protocol_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_total_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
+
+                bytes(bytearray(b'asset_2_output_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_input_amount %i') + bytearray((4030).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_poolers_fee_amount %i') + bytearray((10).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_protocol_fee_amount %i') + bytearray((2).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_total_fee_amount %i') + bytearray((12).to_bytes(8, "big"))),
             ]
         )

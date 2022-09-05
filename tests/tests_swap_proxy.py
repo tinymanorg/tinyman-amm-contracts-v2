@@ -32,9 +32,7 @@ proxy_approval_program = TealishProgram(tealish="""
             ApplicationID: TINYMAN_APP_ID
             ApplicationArgs[0]: "swap"
             ApplicationArgs[1]: Txn.ApplicationArgs[1]
-            ApplicationArgs[2]: Txn.ApplicationArgs[2]
-            ApplicationArgs[3]: Txn.ApplicationArgs[3]
-            ApplicationArgs[4]: "fixed-input"
+            ApplicationArgs[2]: "fixed-input"
             Accounts[0]: Txn.Accounts[1]
             Assets[0]: Txn.Assets[0]
             Assets[1]: Txn.Assets[1]
@@ -108,7 +106,7 @@ class TestProxySwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=PROXY_APP_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, 9000],
+                app_args=[METHOD_SWAP, 9000],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 foreign_apps=[APPLICATION_ID],
                 accounts=[self.pool_address],
@@ -305,15 +303,15 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
                 b'asset_1_reserves': {b'at': 2},
                 b'asset_2_id': {b'at': 2, b'ui': self.asset_2_id},
                 b'asset_2_reserves': {b'at': 2},
-                b'cumulative_asset_1_price': {b'at': 1, b'bs': BYTE_ZERO},
-                b'cumulative_asset_2_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'asset_1_cumulative_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'asset_2_cumulative_price': {b'at': 1, b'bs': BYTE_ZERO},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
                 b'issued_pool_tokens': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
-                b'protocol_fees_asset_1': {b'at': 2},
-                b'protocol_fees_asset_2': {b'at': 2},
+                b'asset_1_protocol_fees': {b'at': 2},
+                b'asset_2_protocol_fees': {b'at': 2},
                 b'proxy_app_id': {b'at': 2, b'ui': PROXY_APP_ID},
             }
         )
@@ -344,7 +342,7 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=PROXY_APP_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, 9000],
+                app_args=[METHOD_SWAP, 9000],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 foreign_apps=[APPLICATION_ID],
                 accounts=[self.pool_address],
@@ -399,7 +397,7 @@ class TestPoolSpecificToProxyApp(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, min_output, "fixed-input"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )

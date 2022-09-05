@@ -172,15 +172,15 @@ class TestBootstrap(BaseTestCase):
                 b'asset_1_reserves': {b'at': 2},
                 b'asset_2_id': {b'at': 2, b'ui': self.asset_2_id},
                 b'asset_2_reserves': {b'at': 2},
-                b'cumulative_asset_1_price': {b'at': 1, b'bs': BYTE_ZERO},
-                b'cumulative_asset_2_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'asset_1_cumulative_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'asset_2_cumulative_price': {b'at': 1, b'bs': BYTE_ZERO},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
                 b'issued_pool_tokens': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
-                b'protocol_fees_asset_1': {b'at': 2},
-                b'protocol_fees_asset_2': {b'at': 2},
+                b'asset_1_protocol_fees': {b'at': 2},
+                b'asset_2_protocol_fees': {b'at': 2},
                 b'proxy_app_id': {b'at': 2}
             }
         )
@@ -555,15 +555,15 @@ class TestBootstralgoPair(BaseTestCase):
                 b'asset_1_reserves': {b'at': 2},
                 b'asset_2_id': {b'at': 2},      # b'ui': ALGO_ASSET_ID
                 b'asset_2_reserves': {b'at': 2},
-                b'cumulative_asset_1_price': {b'at': 1, b'bs': BYTE_ZERO},
-                b'cumulative_asset_2_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'asset_1_cumulative_price': {b'at': 1, b'bs': BYTE_ZERO},
+                b'asset_2_cumulative_price': {b'at': 1, b'bs': BYTE_ZERO},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
                 b'issued_pool_tokens': {b'at': 2},
                 b'pool_token_asset_id': {b'at': 2, b'ui': created_asset_id},
                 b'poolers_fee_share': {b'at': 2, b'ui': POOLERS_FEE_SHARE},
                 b'protocol_fee_share': {b'at': 2, b'ui': PROTOCOL_FEE_SHARE},
-                b'protocol_fees_asset_1': {b'at': 2},
-                b'protocol_fees_asset_2': {b'at': 2},
+                b'asset_1_protocol_fees': {b'at': 2},
+                b'asset_2_protocol_fees': {b'at': 2},
                 b'proxy_app_id': {b'at': 2}
             }
         )

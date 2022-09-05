@@ -59,7 +59,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, min_output, "fixed-input"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -102,8 +102,6 @@ class TestSwap(BaseTestCase):
             {
                 b'apaa': [
                     b'swap',
-                    self.asset_1_id.to_bytes(8, 'big'),
-                    self.asset_2_id.to_bytes(8, 'big'),
                     min_output.to_bytes(8, 'big'),
                     b'fixed-input'
                 ],
@@ -143,9 +141,9 @@ class TestSwap(BaseTestCase):
             {
                 b'asset_1_reserves': {b'at': 2, b'ui': 1009995},
                 b'asset_2_reserves': {b'at': 2, b'ui': 990129},
-                b'protocol_fees_asset_1': {b'at': 2, b'ui': 5},
-                b'cumulative_asset_1_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA)},
-                b'cumulative_asset_2_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA)},
+                b'asset_1_protocol_fees': {b'at': 2, b'ui': 5},
+                b'asset_1_cumulative_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA)},
+                b'asset_2_cumulative_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA)},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': BLOCK_TIME_DELTA},
             }
         )
@@ -176,7 +174,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, amount_out, "fixed-output"],
+                app_args=[METHOD_SWAP, amount_out, "fixed-output"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -225,7 +223,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, amount_out, "fixed-output"],
+                app_args=[METHOD_SWAP, amount_out, "fixed-output"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -279,7 +277,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, 9000, "fixed-input"],
+                app_args=[METHOD_SWAP, 9000, "fixed-input"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -293,123 +291,3 @@ class TestSwap(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertIn('fee too small', e.exception.error)
-
-    def test_fail_wrong_asset_in(self):
-        self.ledger.set_account_balance(self.user_addr, 1_000_000, asset_id=0)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
-
-        txn_group = [
-            transaction.PaymentTxn(
-                sender=self.user_addr,
-                sp=self.sp,
-                receiver=self.pool_address,
-                amt=10_000,
-            ),
-            transaction.ApplicationNoOpTxn(
-                sender=self.user_addr,
-                sp=self.sp,
-                index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, 9000, "fixed-input"],
-                foreign_assets=[self.asset_1_id, self.asset_2_id],
-                accounts=[self.pool_address],
-            )
-        ]
-        txn_group[1].fee = 2000
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = [
-            txn_group[0].sign(self.user_sk),
-            txn_group[1].sign(self.user_sk)
-        ]
-        with self.assertRaises(LogicEvalError) as e:
-            self.ledger.eval_transactions(stxns)
-        self.assertIn('assert failed', e.exception.error)
-
-    def test_fail_wrong_asset_out_1(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
-
-        txn_group = [
-            transaction.AssetTransferTxn(
-                sender=self.user_addr,
-                sp=self.sp,
-                receiver=self.pool_address,
-                index=self.asset_1_id,
-                amt=10_000,
-            ),
-            transaction.ApplicationNoOpTxn(
-                sender=self.user_addr,
-                sp=self.sp,
-                index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, 0, 9000, "fixed-input"],
-                foreign_assets=[self.asset_1_id, self.asset_2_id],
-                accounts=[self.pool_address],
-            )
-        ]
-        txn_group[1].fee = 2000
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = [
-            txn_group[0].sign(self.user_sk),
-            txn_group[1].sign(self.user_sk)
-        ]
-        with self.assertRaises(LogicEvalError) as e:
-            self.ledger.eval_transactions(stxns)
-        self.assertIn('err opcode executed', e.exception.error)
-
-    def test_fail_wrong_asset_out_2(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
-
-        txn_group = [
-            transaction.AssetTransferTxn(
-                sender=self.user_addr,
-                sp=self.sp,
-                receiver=self.pool_address,
-                index=self.asset_1_id,
-                amt=10_000,
-            ),
-            transaction.ApplicationNoOpTxn(
-                sender=self.user_addr,
-                sp=self.sp,
-                index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_1_id, 9000, "fixed-input"],
-                foreign_assets=[self.asset_1_id, self.asset_2_id],
-                accounts=[self.pool_address],
-            )
-        ]
-        txn_group[1].fee = 2000
-        txn_group = transaction.assign_group_id(txn_group)
-        stxns = [
-            txn_group[0].sign(self.user_sk),
-            txn_group[1].sign(self.user_sk)
-        ]
-        with self.assertRaises(LogicEvalError) as e:
-            self.ledger.eval_transactions(stxns)
-        self.assertIn('err opcode executed', e.exception.error)

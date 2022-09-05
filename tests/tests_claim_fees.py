@@ -103,8 +103,8 @@ class TestClaimFees(BaseTestCase):
         self.assertDictEqual(
             pool_local_state_delta,
             {
-                b'protocol_fees_asset_1': {b'at': 2},   # -> 0
-                b'protocol_fees_asset_2': {b'at': 2},   # -> 0
+                b'asset_1_protocol_fees': {b'at': 2},   # -> 0
+                b'asset_2_protocol_fees': {b'at': 2},   # -> 0
             }
         )
 
@@ -163,7 +163,7 @@ class TestClaimFees(BaseTestCase):
         self.assertDictEqual(
             pool_local_state_delta,
             {
-                b'protocol_fees_asset_1': {b'at': 2},   # -> 0
+                b'asset_1_protocol_fees': {b'at': 2},   # -> 0
             }
         )
 
@@ -182,7 +182,7 @@ class TestClaimFees(BaseTestCase):
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
-        self.assertEqual(e.exception.source['line'], 'assert(protocol_fees_asset_1 || protocol_fees_asset_2)')
+        self.assertEqual(e.exception.source['line'], 'assert(asset_1_protocol_fees || asset_2_protocol_fees)')
 
     def test_fail_fee_collector_did_not_opt_in(self):
         fee_collector = self.app_creator_address
@@ -243,7 +243,7 @@ class TestClaimFeesAlgoPair(BaseTestCase):
             txn[b'txn'],
             {
                 b'apaa': [b'claim_fees'],
-                b'apas': [self.asset_1_id],
+                b'apas': [self.asset_1_id, self.asset_2_id],
                 b'apat': [decode_address(self.pool_address), decode_address(fee_collector)],
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
@@ -289,7 +289,7 @@ class TestClaimFeesAlgoPair(BaseTestCase):
         self.assertDictEqual(
             pool_local_state_delta,
             {
-                b'protocol_fees_asset_1': {b'at': 2},   # -> 0
-                b'protocol_fees_asset_2': {b'at': 2}    # -> 0
+                b'asset_1_protocol_fees': {b'at': 2},   # -> 0
+                b'asset_2_protocol_fees': {b'at': 2}    # -> 0
             }
         )

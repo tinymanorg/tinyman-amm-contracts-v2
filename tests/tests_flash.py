@@ -147,7 +147,7 @@ class TestFlash(BaseTestCase):
 
         # local delta, only price oracle is updated
         txn[b'dt'][b'ld'][1].keys()
-        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'cumulative_asset_1_price', b'cumulative_asset_2_price', b'cumulative_price_update_timestamp'})
+        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'asset_1_cumulative_price', b'asset_2_cumulative_price', b'cumulative_price_update_timestamp'})
 
         # Verify Flash
         # outer transactions - [3]
@@ -177,14 +177,25 @@ class TestFlash(BaseTestCase):
             {
                 b'asset_1_reserves': {b'at': 2, b'ui': 1000003},
                 b'asset_2_reserves': {b'at': 2, b'ui': 1000005},
-                b'protocol_fees_asset_2': {b'at': 2, b'ui': 1}}
+                b'asset_2_protocol_fees': {b'at': 2, b'ui': 1}}
         )
         # Logs
         self.assertListEqual(
             txn[b'dt'][b'lg'],
             [
-                bytes(bytearray(b'asset_1_donation %i') + bytearray((8997).to_bytes(8, "big"))),
-                bytes(bytearray(b'asset_2_donation %i') + bytearray((7994).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_output_amount %i') + bytearray((1000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_input_amount %i') + bytearray((10000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_donation_amount %i') + bytearray((8997).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_poolers_fee_amount %i') + bytearray((3).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_protocol_fee_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_total_fee_amount %i') + bytearray((3).to_bytes(8, "big"))),
+
+                bytes(bytearray(b'asset_2_output_amount %i') + bytearray((2000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_input_amount %i') + bytearray((10000).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_donation_amount %i') + bytearray((7994).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_poolers_fee_amount %i') + bytearray((5).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_protocol_fee_amount %i') + bytearray((1).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_2_total_fee_amount %i') + bytearray((6).to_bytes(8, "big"))),
             ]
         )
 
@@ -205,7 +216,7 @@ class TestFlash(BaseTestCase):
         asset_1_repayment_amount = asset_1_amount * 10030 // 10000
 
         asset_1_reserves = 1000_010
-        protocol_fees_asset_1 = 2
+        asset_1_protocol_fees = 2
 
         asset_2_amount = 0
         index_diff = 2
@@ -288,7 +299,7 @@ class TestFlash(BaseTestCase):
 
         # local delta, only price oracle is updated
         txn[b'dt'][b'ld'][1].keys()
-        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'cumulative_asset_1_price', b'cumulative_asset_2_price', b'cumulative_price_update_timestamp'})
+        self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'asset_1_cumulative_price', b'asset_2_cumulative_price', b'cumulative_price_update_timestamp'})
 
         # Verify Flash
         # outer transactions - [2]
@@ -317,9 +328,19 @@ class TestFlash(BaseTestCase):
             txn[b'dt'][b'ld'][1],
             {
                 b'asset_1_reserves': {b'at': 2, b'ui': asset_1_reserves},
-                b'protocol_fees_asset_1': {b'at': 2, b'ui': protocol_fees_asset_1}
+                b'asset_1_protocol_fees': {b'at': 2, b'ui': asset_1_protocol_fees}
             }
         )
 
         # Logs
-        self.assertFalse(b'lg' in txn[b'dt'])
+        self.assertListEqual(
+            txn[b'dt'][b'lg'],
+            [
+                bytes(bytearray(b'asset_1_output_amount %i') + bytearray((4001).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_input_amount %i') + bytearray((4013).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_donation_amount %i') + bytearray((0).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_poolers_fee_amount %i') + bytearray((10).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_protocol_fee_amount %i') + bytearray((2).to_bytes(8, "big"))),
+                bytes(bytearray(b'asset_1_total_fee_amount %i') + bytearray((12).to_bytes(8, "big"))),
+            ]
+        )

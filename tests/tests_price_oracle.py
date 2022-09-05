@@ -62,7 +62,7 @@ class TestPriceOracle(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, min_output, "fixed-input"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -83,25 +83,25 @@ class TestPriceOracle(BaseTestCase):
         txn = block_txns[1]
         # local state delta
         pool_local_state_delta = txn[b'dt'][b'ld'][1]
-        cumulative_asset_1_price = asset_2_reserves * PRICE_SCALE_FACTOR * (int(two_hundred_years_later.timestamp()) - int(bootstrap_datetime.timestamp())) // asset_1_reserves
-        cumulative_asset_2_price = asset_1_reserves * PRICE_SCALE_FACTOR * (int(two_hundred_years_later.timestamp()) - int(bootstrap_datetime.timestamp())) // asset_2_reserves
+        asset_1_cumulative_price = asset_2_reserves * PRICE_SCALE_FACTOR * (int(two_hundred_years_later.timestamp()) - int(bootstrap_datetime.timestamp())) // asset_1_reserves
+        asset_2_cumulative_price = asset_1_reserves * PRICE_SCALE_FACTOR * (int(two_hundred_years_later.timestamp()) - int(bootstrap_datetime.timestamp())) // asset_2_reserves
 
         self.assertDictEqual(
             pool_local_state_delta,
             {
                 b'asset_1_reserves': {b'at': 2, b'ui': 335},
                 b'asset_2_reserves': {b'at': 2, b'ui': 55229772675777101},
-                b'cumulative_asset_1_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(cumulative_asset_1_price)},
-                b'cumulative_asset_2_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(cumulative_asset_2_price)},
+                b'asset_1_cumulative_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(asset_1_cumulative_price)},
+                b'asset_2_cumulative_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(asset_2_cumulative_price)},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': int(two_hundred_years_later.timestamp())},
             }
         )
-        self.assertEqual(cumulative_asset_1_price, 2147640163675837592635447824606866120216936448000)
-        self.assertEqual(cumulative_asset_2_price, 6311347200)
+        self.assertEqual(asset_1_cumulative_price, 2147640163675837592635447824606866120216936448000)
+        self.assertEqual(asset_2_cumulative_price, 6311347200)
 
         time_delta = int(two_hundred_years_later.timestamp()) - int(bootstrap_datetime.timestamp())
-        self.assertEqual(asset_2_reserves / asset_1_reserves, cumulative_asset_1_price / time_delta / PRICE_SCALE_FACTOR)
-        self.assertEqual(asset_1_reserves / asset_2_reserves, cumulative_asset_2_price / time_delta / PRICE_SCALE_FACTOR)
+        self.assertEqual(asset_2_reserves / asset_1_reserves, asset_1_cumulative_price / time_delta / PRICE_SCALE_FACTOR)
+        self.assertEqual(asset_1_reserves / asset_2_reserves, asset_2_cumulative_price / time_delta / PRICE_SCALE_FACTOR)
 
     def test_updated_once_in_a_block(self):
         one_day = timedelta(days=1)
@@ -110,8 +110,8 @@ class TestPriceOracle(BaseTestCase):
         new_block_datetime = last_update_datetime + one_day
 
         # Random initial cumulative prices
-        cumulative_asset_1_price = 2 * PRICE_SCALE_FACTOR * int(timedelta(days=7).total_seconds())
-        cumulative_asset_2_price = 3 * PRICE_SCALE_FACTOR * int(timedelta(days=7).total_seconds())
+        asset_1_cumulative_price = 2 * PRICE_SCALE_FACTOR * int(timedelta(days=7).total_seconds())
+        asset_2_cumulative_price = 3 * PRICE_SCALE_FACTOR * int(timedelta(days=7).total_seconds())
 
         asset_1_reserves = 12_345
         asset_2_reserves = 29_876
@@ -120,14 +120,14 @@ class TestPriceOracle(BaseTestCase):
             address=self.pool_address,
             app_id=APPLICATION_ID,
             state_delta={
-                b'cumulative_asset_1_price': int_to_bytes_without_zero_padding(cumulative_asset_1_price),
-                b'cumulative_asset_2_price': int_to_bytes_without_zero_padding(cumulative_asset_2_price),
+                b'asset_1_cumulative_price': int_to_bytes_without_zero_padding(asset_1_cumulative_price),
+                b'asset_2_cumulative_price': int_to_bytes_without_zero_padding(asset_2_cumulative_price),
                 b'cumulative_price_update_timestamp': int(last_update_datetime.timestamp())
             }
         )
 
-        new_cumulative_asset_1_price = cumulative_asset_1_price + (asset_2_reserves * PRICE_SCALE_FACTOR * int(one_day.total_seconds()) // asset_1_reserves)
-        new_cumulative_asset_2_price = cumulative_asset_2_price + (asset_1_reserves * PRICE_SCALE_FACTOR * int(one_day.total_seconds()) // asset_2_reserves)
+        new_asset_1_cumulative_price = asset_1_cumulative_price + (asset_2_reserves * PRICE_SCALE_FACTOR * int(one_day.total_seconds()) // asset_1_reserves)
+        new_asset_2_cumulative_price = asset_2_cumulative_price + (asset_1_reserves * PRICE_SCALE_FACTOR * int(one_day.total_seconds()) // asset_2_reserves)
 
         min_output = 0
         txn_group_1 = [
@@ -142,7 +142,7 @@ class TestPriceOracle(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, min_output, "fixed-input"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -162,7 +162,7 @@ class TestPriceOracle(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_2_id, self.asset_1_id, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, min_output, "fixed-input"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -191,8 +191,8 @@ class TestPriceOracle(BaseTestCase):
             {
                 b'asset_1_reserves': ANY,
                 b'asset_2_reserves': ANY,
-                b'cumulative_asset_1_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(new_cumulative_asset_1_price)},
-                b'cumulative_asset_2_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(new_cumulative_asset_2_price)},
+                b'asset_1_cumulative_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(new_asset_1_cumulative_price)},
+                b'asset_2_cumulative_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(new_asset_2_cumulative_price)},
                 b'cumulative_price_update_timestamp': {b'at': 2, b'ui': int(new_block_datetime.timestamp())},
             }
         )
@@ -233,7 +233,7 @@ class TestPriceOracle(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, min_output, "fixed-input"],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -248,8 +248,6 @@ class TestPriceOracle(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=PRICE_ORACLE_READER_APP_ID,
-                # app_args=[METHOD_SWAP, self.asset_1_id, self.asset_2_id, min_output, "fixed-input"],
-                # foreign_assets=[self.asset_1_id, self.asset_2_id],
                 foreign_apps=[APPLICATION_ID],
                 accounts=[self.pool_address],
             ).sign(self.user_sk)
@@ -260,8 +258,8 @@ class TestPriceOracle(BaseTestCase):
         self.assertDictEqual(
             block_txns[2][b'dt'][b'gd'],
             {
-                byte_pool_address + b'_cumulative_asset_1_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(1 * 2000 * PRICE_SCALE_FACTOR)},
-                byte_pool_address + b'_cumulative_asset_2_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(1 * 2000 * PRICE_SCALE_FACTOR)},
+                byte_pool_address + b'_asset_1_cumulative_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(1 * 2000 * PRICE_SCALE_FACTOR)},
+                byte_pool_address + b'_asset_2_cumulative_price': {b'at': 1, b'bs': int_to_bytes_without_zero_padding(1 * 2000 * PRICE_SCALE_FACTOR)},
                 byte_pool_address + b'_price_update_timestamp': {b'at': 2, b'ui': 2000}
             }
         )
@@ -273,8 +271,8 @@ class TestPriceOracle(BaseTestCase):
             {
                 byte_pool_address + b'_asset_1_price': {b'at': 1, b'bs': ANY},
                 byte_pool_address + b'_asset_2_price': {b'at': 1, b'bs': ANY},
-                byte_pool_address + b'_cumulative_asset_1_price': {b'at': 1, b'bs': ANY},
-                byte_pool_address + b'_cumulative_asset_2_price': {b'at': 1, b'bs': ANY},
+                byte_pool_address + b'_asset_1_cumulative_price': {b'at': 1, b'bs': ANY},
+                byte_pool_address + b'_asset_2_cumulative_price': {b'at': 1, b'bs': ANY},
                 byte_pool_address + b'_price_update_timestamp': {b'at': 2, b'ui': 3000}
             }
         )
@@ -282,5 +280,5 @@ class TestPriceOracle(BaseTestCase):
         self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_2_price'][b'bs'], "big"), 18459033685413727963)
         self.assertAlmostEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_1_price'][b'bs'], "big") / PRICE_SCALE_FACTOR, 0.9999, delta=0.001)
         self.assertAlmostEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_2_price'][b'bs'], "big") / PRICE_SCALE_FACTOR, 1.0000, delta=0.001)
-        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_cumulative_asset_1_price'][b'bs'], "big"), 55327950791573035863364)
-        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_cumulative_asset_2_price'][b'bs'], "big"), 55352521832832831195923)
+        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_1_cumulative_price'][b'bs'], "big"), 55327950791573035863364)
+        self.assertEqual(int.from_bytes(block_txns[2][b'dt'][b'gd'][byte_pool_address + b'_asset_2_cumulative_price'][b'bs'], "big"), 55352521832832831195923)

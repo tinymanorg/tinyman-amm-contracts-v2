@@ -22,3 +22,13 @@ def get_pool_logicsig_bytecode(pool_template, app_id, asset_1_id, asset_2_id, pr
     program[19:27] = asset_2_id.to_bytes(8, 'big')
     program[27:35] = proxy_app_id.to_bytes(8, 'big')
     return transaction.LogicSigAccount(program)
+
+
+def print_logs(txn):
+    logs = txn[b'dt'][b'lg']
+    for log in logs:
+        if b'%i' in log:
+            i = log.index(b'%i')
+            s = log[0:i].decode()
+            value = int.from_bytes(log[i + 2:], 'big')
+            print(f'{s}: {value}')

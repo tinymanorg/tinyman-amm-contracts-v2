@@ -599,7 +599,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
             txn[b'txn'],
             {
                 b'apaa': [b'add_liquidity'],
-                b'apas': [self.asset_1_id, self.pool_token_asset_id],
+                b'apas': [self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
                 b'fee': self.sp.fee * 2,
