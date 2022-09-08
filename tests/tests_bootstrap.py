@@ -184,7 +184,6 @@ class TestBootstrap(BaseTestCase):
                 b'protocol_fee_ratio': {b'at': 2, b'ui': PROTOCOL_FEE_RATIO},
                 b'asset_1_protocol_fees': {b'at': 2},
                 b'asset_2_protocol_fees': {b'at': 2},
-                b'proxy_app_id': {b'at': 2}
             }
         )
 
@@ -343,7 +342,7 @@ class TestBootstrap(BaseTestCase):
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(transactions)
-        self.assertEqual(e.exception.source['line'], 'assert(exists && (asset_total >= ASSET_MIN_TOTAL))')
+        self.assertEqual(e.exception.source['line'], 'assert(asset_total >= ASSET_MIN_TOTAL)')
 
     def test_fail_bad_asset_2_total(self):
         self.asset_2_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="USDC"))
@@ -368,7 +367,7 @@ class TestBootstrap(BaseTestCase):
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(transactions)
-        self.assertEqual(e.exception.source['line'], 'assert(exists && (asset_total >= ASSET_MIN_TOTAL))')
+        self.assertEqual(e.exception.source['line'], 'assert(asset_total >= ASSET_MIN_TOTAL)')
 
     def test_multiple_bootstrap(self):
         pool_1_asset_2_id = self.ledger.create_asset(asset_id=None)
@@ -569,6 +568,5 @@ class TestBootstrapAlgoPair(BaseTestCase):
                 b'protocol_fee_ratio': {b'at': 2, b'ui': PROTOCOL_FEE_RATIO},
                 b'asset_1_protocol_fees': {b'at': 2},
                 b'asset_2_protocol_fees': {b'at': 2},
-                b'proxy_app_id': {b'at': 2}
             }
         )

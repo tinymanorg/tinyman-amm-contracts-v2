@@ -33,7 +33,7 @@ class BaseTestCase(unittest.TestCase):
             }
         )
 
-    def bootstrap_pool(self, proxy_app_id=0):
+    def bootstrap_pool(self):
         asset_2_id = getattr(self, "asset_2_id", ALGO_ASSET_ID)
 
         if asset_2_id:
@@ -89,7 +89,6 @@ class BaseTestCase(unittest.TestCase):
 
                 b'asset_1_protocol_fees': 0,
                 b'asset_2_protocol_fees': 0,
-                b'proxy_app_id': proxy_app_id,
             }
         )
 

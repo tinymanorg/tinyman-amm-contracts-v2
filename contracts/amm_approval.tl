@@ -10,7 +10,7 @@ const int LOCKED_POOL_TOKENS = 1000
 const int ASSET_MIN_TOTAL = 10000
 const bytes BYTE_ZERO = "\x00\x00\x00\x00\x00\x00\x00\x00"
 const bytes TWO_TO_THE_64 = "\x01\x00\x00\x00\x00\x00\x00\x00\x00"
-const bytes TEMPLATE = "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
+const bytes POOL_TEMPLATE = "\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
 
 if Txn.ApplicationID == 0:
     # create app
@@ -65,7 +65,6 @@ block bootstrap:
     int asset_2_id = Txn.Assets[1]
     assert(asset_1_id > asset_2_id)
 
-    int proxy_app_id = 0
     bytes pool_address = Txn.Sender
     int exists
     bytes asset_1_unit_name
@@ -74,10 +73,9 @@ block bootstrap:
 
     exists, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
     assert(exists)
-
     # Ensure Asset 1 has total supply >= ASSET_MIN_TOTAL
-    exists, asset_total = asset_params_get(AssetTotal, asset_1_id)
-    assert(exists && (asset_total >= ASSET_MIN_TOTAL))
+    _, asset_total = asset_params_get(AssetTotal, asset_1_id)
+    assert(asset_total >= ASSET_MIN_TOTAL)
 
     if asset_2_id == 0:
         asset_2_unit_name = "ALGO"
@@ -85,22 +83,17 @@ block bootstrap:
         exists, asset_2_unit_name = asset_params_get(AssetUnitName, asset_2_id)
         assert(exists)
         # Ensure Asset 2 has total supply >= ASSET_MIN_TOTAL
-        exists, asset_total = asset_params_get(AssetTotal, asset_2_id)
-        assert(exists && (asset_total >= ASSET_MIN_TOTAL))
+        _, asset_total = asset_params_get(AssetTotal, asset_2_id)
+        assert(asset_total >= ASSET_MIN_TOTAL)
     end
 
     bytes pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
 
     # Ensure pool_address == SHA512_256("program" + bytes from template and args)
-    bytes program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
+    bytes program = replace2(3, POOL_TEMPLATE, itob(Global.CurrentApplicationID))
     program = replace2(11, program, itob(asset_1_id))
     program = replace2(19, program, itob(asset_2_id))
-    if Txn.NumAppArgs > 1:
-        proxy_app_id = btoi(Txn.ApplicationArgs[1])
-        program = replace2(27, program, Txn.ApplicationArgs[1])
-    end
     assert(pool_address == sha512_256(concat("Program", program)))
-
 
     # Use the metadata hash field of the Pool Token asset to store the asset_1_id & asset_2_id.
     # uint64 (8 bytes) + uint64 (8 bytes) + zeros (16 bytes)
@@ -178,11 +171,9 @@ block bootstrap:
     # [asset_1]
     # [asset_2]
     # [pool_token_asset_id]
-    # [proxy_app_id]
     app_local_put(0, "asset_1_id", asset_1_id)
     app_local_put(0, "asset_2_id", asset_2_id)
     app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
-    app_local_put(0, "proxy_app_id", proxy_app_id)
 
     # Set all remaining keys with initials values
     app_local_put(0, "total_fee_share", 30)
@@ -322,11 +313,6 @@ block main:
         int issued_pool_tokens = app_local_get(1, "issued_pool_tokens")
         int asset_1_protocol_fees = app_local_get(1, "asset_1_protocol_fees")
         int asset_2_protocol_fees = app_local_get(1, "asset_2_protocol_fees")
-        int proxy_app_id = app_local_get(1, "proxy_app_id")
-
-        if proxy_app_id:
-            assert(Global.CallerApplicationID == proxy_app_id)
-        end
 
         assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))
 
