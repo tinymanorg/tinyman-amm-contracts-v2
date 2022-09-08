@@ -8,9 +8,9 @@
 const int POOL_TOKEN_TOTAL_SUPPLY = 18446744073709551615
 const int LOCKED_POOL_TOKENS = 1000
 const int ASSET_MIN_TOTAL = 10000
-const byte BYTE_ZERO = "\x00\x00\x00\x00\x00\x00\x00\x00"
-const byte TWO_TO_THE_64 = "\x01\x00\x00\x00\x00\x00\x00\x00\x00"
-const byte TEMPLATE = "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
+const bytes BYTE_ZERO = "\x00\x00\x00\x00\x00\x00\x00\x00"
+const bytes TWO_TO_THE_64 = "\x01\x00\x00\x00\x00\x00\x00\x00\x00"
+const bytes TEMPLATE = "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
 
 if Txn.ApplicationID == 0:
     # create app
@@ -66,10 +66,10 @@ block bootstrap:
     assert(asset_1_id > asset_2_id)
 
     int proxy_app_id = 0
-    byte pool_address = Txn.Sender
+    bytes pool_address = Txn.Sender
     int exists
-    byte asset_1_unit_name
-    byte asset_2_unit_name
+    bytes asset_1_unit_name
+    bytes asset_2_unit_name
     int asset_total
 
     exists, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
@@ -89,10 +89,10 @@ block bootstrap:
         assert(exists && (asset_total >= ASSET_MIN_TOTAL))
     end
 
-    byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
+    bytes pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name))
 
     # Ensure pool_address == SHA512_256("program" + bytes from template and args)
-    byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
+    bytes program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID))
     program = replace2(11, program, itob(asset_1_id))
     program = replace2(19, program, itob(asset_2_id))
     if Txn.NumAppArgs > 1:
@@ -104,7 +104,7 @@ block bootstrap:
 
     # Use the metadata hash field of the Pool Token asset to store the asset_1_id & asset_2_id.
     # uint64 (8 bytes) + uint64 (8 bytes) + zeros (16 bytes)
-    byte metadata_hash = concat(itob(asset_1_id), concat(itob(asset_2_id), bzero(16)))
+    bytes metadata_hash = concat(itob(asset_1_id), concat(itob(asset_2_id), bzero(16)))
 
     # itxn[0]: Pay Algo from Pool to Application to fund Asset Creation
     inner_txn:
@@ -200,7 +200,7 @@ block bootstrap:
 end
 
 block main:
-    byte user_address = Txn.Sender
+    bytes user_address = Txn.Sender
     switch Txn.ApplicationArgs[0]:
         "set_fee_collector": set_fee_collector
         "set_fee_setter": set_fee_setter
@@ -253,7 +253,7 @@ block main:
         #   itxn[0]: Transfer Asset 1 to fee_collector from Pool
         #   itxn[1]: Transfer Asset 2 to fee_collector from Pool
 
-        byte pool_address = Txn.Accounts[1]
+        bytes pool_address = Txn.Accounts[1]
         int asset_1_id = app_local_get(1, "asset_1_id")
         int asset_2_id = app_local_get(1, "asset_2_id")
         int asset_1_protocol_fees = app_local_get(1, "asset_1_protocol_fees")
@@ -277,7 +277,7 @@ block main:
         #   itxn[0]: Transfer Asset 1 to fee_collector from Pool
         #   itxn[1]: Transfer Asset 2 to fee_collector from Pool
 
-        byte pool_address = Txn.Accounts[1]
+        bytes pool_address = Txn.Accounts[1]
         int asset_1_id = app_local_get(1, "asset_1_id")
         int asset_2_id = app_local_get(1, "asset_2_id")
 
@@ -312,7 +312,7 @@ block main:
     end
 
     block amm:
-        byte pool_address = Txn.Accounts[1]
+        bytes pool_address = Txn.Accounts[1]
         # These will fail if the account is not optted-in and only pool accounts can opt-in to the app.
         int asset_1_id = app_local_get(1, "asset_1_id")
         int asset_2_id = app_local_get(1, "asset_2_id")
@@ -346,10 +346,10 @@ block main:
             # Gtxn[N]: AppCall from User
             #   itxn[0]: Transfer Asset 2 to User from Pool
 
-            byte k_initial = itob(asset_1_reserves) b* itob(asset_2_reserves)
+            bytes k_initial = itob(asset_1_reserves) b* itob(asset_2_reserves)
             int input_txn_index = Txn.GroupIndex - 1
             int min_output = btoi(Txn.ApplicationArgs[1])
-            byte mode = Txn.ApplicationArgs[2]
+            bytes mode = Txn.ApplicationArgs[2]
             int input_asset_id
             int output_asset_id
             int input_amount
@@ -631,7 +631,7 @@ block main:
             int asset_1_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2])
             int asset_2_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[3])
 
-            byte initial_k = Gtxn[flash_swap_txn_index].Logs[0]
+            bytes initial_k = Gtxn[flash_swap_txn_index].Logs[0]
             int asset_1_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[1])
             int asset_2_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[2])
             int asset_1_balance = get_balance(1, asset_1_id)
@@ -725,8 +725,8 @@ block main:
             int pool_tokens_out
             if issued_pool_tokens:
                 # Adding liquidity after it already has some liquidity
-                byte a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens)
-                byte b_temp = itob(asset_2_amount) b* itob(issued_pool_tokens)
+                bytes a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens)
+                bytes b_temp = itob(asset_2_amount) b* itob(issued_pool_tokens)
                 int pool_tokens_out_a = btoi(a_temp b/ itob(asset_1_reserves))
                 int pool_tokens_out_b = btoi(b_temp b/ itob(asset_2_reserves))
 
@@ -823,8 +823,8 @@ block main:
         end
 
         func update_price_oracle():
-            byte asset_1_cumulative_price = app_local_get(1, "asset_1_cumulative_price")
-            byte asset_2_cumulative_price = app_local_get(1, "asset_2_cumulative_price")
+            bytes asset_1_cumulative_price = app_local_get(1, "asset_1_cumulative_price")
+            bytes asset_2_cumulative_price = app_local_get(1, "asset_2_cumulative_price")
             int time_delta = Global.LatestTimestamp - app_local_get(1, "cumulative_price_update_timestamp")
 
             if (issued_pool_tokens && time_delta):
@@ -864,7 +864,7 @@ func calculate_fixed_input_swap(input_supply: int, output_supply: int, swap_amou
     # Calculates the output amount for a fixed-input swap ignoring fees
     # k = input_supply * output_supply
     # output_amount = output_supply - (k / (input_supply + swap_amount))
-    byte k = itob(input_supply) b* itob(output_supply)
+    bytes k = itob(input_supply) b* itob(output_supply)
     # +1 for Round Up
     int output_amount = output_supply - (btoi((k b/ itob(input_supply + swap_amount))) + 1)
     return output_amount
@@ -874,7 +874,7 @@ func calculate_fixed_output_swap(input_supply: int, output_supply: int, output_a
     # Calculates the input amount for a fixed-output swap ignoring fees
     # k = input_supply * output_supply
     # input_amount = (k / (output_supply - asset_out_amount)) - input_supply
-    byte k = itob(input_supply) b* itob(output_supply)
+    bytes k = itob(input_supply) b* itob(output_supply)
     # +1 for Round Up
     int input_amount = (btoi((k b/ itob(output_supply - output_amount))) + 1) - input_supply
     return input_amount
@@ -890,7 +890,7 @@ func get_balance(account_idx: int, asset_id: int) int:
     return balance
 end
 
-func transfer(asset_id: int, amount: int, sender: byte, receiver: byte):
+func transfer(asset_id: int, amount: int, sender: bytes, receiver: bytes):
     if asset_id == 0:
         inner_txn:
             TypeEnum: Pay

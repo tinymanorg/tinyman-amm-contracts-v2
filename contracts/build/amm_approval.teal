@@ -117,12 +117,12 @@ bootstrap:
   // int proxy_app_id = 0 [slot 2]
   pushint 0
   store 2 // proxy_app_id
-  // byte pool_address = Txn.Sender [slot 3]
+  // bytes pool_address = Txn.Sender [slot 3]
   txn Sender
   store 3 // pool_address
   // int exists [slot 4]
-  // byte asset_1_unit_name [slot 5]
-  // byte asset_2_unit_name [slot 6]
+  // bytes asset_1_unit_name [slot 5]
+  // bytes asset_2_unit_name [slot 6]
   // int asset_total [slot 7]
   
   // exists, asset_1_unit_name = asset_params_get(AssetUnitName, asset_1_id)
@@ -183,7 +183,7 @@ bootstrap:
       assert
     l1_end: // end
   
-  // byte pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name)) [slot 8]
+  // bytes pool_token_asset_name = concat("TinymanPool2.0 ", concat(concat(asset_1_unit_name, "-"), asset_2_unit_name)) [slot 8]
   pushbytes "TinymanPool2.0 "
   load 5 // asset_1_unit_name
   pushbytes "-"
@@ -194,7 +194,7 @@ bootstrap:
   store 8 // pool_token_asset_name
   
   // Ensure pool_address == SHA512_256("program" + bytes from template and args)
-  // byte program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID)) [slot 9]
+  // bytes program = replace2(3, TEMPLATE, itob(Global.CurrentApplicationID)) [slot 9]
   pushbytes "\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C" // TEMPLATE
   global CurrentApplicationID
   itob
@@ -240,7 +240,7 @@ bootstrap:
   
   // Use the metadata hash field of the Pool Token asset to store the asset_1_id & asset_2_id.
   // uint64 (8 bytes) + uint64 (8 bytes) + zeros (16 bytes)
-  // byte metadata_hash = concat(itob(asset_1_id), concat(itob(asset_2_id), bzero(16))) [slot 10]
+  // bytes metadata_hash = concat(itob(asset_1_id), concat(itob(asset_2_id), bzero(16))) [slot 10]
   load 0 // asset_1_id
   itob
   load 1 // asset_2_id
@@ -465,7 +465,7 @@ bootstrap:
 
 // block main
 main:
-  // byte user_address = Txn.Sender [slot 0]
+  // bytes user_address = Txn.Sender [slot 0]
   txn Sender
   store 0 // user_address
   // switch Txn.ApplicationArgs[0]:
@@ -568,7 +568,7 @@ main:
     // itxn[0]: Transfer Asset 1 to fee_collector from Pool
     // itxn[1]: Transfer Asset 2 to fee_collector from Pool
     
-    // byte pool_address = Txn.Accounts[1] [slot 1]
+    // bytes pool_address = Txn.Accounts[1] [slot 1]
     txna Accounts 1
     store 1 // pool_address
     // int asset_1_id = app_local_get(1, "asset_1_id") [slot 2]
@@ -636,7 +636,7 @@ main:
     // itxn[0]: Transfer Asset 1 to fee_collector from Pool
     // itxn[1]: Transfer Asset 2 to fee_collector from Pool
     
-    // byte pool_address = Txn.Accounts[1] [slot 1]
+    // bytes pool_address = Txn.Accounts[1] [slot 1]
     txna Accounts 1
     store 1 // pool_address
     // int asset_1_id = app_local_get(1, "asset_1_id") [slot 2]
@@ -760,7 +760,7 @@ main:
   
   // block amm
   main__amm:
-    // byte pool_address = Txn.Accounts[1] [slot 1]
+    // bytes pool_address = Txn.Accounts[1] [slot 1]
     txna Accounts 1
     store 1 // pool_address
     // These will fail if the account is not optted-in and only pool accounts can opt-in to the app.
@@ -872,7 +872,7 @@ main:
       // Gtxn[N]: AppCall from User
       // itxn[0]: Transfer Asset 2 to User from Pool
       
-      // byte k_initial = itob(asset_1_reserves) b* itob(asset_2_reserves) [slot 11]
+      // bytes k_initial = itob(asset_1_reserves) b* itob(asset_2_reserves) [slot 11]
       load 5 // asset_1_reserves
       itob
       load 6 // asset_2_reserves
@@ -888,7 +888,7 @@ main:
       txna ApplicationArgs 1
       btoi
       store 13 // min_output
-      // byte mode = Txn.ApplicationArgs[2] [slot 14]
+      // bytes mode = Txn.ApplicationArgs[2] [slot 14]
       txna ApplicationArgs 2
       store 14 // mode
       // int input_asset_id [slot 15]
@@ -1871,7 +1871,7 @@ main:
       btoi
       store 14 // asset_2_output_amount
       
-      // byte initial_k = Gtxn[flash_swap_txn_index].Logs[0] [slot 15]
+      // bytes initial_k = Gtxn[flash_swap_txn_index].Logs[0] [slot 15]
       load 12 // flash_swap_txn_index
       gtxnsa Logs 0
       store 15 // initial_k
@@ -2231,14 +2231,14 @@ main:
         bz l23_else
         // then:
           // Adding liquidity after it already has some liquidity
-          // byte a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens) [slot 16]
+          // bytes a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens) [slot 16]
           load 13 // asset_1_amount
           itob
           load 7 // issued_pool_tokens
           itob
           b*
           store 16 // a_temp
-          // byte b_temp = itob(asset_2_amount) b* itob(issued_pool_tokens) [slot 17]
+          // bytes b_temp = itob(asset_2_amount) b* itob(issued_pool_tokens) [slot 17]
           load 14 // asset_2_amount
           itob
           load 7 // issued_pool_tokens
@@ -2573,12 +2573,12 @@ main:
     
     // func update_price_oracle():
     main__amm__func__update_price_oracle:
-    // byte asset_1_cumulative_price = app_local_get(1, "asset_1_cumulative_price") [slot 31]
+    // bytes asset_1_cumulative_price = app_local_get(1, "asset_1_cumulative_price") [slot 31]
     pushint 1
     pushbytes "asset_1_cumulative_price"
     app_local_get
     store 31 // asset_1_cumulative_price
-    // byte asset_2_cumulative_price = app_local_get(1, "asset_2_cumulative_price") [slot 32]
+    // bytes asset_2_cumulative_price = app_local_get(1, "asset_2_cumulative_price") [slot 32]
     pushint 1
     pushbytes "asset_2_cumulative_price"
     app_local_get
@@ -2735,7 +2735,7 @@ store 49 // input_supply
 // Calculates the output amount for a fixed-input swap ignoring fees
 // k = input_supply * output_supply
 // output_amount = output_supply - (k / (input_supply + swap_amount))
-// byte k = itob(input_supply) b* itob(output_supply) [slot 50]
+// bytes k = itob(input_supply) b* itob(output_supply) [slot 50]
 load 49 // input_supply
 itob
 load 48 // output_supply
@@ -2768,7 +2768,7 @@ store 54 // input_supply
 // Calculates the input amount for a fixed-output swap ignoring fees
 // k = input_supply * output_supply
 // input_amount = (k / (output_supply - asset_out_amount)) - input_supply
-// byte k = itob(input_supply) b* itob(output_supply) [slot 55]
+// bytes k = itob(input_supply) b* itob(output_supply) [slot 55]
 load 54 // input_supply
 itob
 load 53 // output_supply
@@ -2827,7 +2827,7 @@ store 59 // balance
 load 59 // balance
 retsub
 
-// func transfer(asset_id: int, amount: int, sender: byte, receiver: byte):
+// func transfer(asset_id: int, amount: int, sender: bytes, receiver: bytes):
 __func__transfer:
 store 60 // receiver
 store 61 // sender
