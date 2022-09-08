@@ -12,8 +12,6 @@ def get_pool_logicsig_bytecode(pool_template, app_id, asset_1_id, asset_2_id, pr
     # These are the bytes of the logicsig template. This needs to be updated if the logicsig is updated.
     program = bytearray(pool_template.bytecode)
 
-    # Algo SDK doesn't support teal version 7 at the moment
-    program[0:1] = (6).to_bytes(1, "big")
     template = b'\x06\x80 \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C'
     assert program == bytearray(template)
 
