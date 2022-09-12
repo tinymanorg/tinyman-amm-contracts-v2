@@ -109,7 +109,7 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=LOCKED_POOL_TOKENS - 1,
                 ),
                 exception=dict(
-                    source_line='pool_tokens_out = issued_pool_tokens - LOCKED_POOL_TOKENS',
+                    source_line='assert(issued_pool_tokens >= LOCKED_POOL_TOKENS)',
                 )
             ),
         ]
@@ -529,6 +529,35 @@ class TestAddLiquidity(BaseTestCase):
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_1_txn_index].XferAsset == asset_1_id)')
 
+    def test_asset_receivers_are_not_pool(self):
+        _, asset_receiver = generate_account()
+        self.ledger.set_account_balance(asset_receiver, 1_000_000)
+        self.ledger.opt_in_asset(asset_receiver, asset_id=self.asset_1_id)
+        self.ledger.opt_in_asset(asset_receiver, asset_id=self.asset_2_id)
+
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+
+        # Asset 1 Receiver
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[0].receiver = asset_receiver
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_1_txn_index].AssetReceiver == pool_address)')
+
+        # Asset 2 Receiver
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[1].receiver = asset_receiver
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_2_txn_index].AssetReceiver == pool_address)')
+
 
 class TestAddLiquidityAlgoPair(BaseTestCase):
 
@@ -646,3 +675,20 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
                 b'issued_pool_tokens': {b'at': 2, b'ui': issued_pool_token_amount}
             }
         )
+
+    def test_algo_receiver_is_not_pool(self):
+        _, asset_receiver = generate_account()
+        self.ledger.set_account_balance(asset_receiver, 1_000_000)
+
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+
+        # Algo Receiver
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[1].receiver = asset_receiver
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_2_txn_index].Receiver == pool_address)')

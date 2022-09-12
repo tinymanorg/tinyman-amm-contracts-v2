@@ -225,7 +225,7 @@ bootstrap:
   concat
   store 9 // metadata_hash
   
-  // itxn[0]: Pay Algo from Pool to Application to fund Asset Creation
+  // itxn[0]: Pay Algo from Pool to Application to fund minimum balance increase because of asset Creation
   // 
   itxn_begin
   // inner_txn:
@@ -2197,31 +2197,31 @@ main:
           itob
           b*
           store 16 // b_temp
-          // int pool_tokens_out_a = btoi(a_temp b/ itob(asset_1_reserves)) [slot 17]
+          // int pool_tokens_output_a = btoi(a_temp b/ itob(asset_1_reserves)) [slot 17]
           load 15 // a_temp
           load 5 // asset_1_reserves
           itob
           b/
           btoi
-          store 17 // pool_tokens_out_a
-          // int pool_tokens_out_b = btoi(b_temp b/ itob(asset_2_reserves)) [slot 18]
+          store 17 // pool_tokens_output_a
+          // int pool_tokens_output_b = btoi(b_temp b/ itob(asset_2_reserves)) [slot 18]
           load 16 // b_temp
           load 6 // asset_2_reserves
           itob
           b/
           btoi
-          store 18 // pool_tokens_out_b
+          store 18 // pool_tokens_output_b
           
-          // if pool_tokens_out_a > pool_tokens_out_b:
-            load 17 // pool_tokens_out_a
-            load 18 // pool_tokens_out_b
+          // if pool_tokens_output_a > pool_tokens_output_b:
+            load 17 // pool_tokens_output_a
+            load 18 // pool_tokens_output_b
             >
             bz l22_else
             // then:
               // Less of asset 2 supplied. Pool tokens will be issued proportionally to asset_2_amount (b)
               // Calculate amount of asset 1 to return to user as change
-              // pool_tokens_out = pool_tokens_out_b
-              load 18 // pool_tokens_out_b
+              // pool_tokens_out = pool_tokens_output_b
+              load 18 // pool_tokens_output_b
               store 14 // pool_tokens_out
               // int expected_asset_1_amount = btoi((itob(pool_tokens_out) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens)) [slot 19]
               load 14 // pool_tokens_out
@@ -2268,8 +2268,8 @@ main:
             // else:
               // Less of asset 1 supplied. Pool tokens will be issued proportionally to asset_1_amount (a)
               // Calculate amount of asset 2 to return to user as change
-              // pool_tokens_out = pool_tokens_out_a
-              load 17 // pool_tokens_out_a
+              // pool_tokens_out = pool_tokens_output_a
+              load 17 // pool_tokens_output_a
               store 14 // pool_tokens_out
               // int expected_asset_2_amount = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens)) [slot 21]
               load 14 // pool_tokens_out
@@ -2341,6 +2341,11 @@ main:
           bsqrt
           btoi
           store 7 // issued_pool_tokens
+          // assert(issued_pool_tokens >= LOCKED_POOL_TOKENS)
+          load 7 // issued_pool_tokens
+          pushint 1000 // LOCKED_POOL_TOKENS
+          >=
+          assert
           // pool_tokens_out = issued_pool_tokens - LOCKED_POOL_TOKENS
           load 7 // issued_pool_tokens
           pushint 1000 // LOCKED_POOL_TOKENS
@@ -2719,7 +2724,7 @@ store 52 // output_supply
 store 53 // input_supply
 // Calculates the input amount for a fixed-output swap ignoring fees
 // k = input_supply * output_supply
-// input_amount = (k / (output_supply - asset_out_amount)) - input_supply
+// input_amount = (k / (output_supply - asset_output_amount)) - input_supply
 // bytes k = itob(input_supply) b* itob(output_supply) [slot 54]
 load 53 // input_supply
 itob

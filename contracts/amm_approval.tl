@@ -99,7 +99,7 @@ block bootstrap:
     # uint64 (8 bytes) + uint64 (8 bytes) + zeros (16 bytes)
     bytes metadata_hash = concat(itob(asset_1_id), concat(itob(asset_2_id), bzero(16)))
 
-    # itxn[0]: Pay Algo from Pool to Application to fund Asset Creation
+    # itxn[0]: Pay Algo from Pool to Application to fund minimum balance increase because of asset Creation
     inner_txn:
         TypeEnum: Pay
         Sender: pool_address
@@ -713,13 +713,13 @@ block main:
                 # Adding liquidity after it already has some liquidity
                 bytes a_temp = itob(asset_1_amount) b* itob(issued_pool_tokens)
                 bytes b_temp = itob(asset_2_amount) b* itob(issued_pool_tokens)
-                int pool_tokens_out_a = btoi(a_temp b/ itob(asset_1_reserves))
-                int pool_tokens_out_b = btoi(b_temp b/ itob(asset_2_reserves))
+                int pool_tokens_output_a = btoi(a_temp b/ itob(asset_1_reserves))
+                int pool_tokens_output_b = btoi(b_temp b/ itob(asset_2_reserves))
 
-                if pool_tokens_out_a > pool_tokens_out_b:
+                if pool_tokens_output_a > pool_tokens_output_b:
                     # Less of asset 2 supplied. Pool tokens will be issued proportionally to asset_2_amount (b)
                     # Calculate amount of asset 1 to return to user as change
-                    pool_tokens_out = pool_tokens_out_b
+                    pool_tokens_out = pool_tokens_output_b
                     int expected_asset_1_amount = btoi((itob(pool_tokens_out) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
                     
                     # Round Up if there is remainder
@@ -733,7 +733,7 @@ block main:
                 else:
                     # Less of asset 1 supplied. Pool tokens will be issued proportionally to asset_1_amount (a)
                     # Calculate amount of asset 2 to return to user as change
-                    pool_tokens_out = pool_tokens_out_a
+                    pool_tokens_out = pool_tokens_output_a
                     int expected_asset_2_amount = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
 
                     # Round Up if there is remainder                  
@@ -752,6 +752,7 @@ block main:
                 # Adding liquidity to the pool for the first time:
                 # pool_tokens_out = sqrt(asset_1_amount * asset_2_amount) - LOCKED_POOL_TOKENS
                 issued_pool_tokens = btoi(bsqrt(itob(asset_1_amount) b* itob(asset_2_amount)))
+                assert(issued_pool_tokens >= LOCKED_POOL_TOKENS)
                 pool_tokens_out = issued_pool_tokens - LOCKED_POOL_TOKENS
                 asset_1_reserves = asset_1_amount
                 asset_2_reserves = asset_2_amount
@@ -859,7 +860,7 @@ end
 func calculate_fixed_output_swap(input_supply: int, output_supply: int, output_amount: int) int:
     # Calculates the input amount for a fixed-output swap ignoring fees
     # k = input_supply * output_supply
-    # input_amount = (k / (output_supply - asset_out_amount)) - input_supply
+    # input_amount = (k / (output_supply - asset_output_amount)) - input_supply
     bytes k = itob(input_supply) b* itob(output_supply)
     # +1 for Round Up
     int input_amount = (btoi((k b/ itob(output_supply - output_amount))) + 1) - input_supply

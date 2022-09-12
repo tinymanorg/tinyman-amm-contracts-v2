@@ -1569,18 +1569,18 @@ load 5 // asset_1_reserves
 itob
 b/
 btoi
-store 17 // pool_tokens_out_a
+store 17 // pool_tokens_output_a
 load 16 // b_temp
 load 6 // asset_2_reserves
 itob
 b/
 btoi
-store 18 // pool_tokens_out_b
-load 17 // pool_tokens_out_a
-load 18 // pool_tokens_out_b
+store 18 // pool_tokens_output_b
+load 17 // pool_tokens_output_a
+load 18 // pool_tokens_output_b
 >
 bz l22_else
-load 18 // pool_tokens_out_b
+load 18 // pool_tokens_output_b
 store 14 // pool_tokens_out
 load 14 // pool_tokens_out
 itob
@@ -1614,7 +1614,7 @@ load 20 // asset_1_change
 callsub main__amm__func__transfer_to_user
 b l22_end
 l22_else:
-load 17 // pool_tokens_out_a
+load 17 // pool_tokens_output_a
 store 14 // pool_tokens_out
 load 14 // pool_tokens_out
 itob
@@ -1669,6 +1669,10 @@ b*
 bsqrt
 btoi
 store 7 // issued_pool_tokens
+load 7 // issued_pool_tokens
+pushint 1000 // LOCKED_POOL_TOKENS
+>=
+assert
 load 7 // issued_pool_tokens
 pushint 1000 // LOCKED_POOL_TOKENS
 -

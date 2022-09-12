@@ -18,8 +18,7 @@ class TestBootstrap(BaseTestCase):
         cls.app_creator_sk, cls.app_creator_address = generate_account()
         cls.user_sk, cls.user_addr = generate_account()
 
-        cls.minimum_fee = 7000
-        cls.sp.fee = cls.minimum_fee
+        cls.sp.fee = 7000
         cls.asset_1_id = 5
         cls.asset_2_id = 2
         cls.pool_token_total_supply = 18446744073709551615
@@ -36,7 +35,7 @@ class TestBootstrap(BaseTestCase):
     def test_pass(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -64,7 +63,7 @@ class TestBootstrap(BaseTestCase):
                 b'apan': transaction.OnComplete.OptInOC,
                 b'apas': [self.asset_1_id, self.asset_2_id],
                 b'apid': APPLICATION_ID,
-                b'fee': self.minimum_fee,
+                b'fee': self.sp.fee,
                 b'fv': self.sp.first,
                 b'lv': self.sp.last,
                 b'rekey': decode_address(APPLICATION_ADDRESS),
@@ -190,7 +189,7 @@ class TestBootstrap(BaseTestCase):
     def test_fail_rekey(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
 
         # Rekey is missing
         transactions = [
@@ -229,11 +228,11 @@ class TestBootstrap(BaseTestCase):
             self.ledger.eval_transactions(transactions)
         self.assertEqual(e.exception.source['line'], 'assert(Txn.RekeyTo == Global.CurrentApplicationAddress)')
 
-    def test_fail_wrong_ids_for_logicsig(self):
+    def test_fail_wrong_logicsig(self):
         wrong_asset_1_id = self.asset_1_id + 1
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, wrong_asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -255,14 +254,14 @@ class TestBootstrap(BaseTestCase):
     def test_fail_wrong_asset_order(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_2_id, self.asset_1_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=[METHOD_BOOTSTRAP, self.asset_2_id, self.asset_1_id],
+                    app_args=[METHOD_BOOTSTRAP],
                     foreign_assets=[self.asset_2_id, self.asset_1_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -277,7 +276,7 @@ class TestBootstrap(BaseTestCase):
     def test_fail_insufficient_fee(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -291,7 +290,7 @@ class TestBootstrap(BaseTestCase):
                 lsig
             )
         ]
-        transactions[0].transaction.fee = self.minimum_fee - 1
+        transactions[0].transaction.fee = self.sp.fee - 1
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(transactions)
@@ -300,14 +299,14 @@ class TestBootstrap(BaseTestCase):
     def test_fail_wrong_method_name(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
                     sender=lsig.address(),
                     sp=self.sp,
                     index=APPLICATION_ID,
-                    app_args=["invalid", self.asset_1_id, self.asset_2_id],
+                    app_args=["invalid"],
                     foreign_assets=[self.asset_1_id, self.asset_2_id],
                     rekey_to=APPLICATION_ADDRESS,
                 ),
@@ -324,7 +323,7 @@ class TestBootstrap(BaseTestCase):
         self.asset_1_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="BTC"))
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -338,7 +337,6 @@ class TestBootstrap(BaseTestCase):
                 lsig
             )
         ]
-        transactions[0].transaction.fee = self.minimum_fee
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(transactions)
@@ -349,7 +347,7 @@ class TestBootstrap(BaseTestCase):
         self.asset_1_id = self.ledger.create_asset(asset_id=None, params=dict(unit_name="NFT", total=1))
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.minimum_fee + 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -363,23 +361,23 @@ class TestBootstrap(BaseTestCase):
                 lsig
             )
         ]
-        transactions[0].transaction.fee = self.minimum_fee
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(transactions)
         self.assertEqual(e.exception.source['line'], 'assert(asset_total >= ASSET_MIN_TOTAL)')
 
-    def test_multiple_bootstrap(self):
+    def test_asset_creation_is_funded_properly(self):
         pool_1_asset_2_id = self.ledger.create_asset(asset_id=None)
         pool_1_asset_1_id = self.ledger.create_asset(asset_id=None)
-        pool_2_asset_2_id = self.ledger.create_asset(asset_id=None)
+        pool_2_asset_2_id = ALGO_ASSET_ID
         pool_2_asset_1_id = self.ledger.create_asset(asset_id=None)
 
         logic_sig_pool_1 = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, pool_1_asset_1_id, pool_1_asset_2_id)
         logic_sig_pool_2 = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, pool_2_asset_1_id, pool_2_asset_2_id)
 
-        self.ledger.set_account_balance(logic_sig_pool_1.address(), 1863000)
-        self.ledger.set_account_balance(logic_sig_pool_2.address(), 1863000)
+        self.ledger.set_account_balance(APPLICATION_ADDRESS, 100_000)
+        self.ledger.set_account_balance(logic_sig_pool_1.address(), MIN_POOL_BALANCE_ASA_ASA_PAIR + 100000 + self.sp.fee)
+        self.ledger.set_account_balance(logic_sig_pool_2.address(), MIN_POOL_BALANCE_ASA_ALGO_PAIR + 100000 + self.sp.fee)
 
         transactions = [
             transaction.LogicSigTransaction(
@@ -410,6 +408,55 @@ class TestBootstrap(BaseTestCase):
         block_txns = block[b'txns']
         self.assertEqual(len(block_txns), 2)
 
+    def test_asset_1_does_not_exist(self):
+        self.asset_1_id = 999999
+
+        lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
+        pool_address = lsig.address()
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
+        transactions = [
+            transaction.LogicSigTransaction(
+                transaction.ApplicationOptInTxn(
+                    sender=lsig.address(),
+                    sp=self.sp,
+                    index=APPLICATION_ID,
+                    app_args=[METHOD_BOOTSTRAP],
+                    foreign_assets=[self.asset_1_id, self.asset_2_id],
+                    rekey_to=APPLICATION_ADDRESS,
+                ),
+                lsig
+            )
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(transactions)
+        self.assertEqual(e.exception.source['line'], 'assert(exists)')
+
+    def test_asset_2_does_not_exist(self):
+        self.asset_2_id = APPLICATION_ID
+        self.asset_1_id = self.ledger.create_asset(asset_id=999)
+
+        lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
+        pool_address = lsig.address()
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ASA_PAIR + self.sp.fee + 100_000)
+        transactions = [
+            transaction.LogicSigTransaction(
+                transaction.ApplicationOptInTxn(
+                    sender=lsig.address(),
+                    sp=self.sp,
+                    index=APPLICATION_ID,
+                    app_args=[METHOD_BOOTSTRAP],
+                    foreign_assets=[self.asset_1_id, self.asset_2_id],
+                    rekey_to=APPLICATION_ADDRESS,
+                ),
+                lsig
+            )
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(transactions)
+        self.assertEqual(e.exception.source['line'], 'assert(exists)')
+
 
 class TestBootstrapAlgoPair(BaseTestCase):
 
@@ -418,8 +465,8 @@ class TestBootstrapAlgoPair(BaseTestCase):
         cls.sp = get_suggested_params()
         cls.app_creator_sk, cls.app_creator_address = generate_account()
         cls.user_sk, cls.user_addr = generate_account()
-        cls.minimum_fee = 6000
-        cls.sp.fee = cls.minimum_fee
+
+        cls.sp.fee = 6000
         cls.asset_1_id = 5
         cls.asset_2_id = ALGO_ASSET_ID
         cls.pool_token_total_supply = 18446744073709551615
@@ -434,7 +481,7 @@ class TestBootstrapAlgoPair(BaseTestCase):
     def test_pass(self):
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, ALGO_ASSET_ID)
         pool_address = lsig.address()
-        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ALGO_PAIR + self.minimum_fee + 100_000)
+        self.ledger.set_account_balance(pool_address, MIN_POOL_BALANCE_ASA_ALGO_PAIR + self.sp.fee + 100_000)
         transactions = [
             transaction.LogicSigTransaction(
                 transaction.ApplicationOptInTxn(
@@ -462,7 +509,7 @@ class TestBootstrapAlgoPair(BaseTestCase):
                 b'apan': transaction.OnComplete.OptInOC,
                 b'apas': [self.asset_1_id, ALGO_ASSET_ID],
                 b'apid': APPLICATION_ID,
-                b'fee': self.minimum_fee,
+                b'fee': self.sp.fee,
                 b'fv': self.sp.first,
                 b'lv': self.sp.last,
                 b'rekey': decode_address(APPLICATION_ADDRESS),
