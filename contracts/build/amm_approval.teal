@@ -974,9 +974,9 @@ main:
           callsub __func__calculate_fixed_input_swap
           store 23 // output_amount
           
-          // assert(total_fee_amount, "If the amount is too small, total fee amount is rounded to 0.")
+          // assert(total_fee_amount)
           load 19 // total_fee_amount
-          assert // If the amount is too small, total fee amount is rounded to 0.
+          assert
           // assert(output_amount >= min_output)
           load 23 // output_amount
           load 12 // min_output
@@ -1010,9 +1010,9 @@ main:
           +
           store 25 // required_input_amount
           
-          // assert(total_fee_amount, "If the amount is too small, total fee amount is rounded to 0.")
+          // assert(total_fee_amount)
           load 19 // total_fee_amount
-          assert // If the amount is too small, total fee amount is rounded to 0.
+          assert
           // assert(input_amount >= required_input_amount)
           load 16 // input_amount
           load 25 // required_input_amount
@@ -1084,7 +1084,7 @@ main:
           -
           store 5 // asset_1_reserves
         l7_end: // end
-      // assert(k_initial b< (itob(asset_1_reserves) b* itob(asset_2_reserves)), "Assert K<K'")
+      // assert(k_initial b< (itob(asset_1_reserves) b* itob(asset_2_reserves)))
       load 10 // k_initial
       load 5 // asset_1_reserves
       itob
@@ -1092,7 +1092,7 @@ main:
       itob
       b*
       b<
-      assert // Assert K<K'
+      assert
       
       // transfer_to_user(output_asset_id, output_amount)
       load 15 // output_asset_id
@@ -1219,12 +1219,12 @@ main:
       pushbytes "verify_flash_loan"
       ==
       assert
-      // assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+      // assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
       load 11 // verify_flash_loan_txn_index
       gtxnsa ApplicationArgs 1
       txna ApplicationArgs 1
       ==
-      assert // index_diff
+      assert
       // assert(Gtxn[verify_flash_loan_txn_index].Sender == user_address)
       load 11 // verify_flash_loan_txn_index
       gtxns Sender
@@ -1315,12 +1315,12 @@ main:
       pushbytes "flash_loan"
       ==
       assert
-      // assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+      // assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
       load 11 // flash_loan_txn_index
       gtxnsa ApplicationArgs 1
       txna ApplicationArgs 1
       ==
-      assert // index_diff
+      assert
       // assert(Gtxn[flash_loan_txn_index].Sender == user_address)
       load 11 // flash_loan_txn_index
       gtxns Sender
@@ -1662,11 +1662,6 @@ main:
     
     // block flash_swap
     main__amm__flash_swap:
-      // app_local_put(1, "lock", 1)
-      pushint 1
-      pushbytes "lock"
-      pushint 1
-      app_local_put
       // update_price_oracle()
       callsub main__amm__func__update_price_oracle
       // Gtxn[N]: Flash Swap AppCall from User
@@ -1702,12 +1697,12 @@ main:
       pushbytes "verify_flash_swap"
       ==
       assert
-      // assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+      // assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
       load 11 // verify_flash_swap_txn_index
       gtxnsa ApplicationArgs 1
       txna ApplicationArgs 1
       ==
-      assert // index_diff
+      assert
       // assert(Gtxn[verify_flash_swap_txn_index].Sender == user_address)
       load 11 // verify_flash_swap_txn_index
       gtxns Sender
@@ -1770,6 +1765,12 @@ main:
       callsub __func__get_balance
       itob
       log
+      
+      // app_local_put(1, "lock", 1)
+      pushint 1
+      pushbytes "lock"
+      pushint 1
+      app_local_put
       // exit(1)
       pushint 1
       return
@@ -1806,12 +1807,12 @@ main:
       pushbytes "flash_swap"
       ==
       assert
-      // assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+      // assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
       load 11 // flash_swap_txn_index
       gtxnsa ApplicationArgs 1
       txna ApplicationArgs 1
       ==
-      assert // index_diff
+      assert
       // int asset_1_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2]) [slot 12]
       load 11 // flash_swap_txn_index
       gtxnsa ApplicationArgs 2
@@ -1966,7 +1967,7 @@ main:
           store 6 // asset_2_reserves
         l19_end: // end
       
-      // assert(initial_k b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)), "Initial K < New K")
+      // assert(initial_k b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)))
       load 14 // initial_k
       load 5 // asset_1_reserves
       load 22 // asset_1_poolers_fee_amount
@@ -1978,7 +1979,7 @@ main:
       itob
       b*
       b<
-      assert // Initial K < New K
+      assert
       
       // Logs
       // log(concat("asset_1_output_amount %i", itob(asset_1_output_amount)))

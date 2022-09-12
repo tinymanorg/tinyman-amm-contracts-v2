@@ -378,7 +378,7 @@ block main:
                 swap_amount = input_amount - total_fee_amount
                 output_amount = calculate_fixed_input_swap(input_supply, output_supply, swap_amount)
 
-                assert(total_fee_amount, "If the amount is too small, total fee amount is rounded to 0.")
+                assert(total_fee_amount)
                 assert(output_amount >= min_output)
             elif mode == 'fixed-output':
                 output_amount = min_output
@@ -386,7 +386,7 @@ block main:
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
                 int required_input_amount = swap_amount + total_fee_amount
 
-                assert(total_fee_amount, "If the amount is too small, total fee amount is rounded to 0.")
+                assert(total_fee_amount)
                 assert(input_amount >= required_input_amount)
 
                 change = input_amount - required_input_amount
@@ -406,7 +406,7 @@ block main:
                 asset_2_reserves = asset_2_reserves + (swap_amount + poolers_fee_amount)
                 asset_1_reserves = asset_1_reserves - output_amount
             end
-            assert(k_initial b< (itob(asset_1_reserves) b* itob(asset_2_reserves)), "Assert K<K'")
+            assert(k_initial b< (itob(asset_1_reserves) b* itob(asset_2_reserves)))
 
             transfer_to_user(output_asset_id, output_amount)
 
@@ -444,7 +444,7 @@ block main:
             assert(Gtxn[verify_flash_loan_txn_index].TypeEnum == Appl)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[0] == "verify_flash_loan")
-            assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
             assert(Gtxn[verify_flash_loan_txn_index].Sender == user_address)
             int asset_1_amount = btoi(Txn.ApplicationArgs[2])
             int asset_2_amount = btoi(Txn.ApplicationArgs[3])
@@ -476,7 +476,7 @@ block main:
             assert(Gtxn[flash_loan_txn_index].TypeEnum == Appl)
             assert(Gtxn[flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_loan_txn_index].ApplicationArgs[0] == "flash_loan")
-            assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
             assert(Gtxn[flash_loan_txn_index].Sender == user_address)
             int asset_1_output_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[2])
             int asset_2_output_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[3])
@@ -568,7 +568,6 @@ block main:
         end
 
         block flash_swap:
-            app_local_put(1, "lock", 1)
             update_price_oracle()
             # Gtxn[N]: Flash Swap AppCall from User
             #   itxn: Transfer Asset 1 to User from Pool if Asset 1 is requested
@@ -581,7 +580,7 @@ block main:
             assert(Gtxn[verify_flash_swap_txn_index].TypeEnum == Appl)
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[0] == "verify_flash_swap")
-            assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
             assert(Gtxn[verify_flash_swap_txn_index].Sender == user_address)
             int asset_1_output_amount = btoi(Txn.ApplicationArgs[2])
             int asset_2_output_amount = btoi(Txn.ApplicationArgs[3])
@@ -601,6 +600,8 @@ block main:
             log(itob(get_balance(1, asset_1_id)))
             # asset_2_balance_after_transfer
             log(itob(get_balance(1, asset_2_id)))
+
+            app_local_put(1, "lock", 1)
             exit(1)
         end
 
@@ -613,7 +614,7 @@ block main:
             assert(Gtxn[flash_swap_txn_index].TypeEnum == Appl)
             assert(Gtxn[flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_swap_txn_index].ApplicationArgs[0] == "flash_swap")
-            assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1], "index_diff")
+            assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
             int asset_1_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2])
             int asset_2_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[3])
 
@@ -655,7 +656,7 @@ block main:
                 asset_2_reserves = asset_2_reserves - asset_2_output_amount
             end
 
-            assert(initial_k b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)), "Initial K < New K")
+            assert(initial_k b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)))
 
             # Logs
             log(concat("asset_1_output_amount %i", itob(asset_1_output_amount)))

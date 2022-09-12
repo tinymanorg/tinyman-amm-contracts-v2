@@ -672,7 +672,7 @@ load 22 // swap_amount
 callsub __func__calculate_fixed_input_swap
 store 23 // output_amount
 load 19 // total_fee_amount
-assert // If the amount is too small, total fee amount is rounded to 0.
+assert
 load 23 // output_amount
 load 12 // min_output
 >=
@@ -700,7 +700,7 @@ load 19 // total_fee_amount
 +
 store 25 // required_input_amount
 load 19 // total_fee_amount
-assert // If the amount is too small, total fee amount is rounded to 0.
+assert
 load 16 // input_amount
 load 25 // required_input_amount
 >=
@@ -761,7 +761,7 @@ load 6 // asset_2_reserves
 itob
 b*
 b<
-assert // Assert K<K'
+assert
 load 15 // output_asset_id
 load 23 // output_amount
 callsub main__amm__func__transfer_to_user
@@ -856,7 +856,7 @@ load 11 // verify_flash_loan_txn_index
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
-assert // index_diff
+assert
 load 11 // verify_flash_loan_txn_index
 gtxns Sender
 load 0 // user_address
@@ -921,7 +921,7 @@ load 11 // flash_loan_txn_index
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
-assert // index_diff
+assert
 load 11 // flash_loan_txn_index
 gtxns Sender
 load 0 // user_address
@@ -1173,10 +1173,6 @@ app_local_put
 pushint 1
 return
 main__amm__flash_swap:
-pushint 1
-pushbytes "lock"
-pushint 1
-app_local_put
 callsub main__amm__func__update_price_oracle
 txna ApplicationArgs 1
 btoi
@@ -1204,7 +1200,7 @@ load 11 // verify_flash_swap_txn_index
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
-assert // index_diff
+assert
 load 11 // verify_flash_swap_txn_index
 gtxns Sender
 load 0 // user_address
@@ -1249,6 +1245,10 @@ callsub __func__get_balance
 itob
 log
 pushint 1
+pushbytes "lock"
+pushint 1
+app_local_put
+pushint 1
 return
 main__amm__verify_flash_swap:
 txna ApplicationArgs 1
@@ -1277,7 +1277,7 @@ load 11 // flash_swap_txn_index
 gtxnsa ApplicationArgs 1
 txna ApplicationArgs 1
 ==
-assert // index_diff
+assert
 load 11 // flash_swap_txn_index
 gtxnsa ApplicationArgs 2
 btoi
@@ -1402,7 +1402,7 @@ load 25 // asset_2_poolers_fee_amount
 itob
 b*
 b<
-assert // Initial K < New K
+assert
 pushbytes "asset_1_output_amount %i"
 load 12 // asset_1_output_amount
 itob

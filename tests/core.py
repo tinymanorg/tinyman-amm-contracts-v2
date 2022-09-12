@@ -208,4 +208,4 @@ class BaseTestCase(unittest.TestCase):
 
     @classmethod
     def sign_txns(cls, txns, secret_key):
-        return [txn.sign(secret_key)for txn in txns]
+        return [txn.sign(secret_key) for txn in txns]

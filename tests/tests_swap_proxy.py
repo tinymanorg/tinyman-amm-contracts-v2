@@ -40,17 +40,7 @@ class TestProxySwap(BaseTestCase):
         self.bootstrap_pool()
 
     def test_pass(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         txn_group = [
             transaction.AssetTransferTxn(

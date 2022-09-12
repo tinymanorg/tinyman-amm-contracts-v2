@@ -1,6 +1,6 @@
 from unittest.mock import ANY
 
-from algojig import get_suggested_params
+from algojig import get_suggested_params, LogicEvalError
 from algojig.ledger import JigLedger
 from algosdk.account import generate_account
 from algosdk.encoding import decode_address
@@ -11,7 +11,7 @@ from .core import BaseTestCase
 from .utils import get_pool_logicsig_bytecode
 
 
-class TestFlash(BaseTestCase):
+class TestFlashLoan(BaseTestCase):
 
     @classmethod
     def setUpClass(cls):
@@ -33,17 +33,7 @@ class TestFlash(BaseTestCase):
         self.bootstrap_pool()
 
     def test_flash_loan_asset_1_and_asset_2_pass(self):
-        self.ledger.set_account_balance(self.pool_address, 100_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 100_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 100_000_000,
-                b'asset_2_reserves': 100_000_000,
-                b'issued_pool_tokens': 100_000_000,
-            }
-        )
+        self.set_initial_pool_liquidity(asset_1_reserves=100_000_000, asset_2_reserves=100_000_000)
 
         asset_1_amount = 10_000_000
         asset_2_amount = 20_000_000
@@ -76,7 +66,7 @@ class TestFlash(BaseTestCase):
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_VERIFY_FLASH_LOAN, index_diff],
-                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                foreign_assets=[],
                 accounts=[self.pool_address],
             )
         ]
@@ -159,7 +149,6 @@ class TestFlash(BaseTestCase):
                     b'verify_flash_loan',
                     index_diff.to_bytes(8, "big"),
                 ],
-                b'apas': [self.asset_1_id, self.asset_2_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
@@ -202,17 +191,7 @@ class TestFlash(BaseTestCase):
         )
 
     def test_flash_loan_asset_1_pass(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 4001
         asset_1_repayment_amount = asset_1_amount * 10030 // 10000
@@ -243,7 +222,7 @@ class TestFlash(BaseTestCase):
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_VERIFY_FLASH_LOAN, index_diff],
-                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                foreign_assets=[],
                 accounts=[self.pool_address],
             )
         ]
@@ -258,7 +237,7 @@ class TestFlash(BaseTestCase):
         # outer transactions
         self.assertEqual(len(block_txns), 3)
 
-        # Flash
+        # Flash Loan
         # outer transactions - [0]
         txn = block_txns[0]
         self.assertDictEqual(
@@ -303,7 +282,7 @@ class TestFlash(BaseTestCase):
         txn[b'dt'][b'ld'][1].keys()
         self.assertEqual(set(txn[b'dt'][b'ld'][1].keys()), {b'asset_1_cumulative_price', b'asset_2_cumulative_price', b'cumulative_price_update_timestamp'})
 
-        # Verify Flash
+        # Verify Flash Loan
         # outer transactions - [2]
         txn = block_txns[2]
         self.assertDictEqual(
@@ -313,7 +292,6 @@ class TestFlash(BaseTestCase):
                     b'verify_flash_loan',
                     index_diff.to_bytes(8, "big"),
                 ],
-                b'apas': [self.asset_1_id, self.asset_2_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
                 b'fee': ANY,
@@ -346,3 +324,229 @@ class TestFlash(BaseTestCase):
                 bytes(bytearray(b'asset_1_total_fee_amount %i') + bytearray((12).to_bytes(8, "big"))),
             ]
         )
+
+    def test_fail_asset_senders_are_not_same(self):
+        new_user_sk, new_user_addr = generate_account()
+        self.ledger.set_account_balance(new_user_addr, 1_000_000)
+        self.ledger.set_account_balance(new_user_addr, 1_000_000, self.asset_1_id)
+        self.ledger.set_account_balance(new_user_addr, 1_000_000, self.asset_2_id)
+
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+
+        asset_1_amount = 10_000
+        asset_2_amount = 0
+        index_diff = 2
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_FLASH_LOAN, index_diff, asset_1_amount, asset_2_amount],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+            transaction.AssetTransferTxn(
+                sender=new_user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=15_000,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_VERIFY_FLASH_LOAN, index_diff],
+                foreign_assets=[],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = 2000
+        txn_group[2].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [
+            txn_group[0].sign(self.user_sk),
+            txn_group[1].sign(new_user_sk),
+            txn_group[2].sign(self.user_sk)
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_1_txn_index].Sender == user_address)')
+
+        asset_1_amount = 0
+        asset_2_amount = 10_000
+        index_diff = 2
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_FLASH_LOAN, index_diff, asset_1_amount, asset_2_amount],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+            transaction.AssetTransferTxn(
+                sender=new_user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_2_id,
+                amt=15_000,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_VERIFY_FLASH_LOAN, index_diff],
+                foreign_assets=[],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = 2000
+        txn_group[2].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [
+            txn_group[0].sign(self.user_sk),
+            txn_group[1].sign(new_user_sk),
+            txn_group[2].sign(self.user_sk)
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_2_txn_index].Sender == user_address)')
+
+    def test_fail_app_call_senders_are_not_same(self):
+        new_user_sk, new_user_addr = generate_account()
+        self.ledger.set_account_balance(new_user_addr, 1_000_000)
+        self.ledger.set_account_balance(new_user_addr, 1_000_000, self.asset_1_id)
+
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+
+        asset_1_amount = 4001
+        asset_1_repayment_amount = asset_1_amount * 10030 // 10000
+
+        asset_2_amount = 0
+        index_diff = 2
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=new_user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_FLASH_LOAN, index_diff, asset_1_amount, asset_2_amount],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=asset_1_repayment_amount,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_VERIFY_FLASH_LOAN, index_diff],
+                foreign_assets=[],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = 2000
+        txn_group[2].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [
+            txn_group[0].sign(new_user_sk),
+            txn_group[1].sign(self.user_sk),
+            txn_group[2].sign(self.user_sk)
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[verify_flash_loan_txn_index].Sender == user_address)')
+
+    def test_fail_different_index_diffs(self):
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+
+        asset_1_amount = 4001
+        asset_1_repayment_amount = asset_1_amount * 10030 // 10000
+
+        asset_2_amount = 0
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_FLASH_LOAN, 2, asset_1_amount, asset_2_amount],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=asset_1_repayment_amount,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_VERIFY_FLASH_LOAN, 1],
+                foreign_assets=[],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = 2000
+        txn_group[2].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])')
+
+    def test_fail_amounts_are_zero(self):
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+
+        index_diff = 2
+        asset_1_amount = 0
+        asset_2_amount = 0
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_FLASH_LOAN, index_diff, asset_1_amount, asset_2_amount],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=0,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_VERIFY_FLASH_LOAN, index_diff],
+                foreign_assets=[],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = 2000
+        txn_group[2].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(asset_1_amount || asset_2_amount)')

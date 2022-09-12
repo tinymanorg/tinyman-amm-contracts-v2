@@ -207,3 +207,34 @@ class TestRemoveLiquidity(BaseTestCase):
                     # local state delta
                     pool_local_state_delta = txn[b'dt'][b'ld'][1]
                     self.assertDictEqual(pool_local_state_delta, outputs["local_state_delta"])
+
+    def test_fail_asset_receiver_is_not_the_pool(self):
+        asset_1_reserves = 1_000_000
+        asset_2_reserves = 1_000_000
+        removed_pool_token_amount = 5_000
+        self.set_initial_pool_liquidity(asset_1_reserves=asset_1_reserves, asset_2_reserves=asset_2_reserves, liquidity_provider_address=self.user_addr)
+
+        txn_group = self.get_remove_liquidity_transactions(liquidity_asset_amount=removed_pool_token_amount, app_call_fee=3_000)
+        txn_group[0].receiver = self.user_addr
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], "assert(Gtxn[pool_token_txn_index].AssetReceiver == pool_address)")
+
+    def test_fail_wrong_asset_id(self):
+        asset_1_reserves = 1_000_000
+        asset_2_reserves = 1_000_000
+        removed_pool_token_amount = 5_000
+        self.set_initial_pool_liquidity(asset_1_reserves=asset_1_reserves, asset_2_reserves=asset_2_reserves, liquidity_provider_address=self.user_addr)
+
+        txn_group = self.get_remove_liquidity_transactions(liquidity_asset_amount=removed_pool_token_amount, app_call_fee=3_000)
+        txn_group[0].index = self.asset_1_id
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], "assert(Gtxn[pool_token_txn_index].XferAsset == pool_token_asset_id)")
+

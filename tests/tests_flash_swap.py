@@ -33,17 +33,7 @@ class TestFlashSwap(BaseTestCase):
         self.bootstrap_pool()
 
     def test_flash_swap_asset_1_and_asset_2_pass(self):
-        self.ledger.set_account_balance(self.pool_address, 100_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 100_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 10000
         asset_2_amount = 20000
@@ -194,17 +184,7 @@ class TestFlashSwap(BaseTestCase):
         )
 
     def test_flash_swap_repay_with_the_same_asset_pass(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 4001
         asset_1_repayment_amount = asset_1_amount * 10030 // 10000 + 1
@@ -346,17 +326,7 @@ class TestFlashSwap(BaseTestCase):
         )
 
     def test_flash_swap_repay_with_the_other_asset_pass(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 4001
         asset_1_reserves = 1_000_000 - asset_1_amount
@@ -501,17 +471,7 @@ class TestFlashSwap(BaseTestCase):
         )
 
     def test_flash_swap_lock(self):
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 1_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 1_000_000,
-                b'asset_2_reserves': 1_000_000,
-                b'issued_pool_tokens': 1_000_000,
-            }
-        )
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 500_000
         asset_2_repayment_amount = 750_000
@@ -572,21 +532,91 @@ class TestFlashSwap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], 'assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))')
         self.assertEqual(e.exception.txn_id, txn_group[2].get_txid())
 
+    def test_fail_different_index_diffs(self):
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+
+        asset_1_amount = 500_000
+        asset_2_repayment_amount = 750_000
+        asset_2_amount = 0
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_FLASH_SWAP, 2, asset_1_amount, asset_2_amount],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_2_id,
+                amt=asset_2_repayment_amount,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_VERIFY_FLASH_SWAP, 1],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = 2000
+        txn_group[2].fee = 1000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])')
+
+    def test_fail_amounts_are_zero(self):
+        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+
+        index_diff = 2
+        asset_1_amount = 0
+        asset_2_amount = 0
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_FLASH_SWAP, index_diff, asset_1_amount, asset_2_amount],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_2_id,
+                amt=0,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_VERIFY_FLASH_SWAP, index_diff],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[0].fee = 2000
+        txn_group[2].fee = 1000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(asset_1_output_amount || asset_2_output_amount)')
+
     def test_compare_with_loan(self):
         """
         The same asset 1 and asset 2 amounts are used with TestFlash.test_flash_loan_asset_1_and_asset_2_pass tests.
         """
-        self.ledger.set_account_balance(self.pool_address, 100_000_000, asset_id=self.asset_1_id)
-        self.ledger.set_account_balance(self.pool_address, 100_000_000, asset_id=self.asset_2_id)
-        self.ledger.update_local_state(
-            address=self.pool_address,
-            app_id=APPLICATION_ID,
-            state_delta={
-                b'asset_1_reserves': 100_000_000,
-                b'asset_2_reserves': 100_000_000,
-                b'issued_pool_tokens': 100_000_000,
-            }
-        )
+        self.set_initial_pool_liquidity(asset_1_reserves=100_000_000, asset_2_reserves=100_000_000)
 
         asset_1_amount = 10_000_000
         asset_2_amount = 20_000_000

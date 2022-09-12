@@ -1,3 +1,4 @@
+from copy import deepcopy
 from decimal import Decimal
 from unittest.mock import ANY
 
@@ -516,18 +517,31 @@ class TestAddLiquidity(BaseTestCase):
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], 'int asset_1_id = app_local_get(1, "asset_1_id")')
 
-    def test_fail_wrong_asset_transfer_order(self):
+    def test_fail_wrong_asset_1_transfer(self):
         asset_1_added_liquidity_amount = 10_000
         asset_2_added_liquidity_amount = 15_000
 
         txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
-        txn_group[0].index, txn_group[1].index = txn_group[1].index, txn_group[0].index
+        txn_group[0].index = self.asset_2_id
         txn_group = transaction.assign_group_id(txn_group)
         stxns = self.sign_txns(txn_group, self.user_sk)
 
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_1_txn_index].XferAsset == asset_1_id)')
+
+    def test_fail_wrong_asset_2_transfer(self):
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[1].index = self.asset_1_id
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_2_txn_index].XferAsset == asset_2_id)')
 
     def test_asset_receivers_are_not_pool(self):
         _, asset_receiver = generate_account()
@@ -557,6 +571,50 @@ class TestAddLiquidity(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_2_txn_index].AssetReceiver == pool_address)')
+
+    def test_fail_app_caller_and_asset_1_sender_is_not_equal(self):
+        new_sk, new_addr = generate_account()
+        self.ledger.set_account_balance(new_addr, 1_000_000)
+        self.ledger.set_account_balance(new_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(new_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
+
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[0].sender = new_addr
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [
+            txn_group[0].sign(new_sk),
+            txn_group[1].sign(self.user_sk),
+            txn_group[2].sign(self.user_sk),
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_1_txn_index].Sender == user_address)')
+
+    def test_fail_app_caller_and_asset_2_sender_is_not_equal(self):
+        new_sk, new_addr = generate_account()
+        self.ledger.set_account_balance(new_addr, 1_000_000)
+        self.ledger.set_account_balance(new_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(new_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
+
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[1].sender = new_addr
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [
+            txn_group[0].sign(self.user_sk),
+            txn_group[1].sign(new_sk),
+            txn_group[2].sign(self.user_sk),
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_2_txn_index].Sender == user_address)')
 
 
 class TestAddLiquidityAlgoPair(BaseTestCase):
@@ -692,3 +750,37 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_2_txn_index].Receiver == pool_address)')
+
+    def test_fail_wrong_asset_2_transfer(self):
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[1] = deepcopy(txn_group[0])
+        txn_group[1].amount = asset_2_added_liquidity_amount
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_2_txn_index].TypeEnum == Pay)')
+
+    def test_fail_app_caller_and_asset_2_sender_is_not_equal(self):
+        new_sk, new_addr = generate_account()
+        self.ledger.set_account_balance(new_addr, 1_000_000)
+
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount)
+        txn_group[1].sender = new_addr
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [
+            txn_group[0].sign(self.user_sk),
+            txn_group[1].sign(new_sk),
+            txn_group[2].sign(self.user_sk),
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_2_txn_index].Sender == user_address)')
