@@ -687,9 +687,6 @@ block main:
             # Gtxn[N]: AppCall from User
             #   itxn[0]: Transfer Pool Token to User from Pool
 
-            # Record the current price because the price may be changed by this method
-            # update_price_oracle()
-
             # The minimum expected pool tokens. Should fail if this cannot be achieved.
             int min_output = btoi(Txn.ApplicationArgs[1])
 
@@ -747,6 +744,9 @@ block main:
 
                 # Increase the app budget
                 increase_cost_budget()
+
+                # Record the current price because the price may be changed by this method
+                update_price_oracle()
 
                 # pool_tokens_per_sqrt_k = issued_pool_tokens / sqrt(k)
                 # new_issued_pool_tokens = pool_tokens_per_sqrt_k * sqrt(new_k)

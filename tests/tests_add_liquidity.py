@@ -561,8 +561,11 @@ class TestAddLiquidity(BaseTestCase):
         self.assertDictEqual(
             pool_local_state_delta,
             {
+                b'asset_1_cumulative_price': ANY,
                 b'asset_1_protocol_fees': {b'at': 2, b'ui': asset_1_protocol_fees},
                 b'asset_1_reserves': {b'at': 2, b'ui': initial_asset_1_reserves + (asset_1_added_liquidity_amount - asset_1_protocol_fees)},
+                b'asset_2_cumulative_price': ANY,
+                b'cumulative_price_update_timestamp': ANY,
                 b'issued_pool_tokens': {b'at': 2, b'ui': initial_issued_pool_token_amount + pool_tokens_out_amount}
             }
         )
@@ -649,8 +652,11 @@ class TestAddLiquidity(BaseTestCase):
         self.assertDictEqual(
             pool_local_state_delta,
             {
+                b'asset_1_cumulative_price': ANY,
+                b'asset_2_cumulative_price': ANY,
                 b'asset_2_protocol_fees': {b'at': 2, b'ui': asset_2_protocol_fees},
                 b'asset_2_reserves': {b'at': 2, b'ui': initial_asset_2_reserves + (asset_2_added_liquidity_amount - asset_2_protocol_fees)},
+                b'cumulative_price_update_timestamp': ANY,
                 b'issued_pool_tokens': {b'at': 2, b'ui': initial_issued_pool_token_amount + pool_tokens_out_amount}
             }
         )
@@ -952,8 +958,11 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         self.assertDictEqual(
             pool_local_state_delta,
             {
+                b'asset_1_cumulative_price': ANY,
                 b'asset_1_reserves': {b'at': 2, b'ui': initial_asset_1_reserves + asset_1_added_liquidity_amount},
                 b'asset_2_reserves': {b'at': 2, b'ui': initial_asset_2_reserves + asset_2_added_liquidity_amount},
+                b'asset_2_cumulative_price': ANY,
+                b'cumulative_price_update_timestamp': ANY,
                 b'issued_pool_tokens': {b'at': 2, b'ui': initial_issued_pool_token_amount + 12247}
             }
         )
@@ -1040,8 +1049,11 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         self.assertDictEqual(
             pool_local_state_delta,
             {
+                b'asset_1_cumulative_price': ANY,
                 b'asset_1_protocol_fees': {b'at': 2, b'ui': asset_1_protocol_fees},
                 b'asset_1_reserves': {b'at': 2, b'ui': initial_asset_1_reserves + (asset_1_added_liquidity_amount - asset_1_protocol_fees)},
+                b'asset_2_cumulative_price': ANY,
+                b'cumulative_price_update_timestamp': ANY,
                 b'issued_pool_tokens': {b'at': 2, b'ui': initial_issued_pool_token_amount + pool_tokens_out_amount}
             }
         )
@@ -1127,8 +1139,11 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         self.assertDictEqual(
             pool_local_state_delta,
             {
+                b'asset_1_cumulative_price': ANY,
                 b'asset_2_protocol_fees': {b'at': 2, b'ui': asset_2_protocol_fees},
                 b'asset_2_reserves': {b'at': 2, b'ui': initial_asset_2_reserves + (asset_2_added_liquidity_amount - asset_2_protocol_fees)},
+                b'asset_2_cumulative_price': ANY,
+                b'cumulative_price_update_timestamp': ANY,
                 b'issued_pool_tokens': {b'at': 2, b'ui': initial_issued_pool_token_amount + pool_tokens_out_amount}
             }
         )
