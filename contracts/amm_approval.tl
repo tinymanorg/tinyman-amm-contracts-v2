@@ -832,6 +832,9 @@ block main:
 
             else:
                 # Adding liquidity to the pool for the first time:
+                # Amounts of both assets must be supplied
+                assert(asset_1_amount)
+                assert(asset_2_amount)
                 # pool_tokens_out = sqrt(asset_1_amount * asset_2_amount) - LOCKED_POOL_TOKENS
                 issued_pool_tokens = btoi(bsqrt(itob(asset_1_amount) b* itob(asset_2_amount)))
                 pool_tokens_out = issued_pool_tokens - LOCKED_POOL_TOKENS
