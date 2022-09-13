@@ -1207,6 +1207,12 @@ main:
       pushint 6 // Appl
       ==
       assert
+      // assert(Gtxn[verify_flash_loan_txn_index].OnCompletion == NoOp)
+      load 11 // verify_flash_loan_txn_index
+      gtxns OnCompletion
+      pushint 0 // NoOp
+      ==
+      assert
       // assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
       load 11 // verify_flash_loan_txn_index
       gtxns ApplicationID
@@ -1303,6 +1309,12 @@ main:
       pushint 6 // Appl
       ==
       assert
+      // assert(Gtxn[flash_loan_txn_index].OnCompletion == NoOp)
+      load 11 // flash_loan_txn_index
+      gtxns OnCompletion
+      pushint 0 // NoOp
+      ==
+      assert
       // assert(Gtxn[flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
       load 11 // flash_loan_txn_index
       gtxns ApplicationID
@@ -1353,16 +1365,14 @@ main:
           store 14 // asset_1_total_fee_amount
           store 15 // asset_1_poolers_fee_amount
           store 16 // asset_1_protocol_fee_amount
+          // assert(asset_1_total_fee_amount)
+          load 14 // asset_1_total_fee_amount
+          assert
           // asset_1_repayment_amount = asset_1_output_amount + asset_1_total_fee_amount
           load 12 // asset_1_output_amount
           load 14 // asset_1_total_fee_amount
           +
           store 17 // asset_1_repayment_amount
-          // assert(asset_1_repayment_amount > asset_1_output_amount)
-          load 17 // asset_1_repayment_amount
-          load 12 // asset_1_output_amount
-          >
-          assert
           
           // int asset_1_txn_index [slot 18]
           // if asset_2_output_amount:
@@ -1489,16 +1499,14 @@ main:
           store 21 // asset_2_total_fee_amount
           store 22 // asset_2_poolers_fee_amount
           store 23 // asset_2_protocol_fee_amount
+          // assert(asset_2_total_fee_amount)
+          load 21 // asset_2_total_fee_amount
+          assert
           // asset_2_repayment_amount = asset_2_output_amount + asset_2_total_fee_amount
           load 13 // asset_2_output_amount
           load 21 // asset_2_total_fee_amount
           +
           store 24 // asset_2_repayment_amount
-          // assert(asset_2_repayment_amount > asset_2_output_amount)
-          load 24 // asset_2_repayment_amount
-          load 13 // asset_2_output_amount
-          >
-          assert
           
           // int asset_2_txn_index = Txn.GroupIndex - 1 [slot 25]
           txn GroupIndex
@@ -1685,6 +1693,12 @@ main:
       pushint 6 // Appl
       ==
       assert
+      // assert(Gtxn[verify_flash_swap_txn_index].OnCompletion == NoOp)
+      load 11 // verify_flash_swap_txn_index
+      gtxns OnCompletion
+      pushint 0 // NoOp
+      ==
+      assert
       // assert(Gtxn[verify_flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
       load 11 // verify_flash_swap_txn_index
       gtxns ApplicationID
@@ -1793,6 +1807,12 @@ main:
       load 11 // flash_swap_txn_index
       gtxns TypeEnum
       pushint 6 // Appl
+      ==
+      assert
+      // assert(Gtxn[flash_swap_txn_index].OnCompletion == NoOp)
+      load 11 // flash_swap_txn_index
+      gtxns OnCompletion
+      pushint 0 // NoOp
       ==
       assert
       // assert(Gtxn[flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)

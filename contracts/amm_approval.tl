@@ -442,6 +442,7 @@ block main:
             int index_diff = btoi(Txn.ApplicationArgs[1])
             int verify_flash_loan_txn_index = Txn.GroupIndex + index_diff
             assert(Gtxn[verify_flash_loan_txn_index].TypeEnum == Appl)
+            assert(Gtxn[verify_flash_loan_txn_index].OnCompletion == NoOp)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[0] == "verify_flash_loan")
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
@@ -474,6 +475,7 @@ block main:
             int index_diff = btoi(Txn.ApplicationArgs[1])
             int flash_loan_txn_index = Txn.GroupIndex - index_diff
             assert(Gtxn[flash_loan_txn_index].TypeEnum == Appl)
+            assert(Gtxn[flash_loan_txn_index].OnCompletion == NoOp)
             assert(Gtxn[flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_loan_txn_index].ApplicationArgs[0] == "flash_loan")
             assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
@@ -488,9 +490,9 @@ block main:
                 int asset_1_repayment_amount
                 
                 asset_1_total_fee_amount, asset_1_poolers_fee_amount, asset_1_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_output_amount)
+                assert(asset_1_total_fee_amount)
                 asset_1_repayment_amount = asset_1_output_amount + asset_1_total_fee_amount
-                assert(asset_1_repayment_amount > asset_1_output_amount)
-                
+
                 int asset_1_txn_index
                 if asset_2_output_amount:
                     asset_1_txn_index = Txn.GroupIndex - 2
@@ -523,10 +525,10 @@ block main:
                 int asset_2_poolers_fee_amount
                 int asset_2_protocol_fee_amount
                 int asset_2_repayment_amount
-                
+
                 asset_2_total_fee_amount, asset_2_poolers_fee_amount, asset_2_protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_2_output_amount)
+                assert(asset_2_total_fee_amount)
                 asset_2_repayment_amount = asset_2_output_amount + asset_2_total_fee_amount
-                assert(asset_2_repayment_amount > asset_2_output_amount)
 
                 int asset_2_txn_index = Txn.GroupIndex - 1
                 int asset_2_input_amount
@@ -578,6 +580,7 @@ block main:
             int index_diff = btoi(Txn.ApplicationArgs[1])
             int verify_flash_swap_txn_index = Txn.GroupIndex + index_diff
             assert(Gtxn[verify_flash_swap_txn_index].TypeEnum == Appl)
+            assert(Gtxn[verify_flash_swap_txn_index].OnCompletion == NoOp)
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[0] == "verify_flash_swap")
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
@@ -612,6 +615,7 @@ block main:
             int index_diff = btoi(Txn.ApplicationArgs[1])
             int flash_swap_txn_index = Txn.GroupIndex - index_diff
             assert(Gtxn[flash_swap_txn_index].TypeEnum == Appl)
+            assert(Gtxn[flash_swap_txn_index].OnCompletion == NoOp)
             assert(Gtxn[flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_swap_txn_index].ApplicationArgs[0] == "flash_swap")
             assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])

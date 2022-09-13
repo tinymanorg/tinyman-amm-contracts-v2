@@ -237,4 +237,3 @@ class TestRemoveLiquidity(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], "assert(Gtxn[pool_token_txn_index].XferAsset == pool_token_asset_id)")
-

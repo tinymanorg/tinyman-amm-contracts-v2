@@ -42,7 +42,7 @@ class BaseTestCase(unittest.TestCase):
             minimum_balance = MIN_POOL_BALANCE_ASA_ALGO_PAIR
 
         # Algojig cannot account application opt-in requirements right now.
-        local_state_requirements = (25000+3500)*APP_LOCAL_INTS + (25000+25000)*APP_LOCAL_BYTES
+        local_state_requirements = (25000 + 3500) * APP_LOCAL_INTS + (25000 + 25000) * APP_LOCAL_BYTES
         minimum_balance -= local_state_requirements
 
         # Set Algo balance

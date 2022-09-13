@@ -523,7 +523,6 @@ class TestFlashSwap(BaseTestCase):
         ]
         txn_group[0].fee = 2000
         txn_group[2].fee = 2000
-        txn_group[4].fee = 1000
 
         txn_group = transaction.assign_group_id(txn_group)
         stxns = self.sign_txns(txn_group, self.user_sk)
