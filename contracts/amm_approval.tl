@@ -865,6 +865,8 @@ block main:
             # Gtxn[N]: AppCall from User
             #   itxn[0]: Transfer Asset 1 to User from Pool
             #   itxn[1]: Transfer Asset 2 to User from Pool
+            #   or
+            #   itxn[0]: Transfer Asset {1 or 2} to User from Pool
 
             int pool_token_txn_index = Txn.GroupIndex - 1
             assert(Gtxn[pool_token_txn_index].TypeEnum == Axfer)
@@ -885,13 +887,48 @@ block main:
             end
 
             assert(asset_1_amount && asset_2_amount)
-            transfer_to_user(asset_1_id, asset_1_amount)
-            transfer_to_user(asset_2_id, asset_2_amount)
+
+            asset_1_reserves = asset_1_reserves - asset_1_amount
+            asset_2_reserves = asset_2_reserves - asset_2_amount
+
+            int total_fee_amount
+            int poolers_fee_amount
+            int protocol_fee_amount
+            int swap_amount
+            int swap_output_amount
+            if Txn.NumAssets == 2:
+                assert(Txn.Assets[0] == asset_1_id)
+                assert(Txn.Assets[1] == asset_2_id)
+                transfer_to_user(asset_1_id, asset_1_amount)
+                transfer_to_user(asset_2_id, asset_2_amount)
+            elif (Txn.NumAssets == 1) && (Txn.Assets[0] == asset_1_id):
+                assert(asset_2_amount < asset_2_reserves)
+                total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_2_amount)
+                swap_amount = asset_2_amount - total_fee_amount
+                swap_output_amount = calculate_fixed_input_swap(asset_2_reserves, asset_1_reserves, swap_amount)
+                asset_1_reserves = asset_1_reserves - swap_output_amount
+                asset_2_reserves = asset_2_reserves + (swap_amount + poolers_fee_amount)
+                asset_2_protocol_fees = asset_2_protocol_fees + protocol_fee_amount
+                transfer_to_user(asset_1_id, asset_1_amount + swap_output_amount)
+            elif (Txn.NumAssets == 1) && (Txn.Assets[0] == asset_2_id):
+                assert(asset_1_amount < asset_1_reserves)
+                total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_amount)
+                swap_amount = asset_1_amount - total_fee_amount
+                swap_output_amount = calculate_fixed_input_swap(asset_1_reserves, asset_2_reserves, swap_amount)
+                asset_2_reserves = asset_2_reserves - swap_output_amount
+                asset_1_reserves = asset_1_reserves + (swap_amount + poolers_fee_amount)
+                asset_1_protocol_fees = asset_1_protocol_fees + protocol_fee_amount
+                transfer_to_user(asset_2_id, asset_2_amount + swap_output_amount)
+            else:
+                error()
+            end
 
             # State updates
-            app_local_put(1, "asset_1_reserves", asset_1_reserves - asset_1_amount)
-            app_local_put(1, "asset_2_reserves", asset_2_reserves - asset_2_amount)
+            app_local_put(1, "asset_1_reserves", asset_1_reserves)
+            app_local_put(1, "asset_2_reserves", asset_2_reserves)
             app_local_put(1, "issued_pool_tokens", issued_pool_tokens - removed_pool_token_amount)
+            app_local_put(1, "asset_1_protocol_fees", asset_1_protocol_fees)
+            app_local_put(1, "asset_2_protocol_fees", asset_2_protocol_fees)
             exit(1)
         end
 
