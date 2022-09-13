@@ -742,6 +742,9 @@ block main:
             if issued_pool_tokens:
                 # Adding liquidity after it already has some liquidity
 
+                # Increase the app budget
+                increase_cost_budget()
+
                 # pool_tokens_per_sqrt_k = issued_pool_tokens / sqrt(k)
                 # new_issued_pool_tokens = pool_tokens_per_sqrt_k * sqrt(new_k)
 
@@ -781,17 +784,20 @@ block main:
                     # Determine the fee that should have been charged for a swap of this amount
                     # input_amount = swap_amount * (10000 + FEE) / 10000
                     # total_fee = (input_amount * FEE) / 10000
-                    total_fee = ((swap_amount * (10000 + total_fee_share)) * total_fee_share) / 100000000
+                    # total_fee = ((swap_amount * (10000 + total_fee_share)) * total_fee_share) / 100000000
+                    total_fee = btoi((itob(swap_amount * total_fee_share) b* itob(10000 + total_fee_share)) b/ itob(100000000))
                     protocol_fee = total_fee / protocol_fee_ratio
                     poolers_fee = total_fee - protocol_fee
 
                     asset_1_protocol_fees = asset_1_protocol_fees + protocol_fee
-                    # Subtract the protocol fee from asset_1_reserves (the whole of asset_1_amount was added earlier)
-                    asset_1_reserves = asset_1_reserves - protocol_fee
                     
                     # Calculate the fee value as pool tokens
                     # fee_as_pool_tokens = ((total_fee / asset_1_reserves) * issued_pool_tokens) / 2
                     fee_as_pool_tokens = btoi((itob(total_fee) b* itob(issued_pool_tokens)) b/ (itob(asset_1_reserves) b* itob(2)))
+
+                    # Subtract the protocol fee from asset_1_reserves (the whole of asset_1_amount was added earlier)
+                    asset_1_reserves = asset_1_reserves - protocol_fee
+
                     # Subtract the fee from the outgoing pool tokens
                     pool_tokens_out = pool_tokens_out - fee_as_pool_tokens
                     issued_pool_tokens = issued_pool_tokens - fee_as_pool_tokens
@@ -802,17 +808,20 @@ block main:
                     # Determine the fee that should have been charged for a swap of this amount
                     # input_amount = swap_amount * (10000 + FEE) / 10000
                     # total_fee = (input_amount * FEE) / 10000
-                    total_fee = ((swap_amount * (10000 + total_fee_share)) * total_fee_share) / 100000000
+                    # total_fee = ((swap_amount * (10000 + total_fee_share)) * total_fee_share) / 100000000
+                    total_fee = btoi((itob(swap_amount * total_fee_share) b* itob(10000 + total_fee_share)) b/ itob(100000000))
                     protocol_fee = total_fee / protocol_fee_ratio
                     poolers_fee = total_fee - protocol_fee
 
                     asset_2_protocol_fees = asset_2_protocol_fees + protocol_fee
-                    # Subtract the protocol fee from asset_2_reserves (the whole of asset_2_amount was added earlier)
-                    asset_2_reserves = asset_2_reserves - protocol_fee
                     
                     # Calculate the fee value as pool tokens
                     # fee_as_pool_tokens = ((total_fee / asset_2_reserves) * issued_pool_tokens) / 2
                     fee_as_pool_tokens = btoi((itob(total_fee) b* itob(issued_pool_tokens)) b/ (itob(asset_2_reserves) b* itob(2)))
+
+                    # Subtract the protocol fee from asset_2_reserves (the whole of asset_2_amount was added earlier)
+                    asset_2_reserves = asset_2_reserves - protocol_fee
+
                     # Subtract the fee from the outgoing pool tokens
                     pool_tokens_out = pool_tokens_out - fee_as_pool_tokens
                     issued_pool_tokens = issued_pool_tokens - fee_as_pool_tokens
@@ -966,6 +975,17 @@ func transfer(asset_id: int, amount: int, sender: bytes, receiver: bytes):
             XferAsset: asset_id
             Fee: 0
         end
+    end
+    return
+end
+
+func increase_cost_budget():
+    inner_txn:
+        TypeEnum: Appl
+        OnCompletion: DeleteApplication
+        ApprovalProgram: "\x06\x81\x01"
+        ClearStateProgram: "\x06\x81\x01"
+        Fee: 0
     end
     return
 end
