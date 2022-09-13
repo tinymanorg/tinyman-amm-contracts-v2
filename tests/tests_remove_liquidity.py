@@ -53,8 +53,11 @@ class TestRemoveLiquidity(BaseTestCase):
                     asset_1_out=5_000,
                     asset_2_out=5_000,
                     local_state_delta={
+                        b'asset_1_cumulative_price': ANY,
                         b'asset_1_reserves': {b'at': 2, b'ui': 1_000_000 - 5_000},
                         b'asset_2_reserves': {b'at': 2, b'ui': 1_000_000 - 5_000},
+                        b'asset_2_cumulative_price': ANY,
+                        b'cumulative_price_update_timestamp': ANY,
                         b'issued_pool_tokens': {b'at': 2, b'ui': 1_000_000 - 5_000},
                     }
                 )
@@ -101,8 +104,11 @@ class TestRemoveLiquidity(BaseTestCase):
                     asset_1_out=100_000_000,
                     asset_2_out=1,
                     local_state_delta={
+                        b'asset_1_cumulative_price': ANY,
                         b'asset_1_reserves': {b'at': 2},
                         b'asset_2_reserves': {b'at': 2},
+                        b'asset_2_cumulative_price': ANY,
+                        b'cumulative_price_update_timestamp': ANY,
                         b'issued_pool_tokens': {b'at': 2},
                     }
                 )
@@ -223,9 +229,12 @@ class TestRemoveLiquidity(BaseTestCase):
                 outputs=dict(
                     asset_1_out=9960,
                     local_state_delta={
+                        b'asset_1_cumulative_price': ANY,
                         b'asset_1_reserves': {b'at': 2, b'ui': 1_000_000 - 9960},
                         b'asset_2_protocol_fees': {b'at': 2, b'ui': 2},
                         b'asset_2_reserves': {b'at': 2, b'ui': 1_000_000 - 2},
+                        b'asset_2_cumulative_price': ANY,
+                        b'cumulative_price_update_timestamp': ANY,
                         b'issued_pool_tokens': {b'at': 2, b'ui': 1_000_000 - 5_000},
                     }
                 )
@@ -361,9 +370,12 @@ class TestRemoveLiquidity(BaseTestCase):
                 outputs=dict(
                     asset_2_out=9960,
                     local_state_delta={
+                        b'asset_1_cumulative_price': ANY,
                         b'asset_1_protocol_fees': {b'at': 2, b'ui': 2},
                         b'asset_1_reserves': {b'at': 2, b'ui': 1_000_000 - 2},
                         b'asset_2_reserves': {b'at': 2, b'ui': 1_000_000 - 9960},
+                        b'asset_2_cumulative_price': ANY,
+                        b'cumulative_price_update_timestamp': ANY,
                         b'issued_pool_tokens': {b'at': 2, b'ui': 1_000_000 - 5_000},
                     }
                 )
