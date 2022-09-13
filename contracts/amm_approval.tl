@@ -771,7 +771,6 @@ block main:
                 int z2 = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
 
                 int swap_amount
-                int input_amount
                 int total_fee
                 int poolers_fee
                 int protocol_fee
@@ -785,10 +784,10 @@ block main:
                     swap_amount = asset_1_amount - z1
                     # swap_amount was swapped but no swap fee was charged
                     # Determine the fee that should have been charged for a swap of this amount
-                    # input_amount = swap_amount * (10000 + FEE) / 10000
+                    # input_amount = (swap_amount * 10000) / (10000 - FEE)
                     # total_fee = (input_amount * FEE) / 10000
-                    # total_fee = ((swap_amount * (10000 + total_fee_share)) * total_fee_share) / 100000000
-                    total_fee = btoi((itob(swap_amount * total_fee_share) b* itob(10000 + total_fee_share)) b/ itob(100000000))
+                    # total_fee = (swap_amount * FEE) / (10000 - FEE)
+                    total_fee = btoi((itob(swap_amount) b* itob(total_fee_share)) b/ itob((10000 - total_fee_share)))
                     protocol_fee = total_fee / protocol_fee_ratio
                     poolers_fee = total_fee - protocol_fee
 
@@ -809,10 +808,10 @@ block main:
                     swap_amount = asset_2_amount - z2
                     # swap_amount was swapped but no swap fee was charged
                     # Determine the fee that should have been charged for a swap of this amount
-                    # input_amount = swap_amount * (10000 + FEE) / 10000
+                    # input_amount = (swap_amount * 10000) / (10000 - FEE)
                     # total_fee = (input_amount * FEE) / 10000
-                    # total_fee = ((swap_amount * (10000 + total_fee_share)) * total_fee_share) / 100000000
-                    total_fee = btoi((itob(swap_amount * total_fee_share) b* itob(10000 + total_fee_share)) b/ itob(100000000))
+                    # total_fee = (swap_amount * FEE) / (10000 - FEE)
+                    total_fee = btoi((itob(swap_amount) b* itob(total_fee_share)) b/ itob((10000 - total_fee_share)))
                     protocol_fee = total_fee / protocol_fee_ratio
                     poolers_fee = total_fee - protocol_fee
 

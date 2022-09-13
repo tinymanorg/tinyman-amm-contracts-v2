@@ -248,7 +248,37 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=12_500,
                 ),
                 outputs=dict(
-                    pool_tokens_out_amount=11180
+                    pool_tokens_out_amount=11181
+                )
+            ),
+            dict(
+                msg="Flexible 1",
+                initials=dict(
+                    asset_1_reserves=100_000_000,
+                    asset_2_reserves=1_000_000,
+                    issued_pool_token_amount=10_000_000,
+                ),
+                inputs=dict(
+                    asset_1_added_liquidity_amount=5_432_198,
+                    asset_2_added_liquidity_amount=1_234_567,
+                ),
+                outputs=dict(
+                    pool_tokens_out_amount=5344406
+                )
+            ),
+            dict(
+                msg="Flexible 2",
+                initials=dict(
+                    asset_1_reserves=100_000_000,
+                    asset_2_reserves=1_000_000,
+                    issued_pool_token_amount=10_000_000,
+                ),
+                inputs=dict(
+                    asset_1_added_liquidity_amount=1_234_567,
+                    asset_2_added_liquidity_amount=5_432_198,
+                ),
+                outputs=dict(
+                    pool_tokens_out_amount=15508778
                 )
             ),
             dict(
@@ -350,9 +380,8 @@ class TestAddLiquidity(BaseTestCase):
                 else:
                     outputs = test_case["outputs"]
 
-                    self.assertEqual(
-                        outputs["pool_tokens_out_amount"],
-                        int(
+                    self.assertTrue(
+                        outputs["pool_tokens_out_amount"] >= int(
                             min(
                                 int(Decimal(inputs["asset_1_added_liquidity_amount"]) * Decimal(initials["issued_pool_token_amount"]) / Decimal(initials["asset_1_reserves"])),
                                 int(Decimal(inputs["asset_2_added_liquidity_amount"]) * Decimal(initials["issued_pool_token_amount"]) / Decimal(initials["asset_2_reserves"]))
@@ -438,14 +467,17 @@ class TestAddLiquidity(BaseTestCase):
 
                     # local state delta
                     pool_local_state_delta = txn[b'dt'][b'ld'][1]
-                    self.assertDictEqual(
-                        pool_local_state_delta,
-                        {
-                            b'asset_1_reserves': {b'at': 2, b'ui': initials["asset_1_reserves"] + inputs["asset_1_added_liquidity_amount"]},
-                            b'asset_2_reserves': {b'at': 2, b'ui': initials["asset_2_reserves"] + inputs["asset_2_added_liquidity_amount"]},
-                            b'issued_pool_tokens': {b'at': 2, b'ui': initials["issued_pool_token_amount"] + outputs["pool_tokens_out_amount"]}
-                        }
-                    )
+
+                    asset_1_protocol_fees = 0
+                    asset_2_protocol_fees = 0
+                    if b'asset_1_protocol_fees' in pool_local_state_delta:
+                        asset_1_protocol_fees = pool_local_state_delta[b'asset_1_protocol_fees'][b'ui']
+                    if b'asset_2_protocol_fees' in pool_local_state_delta:
+                        asset_2_protocol_fees = pool_local_state_delta[b'asset_2_protocol_fees'][b'ui']
+
+                    self.assertEqual(pool_local_state_delta[b'asset_1_reserves'][b'ui'], initials["asset_1_reserves"] + inputs["asset_1_added_liquidity_amount"] - asset_1_protocol_fees)
+                    self.assertEqual(pool_local_state_delta[b'asset_2_reserves'][b'ui'], initials["asset_2_reserves"] + inputs["asset_2_added_liquidity_amount"] - asset_2_protocol_fees)
+                    self.assertEqual(pool_local_state_delta[b'issued_pool_tokens'][b'ui'], initials["issued_pool_token_amount"] + outputs["pool_tokens_out_amount"])
 
     def test_pass_subsequent_add_liquidity_asset_1(self):
         initial_asset_1_reserves = 10_000
