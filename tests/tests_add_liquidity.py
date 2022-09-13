@@ -248,7 +248,7 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=12_500,
                 ),
                 outputs=dict(
-                    pool_tokens_out_amount=11181
+                    pool_tokens_out_amount=11180
                 )
             ),
             dict(
@@ -485,7 +485,7 @@ class TestAddLiquidity(BaseTestCase):
         initial_issued_pool_token_amount = 12247
         asset_1_added_liquidity_amount = 10_000
         asset_2_added_liquidity_amount = None
-        pool_tokens_out_amount = 5068
+        pool_tokens_out_amount = 5067
         asset_1_protocol_fees = 2
 
         self.set_initial_pool_liquidity(asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
@@ -573,7 +573,7 @@ class TestAddLiquidity(BaseTestCase):
         initial_issued_pool_token_amount = 12247
         asset_1_added_liquidity_amount = None
         asset_2_added_liquidity_amount = 10_000
-        pool_tokens_out_amount = 5068
+        pool_tokens_out_amount = 5067
         asset_2_protocol_fees = 2
 
         self.set_initial_pool_liquidity(asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
@@ -964,7 +964,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         initial_issued_pool_token_amount = 12247
         asset_1_added_liquidity_amount = 10_000
         asset_2_added_liquidity_amount = None
-        pool_tokens_out_amount = 5068
+        pool_tokens_out_amount = 5067
         asset_1_protocol_fees = 2
 
         self.set_initial_pool_liquidity(asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
@@ -1052,7 +1052,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         initial_issued_pool_token_amount = 12247
         asset_1_added_liquidity_amount = None
         asset_2_added_liquidity_amount = 10_000
-        pool_tokens_out_amount = 5068
+        pool_tokens_out_amount = 5067
         asset_2_protocol_fees = 2
 
         self.set_initial_pool_liquidity(asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)

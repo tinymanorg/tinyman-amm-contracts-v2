@@ -595,8 +595,6 @@ block main:
             end
 
             # Share data between app calls
-            # initial_k
-            log(itob(asset_1_reserves) b* itob(asset_2_reserves))
             # asset_1_balance_after_transfer
             log(itob(get_balance(1, asset_1_id)))
             # asset_2_balance_after_transfer
@@ -617,11 +615,11 @@ block main:
             int asset_1_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2])
             int asset_2_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[3])
 
-            bytes initial_k = Gtxn[flash_swap_txn_index].Logs[0]
-            int asset_1_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[1])
-            int asset_2_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[2])
+            int asset_1_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[0])
+            int asset_2_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[1])
             int asset_1_balance = get_balance(1, asset_1_id)
             int asset_2_balance = get_balance(1, asset_2_id)
+            bytes initial_k = itob(asset_1_reserves) b* itob(asset_2_reserves)
 
             int asset_1_input_amount = 0
             if asset_1_balance > asset_1_balance_after_transfer:
@@ -748,14 +746,18 @@ block main:
                 # Increase the app budget
                 increase_cost_budget()
 
-                # pool_tokens_per_sqrt_k = issued_pool_tokens / sqrt(k)
-                # new_issued_pool_tokens = pool_tokens_per_sqrt_k * sqrt(new_k)
+                bytes initial_k = itob(asset_1_reserves) b* itob(asset_2_reserves)
+                # Scale it by 2^64 to prevent precision issues
+                bytes initial_k_per_issued_pool_token = (initial_k b* TWO_TO_THE_64) b/ itob(issued_pool_tokens)
 
-                # pool_tokens_per_sqrt_k = issued_pool_tokens / sqrt(asset_1_reserves * asset_2_reserves)
-                # Scale issued_pool_tokens by 2^64 before division to prevent precision issues
-                bytes pool_tokens_per_sqrt_k = (itob(issued_pool_tokens) b* TWO_TO_THE_64) b/ bsqrt(itob(asset_1_reserves) b* itob(asset_2_reserves))
-                # new_issued_pool_tokens = pool_tokens_per_sqrt_k * sqrt((asset_1_reserves + asset_1_amount) * (asset_2_reserves + asset_2_amount))
-                int new_issued_pool_tokens = btoi((pool_tokens_per_sqrt_k b* bsqrt(itob(asset_1_reserves + asset_1_amount) b* itob(asset_2_reserves + asset_2_amount))) b/ TWO_TO_THE_64)
+                # sqrt_k_per_pool_tokens = sqrt(k) / issued_pool_tokens
+                # new_issued_pool_tokens = sqrt(new_k) / sqrt_k_per_pool_tokens
+
+                # sqrt_k_per_pool_tokens = sqrt(asset_1_reserves * asset_2_reserves) / issued_pool_tokens
+                # new_issued_pool_tokens = sqrt((asset_1_reserves + asset_1_amount) * (asset_2_reserves + asset_2_amount)) * issued_pool_tokens / sqrt(asset_1_reserves * asset_2_reserves)
+                # Scale both side by 2^64 before taking the square root to prevent precision issues
+                bytes new_k = (itob(asset_1_reserves + asset_1_amount) b* itob(asset_2_reserves + asset_2_amount)) b* TWO_TO_THE_64
+                int new_issued_pool_tokens = btoi((bsqrt(new_k) b* itob(issued_pool_tokens)) b/ bsqrt(initial_k b* TWO_TO_THE_64))
 
                 pool_tokens_out = new_issued_pool_tokens - issued_pool_tokens
 
@@ -828,6 +830,8 @@ block main:
                     pool_tokens_out = pool_tokens_out - fee_as_pool_tokens
                     issued_pool_tokens = issued_pool_tokens - fee_as_pool_tokens
                 end
+                # Make sure that the pool token didn't lose value
+                assert(initial_k_per_issued_pool_token b<= (((itob(asset_1_reserves) b* itob(asset_2_reserves)) b* TWO_TO_THE_64) b/ itob(issued_pool_tokens)))
 
             else:
                 # Adding liquidity to the pool for the first time:
