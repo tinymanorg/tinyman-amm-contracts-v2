@@ -649,6 +649,34 @@ class TestAddLiquidity(BaseTestCase):
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], 'assert(Gtxn[asset_1_txn_index].XferAsset == asset_1_id)')
 
+    def test_fail_output_below_min_initial_liquidity(self):
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+        min_output = 100_000  # Much too high, should fail
+
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, min_output=min_output)
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(pool_tokens_out >= min_output)')
+
+    def test_fail_output_below_min_subsequent_liquidity(self):
+        asset_1_added_liquidity_amount = 10_000
+        asset_2_added_liquidity_amount = 15_000
+        min_output = 100_000  # Much too high, should fail
+
+        self.set_initial_pool_liquidity(asset_1_reserves=100_000, asset_2_reserves=150_000)
+
+        txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, min_output=min_output, app_call_fee=3000)
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(pool_tokens_out >= min_output)')
+
 
 class TestAddLiquidityAlgoPair(BaseTestCase):
 
