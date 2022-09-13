@@ -10,7 +10,7 @@ from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
-from .utils import get_pool_logicsig_bytecode
+from .utils import get_pool_logicsig_bytecode, itob
 
 
 class TestAddLiquidity(BaseTestCase):
@@ -177,7 +177,7 @@ class TestAddLiquidity(BaseTestCase):
                     self.assertDictEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'add_liquidity'],
+                            b'apaa': [b'add_liquidity', itob(0)],
                             b'apas': [self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
@@ -405,7 +405,7 @@ class TestAddLiquidity(BaseTestCase):
                     self.assertDictEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'add_liquidity'],
+                            b'apaa': [b'add_liquidity', itob(0)],
                             b'apas': [self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
@@ -491,7 +491,7 @@ class TestAddLiquidity(BaseTestCase):
         self.assertDictEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'add_liquidity'],
+                b'apaa': [b'add_liquidity', itob(0)],
                 b'apas': [self.asset_1_id, self.pool_token_asset_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
@@ -579,7 +579,7 @@ class TestAddLiquidity(BaseTestCase):
         self.assertDictEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'add_liquidity'],
+                b'apaa': [b'add_liquidity', itob(0)],
                 b'apas': [self.asset_2_id, self.pool_token_asset_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
@@ -725,7 +725,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         self.assertDictEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'add_liquidity'],
+                b'apaa': [b'add_liquidity', itob(0)],
                 b'apas': [self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
@@ -826,7 +826,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         self.assertDictEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'add_liquidity'],
+                b'apaa': [b'add_liquidity', itob(0)],
                 b'apas': [self.asset_1_id, self.asset_2_id, self.pool_token_asset_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
@@ -914,7 +914,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         self.assertDictEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'add_liquidity'],
+                b'apaa': [b'add_liquidity', itob(0)],
                 b'apas': [self.asset_1_id, self.pool_token_asset_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,
@@ -1001,7 +1001,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         self.assertDictEqual(
             txn[b'txn'],
             {
-                b'apaa': [b'add_liquidity'],
+                b'apaa': [b'add_liquidity', itob(0)],
                 b'apas': [self.asset_2_id, self.pool_token_asset_id],
                 b'apat': [decode_address(self.pool_address)],
                 b'apid': APPLICATION_ID,

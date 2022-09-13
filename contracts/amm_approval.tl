@@ -690,6 +690,9 @@ block main:
             # Record the current price because the price may be changed by this method
             # update_price_oracle()
 
+            # The minimum expected pool tokens. Should fail if this cannot be achieved.
+            int min_output = btoi(Txn.ApplicationArgs[1])
+
             int is_adding_asset_1 = 0
             int is_adding_asset_2 = 0
             int asset_1_txn_index
@@ -838,6 +841,10 @@ block main:
 
             # Ensure calculated amount of pool tokens is > 0
             assert(pool_tokens_out)
+
+            # Ensure calculated amount of pool tokens is greater or equal to the expected min amount
+            assert(pool_tokens_out >= min_output)
+
             # Send pool tokens to liquidity provider
             transfer_to_user(pool_token_asset_id, pool_tokens_out)
 

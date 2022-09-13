@@ -124,7 +124,7 @@ class BaseTestCase(unittest.TestCase):
         self.ledger.move(receiver=self.pool_address, amount=asset_1_protocol_fees, asset_id=self.asset_1_id)
         self.ledger.move(receiver=self.pool_address, amount=asset_2_protocol_fees, asset_id=self.asset_1_id)
 
-    def get_add_liquidity_transactions(self, asset_1_amount, asset_2_amount, app_call_fee=None):
+    def get_add_liquidity_transactions(self, asset_1_amount, asset_2_amount, min_output=0, app_call_fee=None):
         txn_group = []
         foreign_assets = []
         if asset_1_amount is not None:
@@ -159,7 +159,7 @@ class BaseTestCase(unittest.TestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_ADD_LIQUIDITY],
+                app_args=[METHOD_ADD_LIQUIDITY, min_output],
                 foreign_assets=foreign_assets,
                 accounts=[self.pool_address],
         ))

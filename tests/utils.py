@@ -8,6 +8,11 @@ def int_to_bytes_without_zero_padding(value):
     return value.to_bytes(length, "big")
 
 
+def itob(value):
+    """ The same as teal itob - int to 8 bytes """
+    return value.to_bytes(8, 'big')
+
+
 def get_pool_logicsig_bytecode(pool_template, app_id, asset_1_id, asset_2_id):
     # These are the bytes of the logicsig template. This needs to be updated if the logicsig is updated.
     program = bytearray(pool_template.bytecode)
