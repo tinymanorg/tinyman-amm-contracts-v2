@@ -23,6 +23,8 @@ class BaseTestCase(unittest.TestCase):
             global_ints=APP_GLOBAL_INTS,
             global_bytes=APP_GLOBAL_BYTES
         )
+        # 100_000 for basic min balance requirement
+        # + 100_000 for increase_cost_budget app creation min balance requirement
         self.ledger.set_account_balance(APPLICATION_ADDRESS, 200_000)
         self.ledger.set_global_state(
             APPLICATION_ID,
@@ -45,8 +47,8 @@ class BaseTestCase(unittest.TestCase):
         local_state_requirements = (25000+3500)*APP_LOCAL_INTS + (25000+25000)*APP_LOCAL_BYTES
         minimum_balance -= local_state_requirements
 
-        # Set Algo balance
-        self.ledger.set_account_balance(self.pool_address, minimum_balance)
+        # Set Algo balance (min balance + 100_000 to be transferred to the app account)
+        self.ledger.set_account_balance(self.pool_address, minimum_balance + 100_000)
 
         # Rekey to application address
         self.ledger.set_auth_addr(self.pool_address, APPLICATION_ADDRESS)
@@ -60,7 +62,7 @@ class BaseTestCase(unittest.TestCase):
         self.pool_token_asset_id = self.ledger.create_asset(asset_id=None, params=dict(creator=APPLICATION_ADDRESS))
 
         # Transfer Algo to application address
-        self.ledger.set_account_balance(APPLICATION_ADDRESS, 200_000)
+        self.ledger.move(100_000, asset_id=0, sender=self.pool_address, receiver=APPLICATION_ADDRESS)
 
         # Transfer pool tokens from application adress to pool
         self.ledger.set_account_balance(APPLICATION_ADDRESS, 0, asset_id=self.pool_token_asset_id)
@@ -91,6 +93,7 @@ class BaseTestCase(unittest.TestCase):
                 b'asset_2_protocol_fees': 0,
             }
         )
+        self.assertEqual(self.ledger.get_account_balance(self.pool_address)[0], minimum_balance)
 
     def set_initial_pool_liquidity(self, asset_1_reserves, asset_2_reserves, liquidity_provider_address=None):
         issued_pool_token_amount = int(Decimal.sqrt(Decimal(asset_1_reserves) * Decimal(asset_2_reserves)))
