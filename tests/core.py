@@ -200,7 +200,7 @@ class BaseTestCase(unittest.TestCase):
         txn_group[-1].fee = app_call_fee or (self.sp.fee * 3)
         return txn_group
 
-    def get_remove_liquidity_transactions(self, liquidity_asset_amount, app_call_fee=None):
+    def get_remove_liquidity_transactions(self, liquidity_asset_amount, min_output_1=0, min_output_2=0, app_call_fee=None):
         txn_group = [
             transaction.AssetTransferTxn(
                 sender=self.user_addr,
@@ -213,8 +213,31 @@ class BaseTestCase(unittest.TestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_REMOVE_LIQUIDITY],
+                app_args=[METHOD_REMOVE_LIQUIDITY, min_output_1, min_output_2],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[1].fee = app_call_fee or self.sp.fee
+        return txn_group
+
+    def get_remove_liquidity_single_transactions(self, liquidity_asset_amount, asset_id, min_output=0, app_call_fee=None):
+        min_output_1 = min_output if asset_id == self.asset_1_id else 0
+        min_output_2 = min_output if asset_id == self.asset_1_id else 0
+        txn_group = [
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.pool_token_asset_id,
+                amt=liquidity_asset_amount,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_REMOVE_LIQUIDITY, min_output_1, min_output_2],
+                foreign_assets=[asset_id],
                 accounts=[self.pool_address],
             )
         ]

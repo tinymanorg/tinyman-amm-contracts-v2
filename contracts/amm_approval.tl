@@ -918,6 +918,10 @@ block main:
             # Record the current price because the price may be changed by this method
             update_price_oracle()
 
+            # The minimum expected amount out of each asset. Should fail if these cannot be achieved.
+            int min_output_1 = btoi(Txn.ApplicationArgs[1])
+            int min_output_2 = btoi(Txn.ApplicationArgs[2])
+
             int pool_token_txn_index = Txn.GroupIndex - 1
             assert(Gtxn[pool_token_txn_index].TypeEnum == Axfer)
             assert(Gtxn[pool_token_txn_index].AssetReceiver == pool_address)
@@ -950,12 +954,13 @@ block main:
                 # Removing liquidity with 2 assets
                 assert(Txn.Assets[0] == asset_1_id)
                 assert(Txn.Assets[1] == asset_2_id)
+                assert(asset_1_amount >= min_output_1)
+                assert(asset_2_amount >= min_output_2)
                 transfer_to_user(asset_1_id, asset_1_amount)
                 transfer_to_user(asset_2_id, asset_2_amount)
             elif (Txn.NumAssets == 1):
                 # Removing liquidity with 1 asset
-                # The minimum expected amount out. Should fail if this cannot be achieved.
-                int min_output = btoi(Txn.ApplicationArgs[1])
+                int final_output_amount = 0
                 if Txn.Assets[0] == asset_1_id:
                     assert(asset_2_amount < asset_2_reserves)
                     total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_2_amount)
@@ -964,7 +969,9 @@ block main:
                     asset_1_reserves = asset_1_reserves - swap_output_amount
                     asset_2_reserves = asset_2_reserves + (swap_amount + poolers_fee_amount)
                     asset_2_protocol_fees = asset_2_protocol_fees + protocol_fee_amount
-                    transfer_to_user(asset_1_id, asset_1_amount + swap_output_amount)
+                    final_output_amount = asset_1_amount + swap_output_amount
+                    assert(final_output_amount >= min_output_1)
+                    transfer_to_user(asset_1_id, final_output_amount)
                 elif Txn.Assets[0] == asset_2_id:
                     assert(asset_1_amount < asset_1_reserves)
                     total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_amount)
@@ -973,7 +980,9 @@ block main:
                     asset_2_reserves = asset_2_reserves - swap_output_amount
                     asset_1_reserves = asset_1_reserves + (swap_amount + poolers_fee_amount)
                     asset_1_protocol_fees = asset_1_protocol_fees + protocol_fee_amount
-                    transfer_to_user(asset_2_id, asset_2_amount + swap_output_amount)
+                    final_output_amount = asset_2_amount + swap_output_amount
+                    assert(final_output_amount >= min_output_2)
+                    transfer_to_user(asset_2_id, final_output_amount)
                 else:
                     error()
                 end

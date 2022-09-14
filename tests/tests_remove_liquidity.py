@@ -9,7 +9,7 @@ from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
-from .utils import get_pool_logicsig_bytecode
+from .utils import get_pool_logicsig_bytecode, itob
 
 
 class TestRemoveLiquidity(BaseTestCase):
@@ -165,7 +165,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     self.assertEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'remove_liquidity'],
+                            b'apaa': [b'remove_liquidity', itob(0), itob(0)],
                             b'apas': [self.asset_1_id, self.asset_2_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
@@ -320,7 +320,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     self.assertEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'remove_liquidity'],
+                            b'apaa': [b'remove_liquidity', itob(0), itob(0)],
                             b'apas': [self.asset_1_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
@@ -461,7 +461,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     self.assertEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'remove_liquidity'],
+                            b'apaa': [b'remove_liquidity', itob(0), itob(0)],
                             b'apas': [self.asset_2_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
