@@ -242,7 +242,6 @@ class TestSwap(BaseTestCase):
                 accounts=[self.pool_address],
             )
         ]
-        txn_group[1].fee = 1000
         txn_group = transaction.assign_group_id(txn_group)
         stxns = [
             txn_group[0].sign(self.user_sk),
