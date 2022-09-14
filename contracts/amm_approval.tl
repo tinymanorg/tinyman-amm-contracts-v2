@@ -1010,12 +1010,14 @@ block main:
         end
 
         func check_pool_k():
-            # Initial K < Final K
+            # initial_k < final_k
             assert((itob(app_local_get(1, "asset_1_reserves")) b* itob(app_local_get(1, "asset_2_reserves"))) b< (itob(asset_1_reserves) b* itob(asset_2_reserves)))
             return
         end
 
         func check_pool_token_value():
+            # (sqrt(initial_k) / initial_issued_pool_tokens) <= (sqrt(final_k) / final_issued_pool_tokens)
+            # (initial_k * final_issued_pool_tokens**2) <= (final_k * initial_issued_pool_tokens**2)
             bytes tmp_initial = (itob(app_local_get(1, "asset_1_reserves")) b* itob(app_local_get(1, "asset_2_reserves"))) b* (itob(issued_pool_tokens) b* itob(issued_pool_tokens))
             bytes tmp_final = (itob(asset_1_reserves) b* itob(asset_2_reserves)) b* (itob(app_local_get(1, "issued_pool_tokens")) b* itob(app_local_get(1, "issued_pool_tokens")))
             assert(tmp_initial b<= tmp_final)
