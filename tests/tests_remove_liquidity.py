@@ -9,7 +9,7 @@ from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
-from .utils import get_pool_logicsig_bytecode
+from .utils import get_pool_logicsig_bytecode, itob
 
 
 class TestRemoveLiquidity(BaseTestCase):
@@ -53,8 +53,11 @@ class TestRemoveLiquidity(BaseTestCase):
                     asset_1_out=5_000,
                     asset_2_out=5_000,
                     local_state_delta={
+                        b'asset_1_cumulative_price': ANY,
                         b'asset_1_reserves': {b'at': 2, b'ui': 1_000_000 - 5_000},
                         b'asset_2_reserves': {b'at': 2, b'ui': 1_000_000 - 5_000},
+                        b'asset_2_cumulative_price': ANY,
+                        b'cumulative_price_update_timestamp': ANY,
                         b'issued_pool_tokens': {b'at': 2, b'ui': 1_000_000 - 5_000},
                     }
                 )
@@ -101,8 +104,11 @@ class TestRemoveLiquidity(BaseTestCase):
                     asset_1_out=100_000_000,
                     asset_2_out=1,
                     local_state_delta={
+                        b'asset_1_cumulative_price': ANY,
                         b'asset_1_reserves': {b'at': 2},
                         b'asset_2_reserves': {b'at': 2},
+                        b'asset_2_cumulative_price': ANY,
+                        b'cumulative_price_update_timestamp': ANY,
                         b'issued_pool_tokens': {b'at': 2},
                     }
                 )
@@ -159,7 +165,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     self.assertEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'remove_liquidity'],
+                            b'apaa': [b'remove_liquidity', itob(0), itob(0)],
                             b'apas': [self.asset_1_id, self.asset_2_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
@@ -223,9 +229,12 @@ class TestRemoveLiquidity(BaseTestCase):
                 outputs=dict(
                     asset_1_out=9960,
                     local_state_delta={
+                        b'asset_1_cumulative_price': ANY,
                         b'asset_1_reserves': {b'at': 2, b'ui': 1_000_000 - 9960},
                         b'asset_2_protocol_fees': {b'at': 2, b'ui': 2},
                         b'asset_2_reserves': {b'at': 2, b'ui': 1_000_000 - 2},
+                        b'asset_2_cumulative_price': ANY,
+                        b'cumulative_price_update_timestamp': ANY,
                         b'issued_pool_tokens': {b'at': 2, b'ui': 1_000_000 - 5_000},
                     }
                 )
@@ -269,8 +278,7 @@ class TestRemoveLiquidity(BaseTestCase):
                 self.set_initial_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"], liquidity_provider_address=self.user_addr)
                 self.assertEqual(initials["issued_pool_token_amount"], self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
-                txn_group = self.get_remove_liquidity_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], app_call_fee=2_000)
-                txn_group[1].foreign_assets = [self.asset_1_id]
+                txn_group = self.get_remove_liquidity_single_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], asset_id=self.asset_1_id, app_call_fee=2_000)
                 txn_group = transaction.assign_group_id(txn_group)
                 stxns = self.sign_txns(txn_group, self.user_sk)
 
@@ -311,7 +319,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     self.assertEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'remove_liquidity'],
+                            b'apaa': [b'remove_liquidity', itob(0), itob(0)],
                             b'apas': [self.asset_1_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
@@ -361,9 +369,12 @@ class TestRemoveLiquidity(BaseTestCase):
                 outputs=dict(
                     asset_2_out=9960,
                     local_state_delta={
+                        b'asset_1_cumulative_price': ANY,
                         b'asset_1_protocol_fees': {b'at': 2, b'ui': 2},
                         b'asset_1_reserves': {b'at': 2, b'ui': 1_000_000 - 2},
                         b'asset_2_reserves': {b'at': 2, b'ui': 1_000_000 - 9960},
+                        b'asset_2_cumulative_price': ANY,
+                        b'cumulative_price_update_timestamp': ANY,
                         b'issued_pool_tokens': {b'at': 2, b'ui': 1_000_000 - 5_000},
                     }
                 )
@@ -407,8 +418,7 @@ class TestRemoveLiquidity(BaseTestCase):
                 self.set_initial_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"], liquidity_provider_address=self.user_addr)
                 self.assertEqual(initials["issued_pool_token_amount"], self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
-                txn_group = self.get_remove_liquidity_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], app_call_fee=2_000)
-                txn_group[1].foreign_assets = [self.asset_2_id]
+                txn_group = self.get_remove_liquidity_single_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], asset_id=self.asset_2_id, app_call_fee=2_000)
                 txn_group = transaction.assign_group_id(txn_group)
                 stxns = self.sign_txns(txn_group, self.user_sk)
 
@@ -449,7 +459,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     self.assertEqual(
                         txn[b'txn'],
                         {
-                            b'apaa': [b'remove_liquidity'],
+                            b'apaa': [b'remove_liquidity', itob(0), itob(0)],
                             b'apas': [self.asset_2_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
