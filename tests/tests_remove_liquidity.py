@@ -278,7 +278,7 @@ class TestRemoveLiquidity(BaseTestCase):
                 self.set_initial_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"], liquidity_provider_address=self.user_addr)
                 self.assertEqual(initials["issued_pool_token_amount"], self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
-                txn_group = self.get_remove_liquidity_single_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], asset_id=self.asset_1_id, app_call_fee=2_000)
+                txn_group = self.get_remove_liquidity_single_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], asset_id=self.asset_1_id, app_call_fee=3_000)
                 txn_group = transaction.assign_group_id(txn_group)
                 stxns = self.sign_txns(txn_group, self.user_sk)
 
@@ -323,7 +323,7 @@ class TestRemoveLiquidity(BaseTestCase):
                             b'apas': [self.asset_1_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
-                            b'fee': self.sp.fee * 2,
+                            b'fee': self.sp.fee * 3,
                             b'fv': self.sp.first,
                             b'grp': ANY,
                             b'lv': self.sp.last,
@@ -334,11 +334,11 @@ class TestRemoveLiquidity(BaseTestCase):
 
                     # inner transactions
                     inner_transactions = txn[b'dt'][b'itx']
-                    self.assertEqual(len(inner_transactions), 1)
+                    self.assertEqual(len(inner_transactions), 2)
 
-                    # inner transactions - [0]
+                    # inner transactions - [1]
                     self.assertDictEqual(
-                        inner_transactions[0][b'txn'],
+                        inner_transactions[1][b'txn'],
                         {
                             b'aamt': outputs["asset_1_out"],
                             b'arcv': decode_address(self.user_addr),
@@ -418,7 +418,7 @@ class TestRemoveLiquidity(BaseTestCase):
                 self.set_initial_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"], liquidity_provider_address=self.user_addr)
                 self.assertEqual(initials["issued_pool_token_amount"], self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
-                txn_group = self.get_remove_liquidity_single_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], asset_id=self.asset_2_id, app_call_fee=2_000)
+                txn_group = self.get_remove_liquidity_single_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], asset_id=self.asset_2_id, app_call_fee=3_000)
                 txn_group = transaction.assign_group_id(txn_group)
                 stxns = self.sign_txns(txn_group, self.user_sk)
 
@@ -463,7 +463,7 @@ class TestRemoveLiquidity(BaseTestCase):
                             b'apas': [self.asset_2_id],
                             b'apat': [decode_address(self.pool_address)],
                             b'apid': APPLICATION_ID,
-                            b'fee': self.sp.fee * 2,
+                            b'fee': self.sp.fee * 3,
                             b'fv': self.sp.first,
                             b'grp': ANY,
                             b'lv': self.sp.last,
@@ -474,11 +474,11 @@ class TestRemoveLiquidity(BaseTestCase):
 
                     # inner transactions
                     inner_transactions = txn[b'dt'][b'itx']
-                    self.assertEqual(len(inner_transactions), 1)
+                    self.assertEqual(len(inner_transactions), 2)
 
-                    # inner transactions - [0]
+                    # inner transactions - [1]
                     self.assertDictEqual(
-                        inner_transactions[0][b'txn'],
+                        inner_transactions[1][b'txn'],
                         {
                             b'aamt': outputs["asset_2_out"],
                             b'arcv': decode_address(self.user_addr),

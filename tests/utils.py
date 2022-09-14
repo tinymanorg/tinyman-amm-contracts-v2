@@ -27,10 +27,11 @@ def get_pool_logicsig_bytecode(pool_template, app_id, asset_1_id, asset_2_id):
 
 
 def print_logs(txn):
-    logs = txn[b'dt'][b'lg']
-    for log in logs:
-        if b'%i' in log:
-            i = log.index(b'%i')
-            s = log[0:i].decode()
-            value = int.from_bytes(log[i + 2:], 'big')
-            print(f'{s}: {value}')
+    logs = txn[b'dt'].get(b'lg')
+    if logs:
+        for log in logs:
+            if b'%i' in log:
+                i = log.index(b'%i')
+                s = log[0:i].decode()
+                value = int.from_bytes(log[i + 2:], 'big')
+                print(f'{s}: {value}')
