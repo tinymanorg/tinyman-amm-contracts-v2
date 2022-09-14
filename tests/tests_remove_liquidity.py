@@ -278,8 +278,7 @@ class TestRemoveLiquidity(BaseTestCase):
                 self.set_initial_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"], liquidity_provider_address=self.user_addr)
                 self.assertEqual(initials["issued_pool_token_amount"], self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
-                txn_group = self.get_remove_liquidity_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], app_call_fee=2_000)
-                txn_group[1].foreign_assets = [self.asset_1_id]
+                txn_group = self.get_remove_liquidity_single_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], asset_id=self.asset_1_id, app_call_fee=2_000)
                 txn_group = transaction.assign_group_id(txn_group)
                 stxns = self.sign_txns(txn_group, self.user_sk)
 
@@ -419,8 +418,7 @@ class TestRemoveLiquidity(BaseTestCase):
                 self.set_initial_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"], liquidity_provider_address=self.user_addr)
                 self.assertEqual(initials["issued_pool_token_amount"], self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
-                txn_group = self.get_remove_liquidity_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], app_call_fee=2_000)
-                txn_group[1].foreign_assets = [self.asset_2_id]
+                txn_group = self.get_remove_liquidity_single_transactions(liquidity_asset_amount=inputs["removed_pool_token_amount"], asset_id=self.asset_2_id, app_call_fee=2_000)
                 txn_group = transaction.assign_group_id(txn_group)
                 stxns = self.sign_txns(txn_group, self.user_sk)
 
