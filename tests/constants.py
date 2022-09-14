@@ -7,6 +7,7 @@ amm_clear_state_program = TealishProgram('contracts/amm_clear_state.tl')
 
 METHOD_BOOTSTRAP = "bootstrap"
 METHOD_ADD_LIQUIDITY = "add_liquidity"
+METHOD_ADD_INITIAL_LIQUIDITY = "add_initial_liquidity"
 METHOD_REMOVE_LIQUIDITY = "remove_liquidity"
 METHOD_SWAP = "swap"
 METHOD_FLASH_LOAN = "flash_loan"

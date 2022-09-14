@@ -124,11 +124,48 @@ class BaseTestCase(unittest.TestCase):
         self.ledger.move(receiver=self.pool_address, amount=asset_1_protocol_fees, asset_id=self.asset_1_id)
         self.ledger.move(receiver=self.pool_address, amount=asset_2_protocol_fees, asset_id=self.asset_1_id)
 
+    def get_add_initial_liquidity_transactions(self, asset_1_amount, asset_2_amount, app_call_fee=None):
+        txn_group = []
+        txn_group.append(
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=asset_1_amount,
+        ))
+        txn_group.append(
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_2_id,
+                amt=asset_2_amount,
+            ) if self.asset_2_id else transaction.PaymentTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                amt=asset_2_amount,
+        ))
+        txn_group.append(
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_ADD_INITIAL_LIQUIDITY],
+                foreign_assets=[self.pool_token_asset_id],
+                accounts=[self.pool_address],
+        ))
+        txn_group[-1].fee = app_call_fee or self.sp.fee
+        return txn_group
+
     def get_add_liquidity_transactions(self, asset_1_amount, asset_2_amount, min_output=0, app_call_fee=None):
         txn_group = []
-        foreign_assets = []
+        if asset_1_amount is not None and asset_2_amount is not None:
+            mode = 'flexible'
+        else:
+            mode = 'single'
         if asset_1_amount is not None:
-            foreign_assets.append(self.asset_1_id)
             txn_group.append(
                 transaction.AssetTransferTxn(
                     sender=self.user_addr,
@@ -138,7 +175,6 @@ class BaseTestCase(unittest.TestCase):
                     amt=asset_1_amount,
             ))
         if asset_2_amount is not None:
-            foreign_assets.append(self.asset_2_id)
             txn_group.append(
                 transaction.AssetTransferTxn(
                     sender=self.user_addr,
@@ -152,18 +188,16 @@ class BaseTestCase(unittest.TestCase):
                     receiver=self.pool_address,
                     amt=asset_2_amount,
             ))
-
-        foreign_assets.append(self.pool_token_asset_id)
         txn_group.append(
             transaction.ApplicationNoOpTxn(
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_ADD_LIQUIDITY, min_output],
-                foreign_assets=foreign_assets,
+                app_args=[METHOD_ADD_LIQUIDITY, mode, min_output],
+                foreign_assets=[self.pool_token_asset_id],
                 accounts=[self.pool_address],
         ))
-        txn_group[-1].fee = app_call_fee or self.sp.fee
+        txn_group[-1].fee = app_call_fee or (self.sp.fee * 3)
         return txn_group
 
     def get_remove_liquidity_transactions(self, liquidity_asset_amount, app_call_fee=None):
