@@ -1422,7 +1422,7 @@ load 24 // asset_2_poolers_fee_amount
 -
 itob
 b*
-b<
+b<=
 assert
 pushbytes "asset_1_output_amount %i"
 load 12 // asset_1_output_amount
