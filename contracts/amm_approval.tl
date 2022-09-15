@@ -333,7 +333,6 @@ block main:
             # Gtxn[N]: AppCall from User
             #   itxn[0]: Transfer Asset 2 to User from Pool
 
-            bytes k_initial = itob(asset_1_reserves) b* itob(asset_2_reserves)
             int input_txn_index = Txn.GroupIndex - 1
             int min_output = btoi(Txn.ApplicationArgs[1])
             bytes mode = Txn.ApplicationArgs[2]
@@ -407,7 +406,8 @@ block main:
                 asset_2_reserves = asset_2_reserves + (swap_amount + poolers_fee_amount)
                 asset_1_reserves = asset_1_reserves - output_amount
             end
-            assert(k_initial b< (itob(asset_1_reserves) b* itob(asset_2_reserves)), "Assert K<K'")
+
+            check_pool_k()
 
             transfer_to_user(output_asset_id, output_amount)
 
@@ -596,8 +596,6 @@ block main:
             end
 
             # Share data between app calls
-            # initial_k
-            log(itob(asset_1_reserves) b* itob(asset_2_reserves))
             # asset_1_balance_after_transfer
             log(itob(get_balance(1, asset_1_id)))
             # asset_2_balance_after_transfer
@@ -618,9 +616,8 @@ block main:
             int asset_1_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2])
             int asset_2_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[3])
 
-            bytes initial_k = Gtxn[flash_swap_txn_index].Logs[0]
-            int asset_1_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[1])
-            int asset_2_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[2])
+            int asset_1_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[0])
+            int asset_2_balance_after_transfer = btoi(Gtxn[flash_swap_txn_index].Logs[1])
             int asset_1_balance = get_balance(1, asset_1_id)
             int asset_2_balance = get_balance(1, asset_2_id)
 
@@ -656,7 +653,7 @@ block main:
                 asset_2_reserves = asset_2_reserves - asset_2_output_amount
             end
 
-            assert(initial_k b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)), "Initial K < New K")
+            check_pool_k()
 
             # Logs
             log(concat("asset_1_output_amount %i", itob(asset_1_output_amount)))
@@ -690,7 +687,7 @@ block main:
 
             # mode = single | flexible
             bytes mode = Txn.ApplicationArgs[1]
-            
+
             # The minimum expected pool tokens. Should fail if this cannot be achieved.
             int min_output = btoi(Txn.ApplicationArgs[2])
 
@@ -753,14 +750,13 @@ block main:
                 assert(Gtxn[asset_2_txn_index].Sender == user_address)
             end
 
-            # pool_tokens_per_sqrt_k = issued_pool_tokens / sqrt(k)
-            # new_issued_pool_tokens = pool_tokens_per_sqrt_k * sqrt(new_k)
-
-            # pool_tokens_per_sqrt_k = issued_pool_tokens / sqrt(asset_1_reserves * asset_2_reserves)
-            # Scale issued_pool_tokens by 2^64 before division to prevent precision issues
-            bytes pool_tokens_per_sqrt_k = (itob(issued_pool_tokens) b* TWO_TO_THE_64) b/ bsqrt(itob(asset_1_reserves) b* itob(asset_2_reserves))
-            # new_issued_pool_tokens = pool_tokens_per_sqrt_k * sqrt((asset_1_reserves + asset_1_amount) * (asset_2_reserves + asset_2_amount))
-            int new_issued_pool_tokens = btoi((pool_tokens_per_sqrt_k b* bsqrt(itob(asset_1_reserves + asset_1_amount) b* itob(asset_2_reserves + asset_2_amount))) b/ TWO_TO_THE_64)
+            # sqrt_k_per_pool_tokens = sqrt(k) / issued_pool_tokens
+            # new_issued_pool_tokens = sqrt(new_k) / sqrt_k_per_pool_tokens
+            # sqrt_k_per_pool_tokens = sqrt(asset_1_reserves * asset_2_reserves) / issued_pool_tokens
+            # new_issued_pool_tokens = sqrt((asset_1_reserves + asset_1_amount) * (asset_2_reserves + asset_2_amount)) * issued_pool_tokens / sqrt(asset_1_reserves * asset_2_reserves)
+            # Scale both side by 2^64 before taking the square root to prevent precision issues
+            bytes new_k = (itob(asset_1_reserves + asset_1_amount) b* itob(asset_2_reserves + asset_2_amount)) b* TWO_TO_THE_64
+            int new_issued_pool_tokens = btoi((bsqrt(new_k) b* itob(issued_pool_tokens)) b/ bsqrt((itob(asset_1_reserves) b* itob(asset_2_reserves)) b* TWO_TO_THE_64))
 
             pool_tokens_out = new_issued_pool_tokens - issued_pool_tokens
 
@@ -797,7 +793,7 @@ block main:
                 poolers_fee = total_fee - protocol_fee
 
                 asset_1_protocol_fees = asset_1_protocol_fees + protocol_fee
-                
+
                 # Calculate the fee value as pool tokens
                 # fee_as_pool_tokens = ((total_fee / asset_1_reserves) * issued_pool_tokens) / 2
                 fee_as_pool_tokens = btoi((itob(total_fee) b* itob(issued_pool_tokens)) b/ (itob(asset_1_reserves) b* itob(2)))
@@ -821,7 +817,7 @@ block main:
                 poolers_fee = total_fee - protocol_fee
 
                 asset_2_protocol_fees = asset_2_protocol_fees + protocol_fee
-                
+
                 # Calculate the fee value as pool tokens
                 # fee_as_pool_tokens = ((total_fee / asset_2_reserves) * issued_pool_tokens) / 2
                 fee_as_pool_tokens = btoi((itob(total_fee) b* itob(issued_pool_tokens)) b/ (itob(asset_2_reserves) b* itob(2)))
@@ -842,6 +838,8 @@ block main:
 
             # Send pool tokens to liquidity provider
             transfer_to_user(pool_token_asset_id, pool_tokens_out)
+
+            check_pool_token_value()
 
             # State updates
             app_local_put(1, "asset_1_reserves", asset_1_reserves)
@@ -934,10 +932,11 @@ block main:
             if (removed_pool_token_amount + LOCKED_POOL_TOKENS) == issued_pool_tokens:
                 asset_1_amount = asset_1_reserves
                 asset_2_amount = asset_2_reserves
-                removed_pool_token_amount = issued_pool_tokens
+                issued_pool_tokens = 0
             else:
                 asset_1_amount = btoi((itob(removed_pool_token_amount) b* itob(asset_1_reserves)) b/ itob(issued_pool_tokens))
                 asset_2_amount = btoi((itob(removed_pool_token_amount) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
+                issued_pool_tokens = issued_pool_tokens - removed_pool_token_amount
             end
 
             assert(asset_1_amount && asset_2_amount)
@@ -959,6 +958,9 @@ block main:
                 transfer_to_user(asset_1_id, asset_1_amount)
                 transfer_to_user(asset_2_id, asset_2_amount)
             elif (Txn.NumAssets == 1):
+                # Increase the app budget
+                increase_cost_budget()
+
                 # Removing liquidity with 1 asset
                 int final_output_amount = 0
                 if Txn.Assets[0] == asset_1_id:
@@ -990,10 +992,14 @@ block main:
                 error()
             end
 
+            if issued_pool_tokens:
+                check_pool_token_value()
+            end
+
             # State updates
             app_local_put(1, "asset_1_reserves", asset_1_reserves)
             app_local_put(1, "asset_2_reserves", asset_2_reserves)
-            app_local_put(1, "issued_pool_tokens", issued_pool_tokens - removed_pool_token_amount)
+            app_local_put(1, "issued_pool_tokens", issued_pool_tokens)
             app_local_put(1, "asset_1_protocol_fees", asset_1_protocol_fees)
             app_local_put(1, "asset_2_protocol_fees", asset_2_protocol_fees)
             exit(1)
@@ -1001,6 +1007,21 @@ block main:
 
         func transfer_to_user(asset_id: int, amount: int):
             return transfer(asset_id, amount, pool_address, user_address)
+        end
+
+        func check_pool_k():
+            # initial_k < final_k
+            assert((itob(app_local_get(1, "asset_1_reserves")) b* itob(app_local_get(1, "asset_2_reserves"))) b< (itob(asset_1_reserves) b* itob(asset_2_reserves)))
+            return
+        end
+
+        func check_pool_token_value():
+            # (sqrt(initial_k) / initial_issued_pool_tokens) <= (sqrt(final_k) / final_issued_pool_tokens)
+            # (initial_k * final_issued_pool_tokens**2) <= (final_k * initial_issued_pool_tokens**2)
+            bytes tmp_initial = (itob(app_local_get(1, "asset_1_reserves")) b* itob(app_local_get(1, "asset_2_reserves"))) b* (itob(issued_pool_tokens) b* itob(issued_pool_tokens))
+            bytes tmp_final = (itob(asset_1_reserves) b* itob(asset_2_reserves)) b* (itob(app_local_get(1, "issued_pool_tokens")) b* itob(app_local_get(1, "issued_pool_tokens")))
+            assert(tmp_initial b<= tmp_final)
+            return
         end
 
         func update_price_oracle():
