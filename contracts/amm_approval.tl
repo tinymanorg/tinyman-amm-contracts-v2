@@ -757,13 +757,14 @@ block main:
                 assert(Gtxn[asset_2_txn_index].Sender == user_address)
             end
 
-            # sqrt_k_per_pool_tokens = sqrt(k) / issued_pool_tokens
+            # sqrt_k_per_pool_tokens = sqrt(old_k) / issued_pool_tokens
             # new_issued_pool_tokens = sqrt(new_k) / sqrt_k_per_pool_tokens
-            # sqrt_k_per_pool_tokens = sqrt(asset_1_reserves * asset_2_reserves) / issued_pool_tokens
-            # new_issued_pool_tokens = sqrt((asset_1_reserves + asset_1_amount) * (asset_2_reserves + asset_2_amount)) * issued_pool_tokens / sqrt(asset_1_reserves * asset_2_reserves)
-            # Scale both side by 2^64 before taking the square root to prevent precision issues
-            bytes new_k = (itob(asset_1_reserves + asset_1_amount) b* itob(asset_2_reserves + asset_2_amount)) b* TWO_TO_THE_64
-            int new_issued_pool_tokens = btoi((bsqrt(new_k) b* itob(issued_pool_tokens)) b/ bsqrt((itob(asset_1_reserves) b* itob(asset_2_reserves)) b* TWO_TO_THE_64))
+            # new_issued_pool_tokens = sqrt(new_k) / (sqrt(old_k) / issued_pool_tokens)
+            # new_issued_pool_tokens = sqrt(new_k / old_k) * issued_pool_tokens
+            # new_issued_pool_tokens = sqrt((new_k * issued_pool_tokens^2) / old_k)
+            bytes new_k = itob(asset_1_reserves + asset_1_amount) b* itob(asset_2_reserves + asset_2_amount)
+            bytes old_k = itob(asset_1_reserves) b* itob(asset_2_reserves)
+            int new_issued_pool_tokens = btoi(bsqrt(((new_k b* itob(issued_pool_tokens)) b* itob(issued_pool_tokens)) b/ old_k))
 
             pool_tokens_out = new_issued_pool_tokens - issued_pool_tokens
 
