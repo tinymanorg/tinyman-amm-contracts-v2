@@ -693,7 +693,7 @@ class TestFlashSwap(BaseTestCase):
         stxns = self.sign_txns(txn_group, self.user_sk)
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
-        self.assertEqual(e.exception.source['line'], 'assert(initial_k b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)))')
+        self.assertEqual(e.exception.source['line'], 'assert((itob(app_local_get(1, "asset_1_reserves")) b* itob(app_local_get(1, "asset_2_reserves"))) b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)))')
 
     def test_fail_application_ids_are_not_same(self):
         self.ledger.create_app(app_id=DUMMY_APP_ID, approval_program=dummy_program)

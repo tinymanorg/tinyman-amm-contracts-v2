@@ -407,7 +407,8 @@ block main:
                 asset_1_reserves = asset_1_reserves - output_amount
             end
 
-            check_pool_k()
+            # Initial K < Final K
+            assert((itob(app_local_get(1, "asset_1_reserves")) b* itob(app_local_get(1, "asset_2_reserves"))) b< (itob(asset_1_reserves) b* itob(asset_2_reserves)))
 
             transfer_to_user(output_asset_id, output_amount)
 
@@ -658,7 +659,8 @@ block main:
                 asset_2_reserves = asset_2_reserves - asset_2_output_amount
             end
 
-            check_pool_k()
+            # Initial K < Final K without fees
+            assert((itob(app_local_get(1, "asset_1_reserves")) b* itob(app_local_get(1, "asset_2_reserves"))) b< (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)))
 
             # Logs
             log(concat("asset_1_output_amount %i", itob(asset_1_output_amount)))
@@ -1013,12 +1015,6 @@ block main:
 
         func transfer_to_user(asset_id: int, amount: int):
             return transfer(asset_id, amount, pool_address, user_address)
-        end
-
-        func check_pool_k():
-            # initial_k < final_k
-            assert((itob(app_local_get(1, "asset_1_reserves")) b* itob(app_local_get(1, "asset_2_reserves"))) b< (itob(asset_1_reserves) b* itob(asset_2_reserves)))
-            return
         end
 
         func check_pool_token_value():
