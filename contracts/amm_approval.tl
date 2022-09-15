@@ -1058,7 +1058,7 @@ func calculate_fixed_output_fee_amounts(swap_amount: int) int, int, int:
     int protocol_fee_ratio = app_local_get(1, "protocol_fee_ratio")
     int input_amount = (swap_amount * 10000) / (10000 - total_fee_share)
 
-    int total_fee = (input_amount * total_fee_share) / 10000
+    int total_fee = input_amount - swap_amount
     int protocol_fee = total_fee / protocol_fee_ratio
     int poolers_fee = total_fee - protocol_fee
     return total_fee, poolers_fee, protocol_fee
@@ -1077,11 +1077,11 @@ end
 func calculate_fixed_output_swap(input_supply: int, output_supply: int, output_amount: int) int:
     # Calculates the input amount for a fixed-output swap ignoring fees
     # k = input_supply * output_supply
-    # input_amount = (k / (output_supply - asset_output_amount)) - input_supply
+    # swap_amount = (k / (output_supply - asset_output_amount)) - input_supply
     bytes k = itob(input_supply) b* itob(output_supply)
     # +1 for Round Up
-    int input_amount = (btoi((k b/ itob(output_supply - output_amount))) + 1) - input_supply
-    return input_amount
+    int swap_amount = (btoi((k b/ itob(output_supply - output_amount))) + 1) - input_supply
+    return swap_amount
 end
 
 func get_balance(account_idx: int, asset_id: int) int:
