@@ -1,21 +1,21 @@
-#pragma version 7
+#pragma version 6
 
 // int application_id = extract_uint64(KEY, 0) [slot 0]
 pushbytes "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" // KEY
 pushint 0
-extract_uint64 
+extract_uint64
 store 0 // application_id
 // Only allow OptIn calls to a specific application id
 // assert(application_id == Txn.ApplicationID)
 load 0 // application_id
 txn ApplicationID
 ==
-assert 
+assert
 // assert(Txn.OnCompletion == OptIn)
 txn OnCompletion
 pushint 1 // OptIn
 ==
-assert 
+assert
 // exit(1)
 pushint 1
 return
