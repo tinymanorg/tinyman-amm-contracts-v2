@@ -294,7 +294,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     removed_pool_token_amount=999_000,
                 ),
                 exception=dict(
-                    source_line='assert(asset_2_amount < asset_2_reserves)'
+                    source_line='assert(issued_pool_tokens > 0)'
                 )
             ),
         ]
@@ -315,7 +315,6 @@ class TestRemoveLiquidity(BaseTestCase):
                 if exception := test_case.get("exception"):
                     with self.assertRaises(LogicEvalError) as e:
                         self.ledger.eval_transactions(stxns)
-
                     self.assertEqual(e.exception.source['line'], exception.get("source_line"))
 
                 else:
@@ -434,7 +433,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     removed_pool_token_amount=999_000,
                 ),
                 exception=dict(
-                    source_line='assert(asset_1_amount < asset_1_reserves)'
+                    source_line='assert(issued_pool_tokens > 0)'
                 )
             ),
         ]

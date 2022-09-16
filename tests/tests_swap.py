@@ -49,7 +49,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", min_output],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -92,8 +92,8 @@ class TestSwap(BaseTestCase):
             {
                 b'apaa': [
                     b'swap',
+                    b'fixed-input',
                     min_output.to_bytes(8, 'big'),
-                    b'fixed-input'
                 ],
                 b'apas': [self.asset_1_id, self.asset_2_id],
                 b'apat': [decode_address(self.pool_address)],
@@ -154,7 +154,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, amount_out, "fixed-output"],
+                app_args=[METHOD_SWAP, "fixed-output", amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -193,7 +193,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, amount_out, "fixed-output"],
+                app_args=[METHOD_SWAP, "fixed-output", amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -237,7 +237,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, 9000, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", 9000],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -267,7 +267,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", min_output],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -300,7 +300,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, amount_out, "fixed-output"],
+                app_args=[METHOD_SWAP, "fixed-output",amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -333,7 +333,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", min_output],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -366,7 +366,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, amount_out, "fixed-output"],
+                app_args=[METHOD_SWAP, "fixed-output", amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -399,7 +399,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, amount_out, "fixed"],
+                app_args=[METHOD_SWAP, "fixed", amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -415,7 +415,7 @@ class TestSwap(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], "error()")
-        self.assertEqual(e.exception.source['line_no'], 397)
+        self.assertEqual(e.exception.source['line_no'], 384)
 
     def test_fail_invalid_input_asset(self):
         self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
@@ -434,7 +434,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, amount_out, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -450,7 +450,7 @@ class TestSwap(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], "error()")
-        self.assertEqual(e.exception.source['line_no'], 367)
+        self.assertEqual(e.exception.source['line_no'], 354)
 
     def test_fail_invalid_asset_receiver(self):
         self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
@@ -468,7 +468,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, amount_out, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -504,7 +504,7 @@ class TestSwap(BaseTestCase):
                 sender=new_user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, amount_out, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )

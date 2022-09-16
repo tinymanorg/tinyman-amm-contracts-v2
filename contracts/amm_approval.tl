@@ -1,13 +1,17 @@
 #pragma version 7
+#tealish version git+https://github.com/Hipo/tealish.git@0cec751154b0083c2cb79da43b40aa26b367ecc4
 
-# NOTE: Tinyman assumes that the asset id of ALGO is 0. Algorand cannot have an ASA with id 0.
 
-# NOTE: Fee should be set to 0 for all inner transactions to ensure it is paid by an outer transaction sender instead of the Pool.
-# No need for further fee checks.
+# Tinyman AMM V2
+
+# Notes:
+# * Tinyman assumes that the asset id of ALGO is 0. Algorand cannot have another ASA with id 0.
+# * Fee should be set to 0 for all inner transactions to ensure it is paid by an outer transaction sender instead of the Pool.
+
 
 const int POOL_TOKEN_TOTAL_SUPPLY = 18446744073709551615
 const int LOCKED_POOL_TOKENS = 1000
-const int ASSET_MIN_TOTAL = 10000
+const int ASSET_MIN_TOTAL = 1000000
 const bytes BYTE_ZERO = "\x00\x00\x00\x00\x00\x00\x00\x00"
 const bytes TWO_TO_THE_64 = "\x01\x00\x00\x00\x00\x00\x00\x00\x00"
 const bytes POOL_TEMPLATE = "\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
@@ -23,22 +27,15 @@ end
 switch Txn.OnCompletion:
     NoOp: main
     OptIn: bootstrap
-    CloseOut: handle_closeout
-    UpdateApplication: handle_updateapp
-    DeleteApplication: handle_deleteapp
+    CloseOut: fail
+    UpdateApplication: fail
+    DeleteApplication: fail
 end
 
-block handle_updateapp:
+block fail:
     exit(0)
 end
 
-block handle_deleteapp:
-    exit(0)
-end
-
-block handle_closeout:
-    exit(0)
-end
 
 block bootstrap:
     # Prerequisite: Pay Algo to Pool Address from User to cover minimum balance
@@ -47,7 +44,7 @@ block bootstrap:
     #   itxn[0]: Pay Algo from Pool to Application
     #   itxn[1]: Create Pool Token Asset from Application
     #   itxn[2]: Optin Pool to Asset 1
-    #   itxn[3]: Optin Pool to Asset 2
+    #   itxn[3]: Optin Pool to Asset 2 (if not Algo)
     #   itxn[4]: Optin Pool to Pool Token Asset
     #   itxn[5]: Transfer Pool Token total supply to Pool Account
 
@@ -168,14 +165,11 @@ block bootstrap:
     end
 
     # State updates
-    # [asset_1]
-    # [asset_2]
-    # [pool_token_asset_id]
     app_local_put(0, "asset_1_id", asset_1_id)
     app_local_put(0, "asset_2_id", asset_2_id)
     app_local_put(0, "pool_token_asset_id", pool_token_asset_id)
 
-    # Set all remaining keys with initials values
+    # Set all remaining keys with initial values
     app_local_put(0, "total_fee_share", 30)
     app_local_put(0, "protocol_fee_ratio", 6)
     app_local_put(0, "asset_1_reserves", 0)
@@ -209,7 +203,6 @@ block main:
         assert(user_address == app_global_get("fee_manager"))
 
         # State updates
-        # [fee_collector]
         app_global_put("fee_collector", Txn.Accounts[1])
         exit(1)
     end
@@ -221,7 +214,6 @@ block main:
         assert(user_address == app_global_get("fee_manager"))
 
         # State updates
-        # [fee_setter]
         app_global_put("fee_setter", Txn.Accounts[1])
         exit(1)
     end
@@ -233,7 +225,6 @@ block main:
         assert(user_address == app_global_get("fee_manager"))
 
         # State updates
-        # [fee_manager]
         app_global_put("fee_manager", Txn.Accounts[1])
         exit(1)
     end
@@ -264,7 +255,6 @@ block main:
         # Transfer any extra (donations) to the fee_collector
 
         # Txn: AppCall from User
-        # NOTE: must account for min balance when asset_2 is algo
         #   itxn[0]: Transfer Asset 1 to fee_collector from Pool
         #   itxn[1]: Transfer Asset 2 to fee_collector from Pool
 
@@ -295,8 +285,6 @@ block main:
         assert(protocol_fee_ratio >= 3)
 
         # State updates
-        # [total_fee_share]
-        # [protocol_fee_ratio]
         app_local_put(1, "total_fee_share", total_fee_share)
         app_local_put(1, "protocol_fee_ratio", protocol_fee_ratio)
         exit(1)
@@ -304,7 +292,6 @@ block main:
 
     block amm:
         bytes pool_address = Txn.Accounts[1]
-        # These will fail if the account is not optted-in and only pool accounts can opt-in to the app.
         int asset_1_id = app_local_get(1, "asset_1_id")
         int asset_2_id = app_local_get(1, "asset_2_id")
         int pool_token_asset_id = app_local_get(1, "pool_token_asset_id")
@@ -329,13 +316,13 @@ block main:
 
         block swap:
             update_price_oracle()
-            # Gtxn[N-1]: Transfer Asset1 to Pool from User
+            # Gtxn[N-1]: Transfer Input Asset to Pool from User
             # Gtxn[N]: AppCall from User
-            #   itxn[0]: Transfer Asset 2 to User from Pool
+            #   itxn[0]: Transfer Output Asset to User from Pool
 
             int input_txn_index = Txn.GroupIndex - 1
-            int min_output = btoi(Txn.ApplicationArgs[1])
-            bytes mode = Txn.ApplicationArgs[2]
+            bytes mode = Txn.ApplicationArgs[1]
+            int min_output = btoi(Txn.ApplicationArgs[2])
             int input_asset_id
             int output_asset_id
             int input_amount
@@ -505,9 +492,9 @@ block main:
 
                 assert(Gtxn[asset_1_txn_index].TypeEnum == Axfer)
                 assert(Gtxn[asset_1_txn_index].XferAsset == asset_1_id)
-                assert(Gtxn[asset_1_txn_index].Sender == user_address)
                 assert(Gtxn[asset_1_txn_index].AssetReceiver == pool_address)
                 assert(Gtxn[asset_1_txn_index].AssetAmount >= asset_1_repayment_amount)
+                assert(Gtxn[asset_1_txn_index].Sender == user_address)
                 int asset_1_input_amount = Gtxn[asset_1_txn_index].AssetAmount
                 int asset_1_donation_amount = asset_1_input_amount - asset_1_repayment_amount
 
@@ -538,16 +525,16 @@ block main:
                 int asset_2_donation_amount
                 if asset_2_id == 0:
                     assert(Gtxn[asset_2_txn_index].TypeEnum == Pay)
-                    assert(Gtxn[asset_2_txn_index].Sender == user_address)
                     assert(Gtxn[asset_2_txn_index].Receiver == pool_address)
                     assert(Gtxn[asset_2_txn_index].Amount >= asset_2_repayment_amount)
+                    assert(Gtxn[asset_2_txn_index].Sender == user_address)
                     asset_2_input_amount = Gtxn[asset_2_txn_index].Amount
                 else:
                     assert(Gtxn[asset_2_txn_index].TypeEnum == Axfer)
                     assert(Gtxn[asset_2_txn_index].XferAsset == asset_2_id)
-                    assert(Gtxn[asset_2_txn_index].Sender == user_address)
                     assert(Gtxn[asset_2_txn_index].AssetReceiver == pool_address)
                     assert(Gtxn[asset_2_txn_index].AssetAmount >= asset_2_repayment_amount)
+                    assert(Gtxn[asset_2_txn_index].Sender == user_address)
                     asset_2_input_amount = Gtxn[asset_2_txn_index].AssetAmount
                 end
 
@@ -628,15 +615,8 @@ block main:
             int asset_1_balance = get_balance(1, asset_1_id)
             int asset_2_balance = get_balance(1, asset_2_id)
 
-            int asset_1_input_amount = 0
-            if asset_1_balance > asset_1_balance_after_transfer:
-                asset_1_input_amount = asset_1_balance - asset_1_balance_after_transfer
-            end
-
-            int asset_2_input_amount = 0
-            if asset_2_balance > asset_2_balance_after_transfer:
-                asset_2_input_amount = asset_2_balance - asset_2_balance_after_transfer
-            end
+            int asset_1_input_amount = asset_1_balance - asset_1_balance_after_transfer
+            int asset_2_input_amount = asset_2_balance - asset_2_balance_after_transfer
 
             int asset_1_total_fee_amount = 0
             int asset_1_poolers_fee_amount = 0
@@ -757,13 +737,14 @@ block main:
                 assert(Gtxn[asset_2_txn_index].Sender == user_address)
             end
 
-            # sqrt_k_per_pool_tokens = sqrt(k) / issued_pool_tokens
+            # sqrt_k_per_pool_tokens = sqrt(old_k) / issued_pool_tokens
             # new_issued_pool_tokens = sqrt(new_k) / sqrt_k_per_pool_tokens
-            # sqrt_k_per_pool_tokens = sqrt(asset_1_reserves * asset_2_reserves) / issued_pool_tokens
-            # new_issued_pool_tokens = sqrt((asset_1_reserves + asset_1_amount) * (asset_2_reserves + asset_2_amount)) * issued_pool_tokens / sqrt(asset_1_reserves * asset_2_reserves)
-            # Scale both side by 2^64 before taking the square root to prevent precision issues
-            bytes new_k = (itob(asset_1_reserves + asset_1_amount) b* itob(asset_2_reserves + asset_2_amount)) b* TWO_TO_THE_64
-            int new_issued_pool_tokens = btoi((bsqrt(new_k) b* itob(issued_pool_tokens)) b/ bsqrt((itob(asset_1_reserves) b* itob(asset_2_reserves)) b* TWO_TO_THE_64))
+            # new_issued_pool_tokens = sqrt(new_k) / (sqrt(old_k) / issued_pool_tokens)
+            # new_issued_pool_tokens = sqrt(new_k / old_k) * issued_pool_tokens
+            # new_issued_pool_tokens = sqrt((new_k * issued_pool_tokens^2) / old_k)
+            bytes new_k = itob(asset_1_reserves + asset_1_amount) b* itob(asset_2_reserves + asset_2_amount)
+            bytes old_k = itob(asset_1_reserves) b* itob(asset_2_reserves)
+            int new_issued_pool_tokens = btoi(bsqrt(((new_k b* itob(issued_pool_tokens)) b* itob(issued_pool_tokens)) b/ old_k))
 
             pool_tokens_out = new_issued_pool_tokens - issued_pool_tokens
 
@@ -778,64 +759,68 @@ block main:
             # z2 = asset_2_reserves * (pool_tokens_out / issued_pool_tokens)
             int z2 = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
 
-            int swap_amount
-            int total_fee
-            int poolers_fee
-            int protocol_fee
+            int total_fee_amount
+            int poolers_fee_amount
+            int protocol_fee_amount
             int fee_as_pool_tokens
 
             int total_fee_share = app_local_get(1, "total_fee_share")
             int protocol_fee_ratio = app_local_get(1, "protocol_fee_ratio")
 
-            # Determine which (if any) asset has been implicitly swapped
+            # Select the bigger swap amount. Because of the rounding errors both swap amounts can be positive
+            int swap_amount = 0
+            int asset_1_to_asset_2 = 1
             if asset_1_amount > z1:
                 swap_amount = asset_1_amount - z1
-                # swap_amount was swapped but no swap fee was charged
-                # Determine the fee that should have been charged for a swap of this amount
-                # input_amount = (swap_amount * 10000) / (10000 - FEE)
-                # total_fee = (input_amount * FEE) / 10000
-                # total_fee = (swap_amount * FEE) / (10000 - FEE)
-                total_fee = btoi((itob(swap_amount) b* itob(total_fee_share)) b/ itob((10000 - total_fee_share)))
-                protocol_fee = total_fee / protocol_fee_ratio
-                poolers_fee = total_fee - protocol_fee
+            end
 
-                asset_1_protocol_fees = asset_1_protocol_fees + protocol_fee
+            if asset_2_amount > z2:
+                if swap_amount <= (asset_2_amount - z2):
+                    swap_amount = asset_2_amount - z2
+                    asset_1_to_asset_2 = 0
+                end
+            end
+    
+            # swap_amount was swapped but no swap fee was charged
+            # Determine the fee that should have been charged for a swap of this amount
+            # input_amount = (swap_amount * 10000) / (10000 - FEE)
+            # total_fee_amount = (input_amount * FEE) / 10000
+            # total_fee_amount = (swap_amount * FEE) / (10000 - FEE)
+            total_fee_amount = btoi((itob(swap_amount) b* itob(total_fee_share)) b/ itob((10000 - total_fee_share)))
+            protocol_fee_amount = total_fee_amount / protocol_fee_ratio
+            poolers_fee_amount = total_fee_amount - protocol_fee_amount
+
+            if asset_1_to_asset_2:
+                asset_1_protocol_fees = asset_1_protocol_fees + protocol_fee_amount
 
                 # Calculate the fee value as pool tokens
-                # fee_as_pool_tokens = ((total_fee / asset_1_reserves) * issued_pool_tokens) / 2
-                fee_as_pool_tokens = btoi((itob(total_fee) b* itob(issued_pool_tokens)) b/ (itob(asset_1_reserves) b* itob(2)))
+                # fee_as_pool_tokens = ((total_fee_amount / asset_1_reserves) * issued_pool_tokens) / 2
+                fee_as_pool_tokens = btoi((itob(total_fee_amount) b* itob(issued_pool_tokens)) b/ (itob(asset_1_reserves) b* itob(2)))
 
                 # Subtract the protocol fee from asset_1_reserves (the whole of asset_1_amount was added earlier)
-                asset_1_reserves = asset_1_reserves - protocol_fee
+                asset_1_reserves = asset_1_reserves - protocol_fee_amount
 
-                # Subtract the fee from the outgoing pool tokens
-                pool_tokens_out = pool_tokens_out - fee_as_pool_tokens
-                issued_pool_tokens = issued_pool_tokens - fee_as_pool_tokens
-
-            elif asset_2_amount > z2:
-                swap_amount = asset_2_amount - z2
-                # swap_amount was swapped but no swap fee was charged
-                # Determine the fee that should have been charged for a swap of this amount
-                # input_amount = (swap_amount * 10000) / (10000 - FEE)
-                # total_fee = (input_amount * FEE) / 10000
-                # total_fee = (swap_amount * FEE) / (10000 - FEE)
-                total_fee = btoi((itob(swap_amount) b* itob(total_fee_share)) b/ itob((10000 - total_fee_share)))
-                protocol_fee = total_fee / protocol_fee_ratio
-                poolers_fee = total_fee - protocol_fee
-
-                asset_2_protocol_fees = asset_2_protocol_fees + protocol_fee
+                # Logs
+                log(concat("input_asset_id %i", itob(asset_1_id)))
+                log(concat("output_asset_id %i", itob(asset_2_id)))
+            else:
+                asset_2_protocol_fees = asset_2_protocol_fees + protocol_fee_amount
 
                 # Calculate the fee value as pool tokens
-                # fee_as_pool_tokens = ((total_fee / asset_2_reserves) * issued_pool_tokens) / 2
-                fee_as_pool_tokens = btoi((itob(total_fee) b* itob(issued_pool_tokens)) b/ (itob(asset_2_reserves) b* itob(2)))
+                # fee_as_pool_tokens = ((total_fee_amount / asset_2_reserves) * issued_pool_tokens) / 2
+                fee_as_pool_tokens = btoi((itob(total_fee_amount) b* itob(issued_pool_tokens)) b/ (itob(asset_2_reserves) b* itob(2)))
 
                 # Subtract the protocol fee from asset_2_reserves (the whole of asset_2_amount was added earlier)
-                asset_2_reserves = asset_2_reserves - protocol_fee
+                asset_2_reserves = asset_2_reserves - protocol_fee_amount
 
-                # Subtract the fee from the outgoing pool tokens
-                pool_tokens_out = pool_tokens_out - fee_as_pool_tokens
-                issued_pool_tokens = issued_pool_tokens - fee_as_pool_tokens
+                # Logs
+                log(concat("input_asset_id %i", itob(asset_2_id)))
+                log(concat("output_asset_id %i", itob(asset_1_id)))
             end
+
+            # Subtract the fee from the outgoing pool tokens
+            pool_tokens_out = pool_tokens_out - fee_as_pool_tokens
+            issued_pool_tokens = issued_pool_tokens - fee_as_pool_tokens
 
             # Ensure calculated amount of pool tokens is > 0
             assert(pool_tokens_out)
@@ -847,6 +832,12 @@ block main:
             transfer_to_user(pool_token_asset_id, pool_tokens_out)
 
             check_pool_token_value()
+
+            # Logs
+            log(concat("swap_amount %i", itob(swap_amount)))
+            log(concat("poolers_fee_amount %i", itob(poolers_fee_amount)))
+            log(concat("protocol_fee_amount %i", itob(protocol_fee_amount)))
+            log(concat("total_fee_amount %i", itob(total_fee_amount)))
 
             # State updates
             app_local_put(1, "asset_1_reserves", asset_1_reserves)
@@ -897,11 +888,8 @@ block main:
 
             # pool_tokens_out = sqrt(asset_1_amount * asset_2_amount) - LOCKED_POOL_TOKENS
             issued_pool_tokens = btoi(bsqrt(itob(asset_1_amount) b* itob(asset_2_amount)))
-            assert(issued_pool_tokens >= LOCKED_POOL_TOKENS)
+            assert(issued_pool_tokens > LOCKED_POOL_TOKENS)
             pool_tokens_out = issued_pool_tokens - LOCKED_POOL_TOKENS
-
-            # Ensure calculated amount of pool tokens is > 0
-            assert(pool_tokens_out)
 
             # Send pool tokens to liquidity provider
             transfer_to_user(pool_token_asset_id, pool_tokens_out)
@@ -968,11 +956,10 @@ block main:
             elif (Txn.NumAssets == 1):
                 # Increase the app budget
                 increase_cost_budget()
-
+                assert(issued_pool_tokens > 0)
                 # Removing liquidity with 1 asset
                 int final_output_amount = 0
                 if Txn.Assets[0] == asset_1_id:
-                    assert(asset_2_amount < asset_2_reserves)
                     total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_2_amount)
                     swap_amount = asset_2_amount - total_fee_amount
                     swap_output_amount = calculate_fixed_input_swap(asset_2_reserves, asset_1_reserves, swap_amount)
@@ -982,8 +969,15 @@ block main:
                     final_output_amount = asset_1_amount + swap_output_amount
                     assert(final_output_amount >= min_output_1)
                     transfer_to_user(asset_1_id, final_output_amount)
-                elif Txn.Assets[0] == asset_2_id:
-                    assert(asset_1_amount < asset_1_reserves)
+
+                    # Logs
+                    log(concat("input_asset_id %i", itob(asset_2_id)))
+                    log(concat("input_amount %i", itob(asset_2_amount)))
+                    log(concat("swap_amount %i", itob(swap_amount)))
+
+                    log(concat("output_asset_id %i", itob(asset_1_id)))
+                    log(concat("output_amount %i", itob(swap_output_amount)))
+                elif Txn.Assets[0] == asset_2_id:           
                     total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_amount)
                     swap_amount = asset_1_amount - total_fee_amount
                     swap_output_amount = calculate_fixed_input_swap(asset_1_reserves, asset_2_reserves, swap_amount)
@@ -993,9 +987,22 @@ block main:
                     final_output_amount = asset_2_amount + swap_output_amount
                     assert(final_output_amount >= min_output_2)
                     transfer_to_user(asset_2_id, final_output_amount)
+
+                    # Logs
+                    log(concat("input_asset_id %i", itob(asset_1_id)))
+                    log(concat("input_amount %i", itob(asset_1_amount)))
+                    log(concat("swap_amount %i", itob(swap_amount)))
+
+                    log(concat("output_asset_id %i", itob(asset_2_id)))
+                    log(concat("output_amount %i", itob(swap_output_amount)))
                 else:
                     error()
                 end
+
+                # Logs
+                log(concat("poolers_fee_amount %i", itob(poolers_fee_amount)))
+                log(concat("protocol_fee_amount %i", itob(protocol_fee_amount)))
+                log(concat("total_fee_amount %i", itob(total_fee_amount)))
             else:
                 error()
             end
@@ -1123,6 +1130,7 @@ func transfer(asset_id: int, amount: int, sender: bytes, receiver: bytes):
 end
 
 func increase_cost_budget():
+    # Increase the cost budget by making an app call that creates and deletes an application immediately
     inner_txn:
         TypeEnum: Appl
         OnCompletion: DeleteApplication
