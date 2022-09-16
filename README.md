@@ -21,20 +21,17 @@ A VS Code extension for syntax highlighting of Tealish & TEAL is available [here
 ### Tests
 Tests are included in the `tests/` directory. [AlgoJig](https://github.com/Hipo/algojig) and [Tealish](https://github.com/Hipo/tealish) are required to run the tests.
 
-Set up a new virtualenv and install AlgoJig & Tealish into the venv by cloning the (private) repos and install with `pip install /path/to/repo`.
-Install the remaining requirements with `pip install -r requirements.txt`
+Set up a new virtualenv and install AlgoJig & Tealish & AlgoSDK with `pip install -r requirements.txt`.
 
 ```
-    python -m unittest tests.test
+    python -m unittest
 ```
 
 ### Docs
 
-TODO
+The protocol is described in detail in the following document:
+https://docs.google.com/document/d/1O3QBkWmUDoaUM63hpniqa2_7G_6wZcCpkvCqVrGrDlc/edit?usp=sharing
 
-Docs describing the transactions for each operation are located in the [docs](docs/) folder.
-
-Further documentation is available at [docs.tinyman.org](https://docs.tinyman.org)
 
 ### Bug Bounty Program
 Please see details in the blog post announcing the program:
