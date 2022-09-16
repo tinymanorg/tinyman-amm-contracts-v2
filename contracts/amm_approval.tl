@@ -7,7 +7,7 @@
 
 const int POOL_TOKEN_TOTAL_SUPPLY = 18446744073709551615
 const int LOCKED_POOL_TOKENS = 1000
-const int ASSET_MIN_TOTAL = 10000
+const int ASSET_MIN_TOTAL = 1000000
 const bytes BYTE_ZERO = "\x00\x00\x00\x00\x00\x00\x00\x00"
 const bytes TWO_TO_THE_64 = "\x01\x00\x00\x00\x00\x00\x00\x00\x00"
 const bytes POOL_TEMPLATE = "\x06\x80\x18\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x81\x00[5\x004\x001\x18\x12D1\x19\x81\x01\x12D\x81\x01C"
@@ -789,16 +789,16 @@ block main:
 
             # Select the bigger swap amount. Because of the rounding errors both swap amounts can be positive
             int swap_amount = 0
-            int asset_1_to_asset_2 = 1
-            if asset_1_amount > z1:
-                swap_amount = asset_1_amount - z1
-            end
 
-            if asset_2_amount > z2:
-                if swap_amount <= (asset_2_amount - z2):
-                    swap_amount = asset_2_amount - z2
-                    asset_1_to_asset_2 = 0
-                end
+            int asset_1_to_asset_2 = asset_1_amount > (z1 + 1)
+            int asset_2_to_asset_1 = asset_2_amount > (z2 + 1)
+
+            if asset_1_to_asset_2:
+                assert(asset_2_to_asset_1 == 0)
+                swap_amount = asset_1_amount - z1
+            elif asset_2_to_asset_1:
+                assert(asset_1_to_asset_2 == 0)
+                swap_amount = asset_2_amount - z2
             end
     
             # swap_amount was swapped but no swap fee was charged
