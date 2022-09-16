@@ -234,7 +234,43 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=10_000,
                 ),
                 outputs=dict(
-                    pool_tokens_out_amount=10_000
+                    pool_tokens_out_amount=10_000,
+                    asset_1_protocol_fees=0,
+                    asset_2_protocol_fees=0,
+                )
+            ),
+            dict(
+                msg="Add liquidity at almost exact 1:1 ratio (asset 2 +1).",
+                initials=dict(
+                    asset_1_reserves=1_000_000,
+                    asset_2_reserves=1_000_000,
+                    issued_pool_token_amount=1_000_000,
+                ),
+                inputs=dict(
+                    asset_1_added_liquidity_amount=10_000,
+                    asset_2_added_liquidity_amount=10_001,
+                ),
+                outputs=dict(
+                    pool_tokens_out_amount=10000,
+                    asset_1_protocol_fees=0,
+                    asset_2_protocol_fees=0,
+                )
+            ),
+            dict(
+                msg="Add liquidity at almost exact 1:1 ratio (asset 2 -1).",
+                initials=dict(
+                    asset_1_reserves=1_000_000,
+                    asset_2_reserves=1_000_000,
+                    issued_pool_token_amount=1_000_000,
+                ),
+                inputs=dict(
+                    asset_1_added_liquidity_amount=10_000,
+                    asset_2_added_liquidity_amount=9_999,
+                ),
+                outputs=dict(
+                    pool_tokens_out_amount=9999,
+                    asset_1_protocol_fees=0,
+                    asset_2_protocol_fees=0,
                 )
             ),
             dict(
@@ -249,7 +285,9 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=12_500,
                 ),
                 outputs=dict(
-                    pool_tokens_out_amount=11180
+                    pool_tokens_out_amount=11180,
+                    asset_1_protocol_fees=0,
+                    asset_2_protocol_fees=0,
                 )
             ),
             dict(
@@ -264,7 +302,9 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=1_234_567,
                 ),
                 outputs=dict(
-                    pool_tokens_out_amount=5344406
+                    pool_tokens_out_amount=5344406,
+                    asset_1_protocol_fees=0,
+                    asset_2_protocol_fees=228,
                 )
             ),
             dict(
@@ -279,7 +319,9 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=5_432_198,
                 ),
                 outputs=dict(
-                    pool_tokens_out_amount=15508778
+                    pool_tokens_out_amount=15508778,
+                    asset_1_protocol_fees=0,
+                    asset_2_protocol_fees=762,
                 )
             ),
             dict(
@@ -294,7 +336,9 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=MAX_ASSET_AMOUNT - (LOCKED_POOL_TOKENS + 1),
                 ),
                 outputs=dict(
-                    pool_tokens_out_amount=MAX_ASSET_AMOUNT - (LOCKED_POOL_TOKENS + 1)
+                    pool_tokens_out_amount=MAX_ASSET_AMOUNT - (LOCKED_POOL_TOKENS + 1),
+                    asset_1_protocol_fees=0,
+                    asset_2_protocol_fees=0,
                 )
             ),
             dict(
@@ -309,7 +353,26 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=MAX_ASSET_AMOUNT // 2,
                 ),
                 outputs=dict(
-                    pool_tokens_out_amount=MAX_ASSET_AMOUNT // 2
+                    pool_tokens_out_amount=MAX_ASSET_AMOUNT // 2,
+                    asset_1_protocol_fees=0,
+                    asset_2_protocol_fees=0,
+                )
+            ),
+            dict(
+                msg="Test overflow by adding low liquidity to high liquidity pool.",
+                initials=dict(
+                    asset_1_reserves=MAX_ASSET_AMOUNT - 1,
+                    asset_2_reserves=MAX_ASSET_AMOUNT - 1,
+                    issued_pool_token_amount=MAX_ASSET_AMOUNT - 1,
+                ),
+                inputs=dict(
+                    asset_1_added_liquidity_amount=1,
+                    asset_2_added_liquidity_amount=1,
+                ),
+                outputs=dict(
+                    pool_tokens_out_amount=1,
+                    asset_1_protocol_fees=0,
+                    asset_2_protocol_fees=0,
                 )
             ),
             dict(
@@ -469,15 +532,18 @@ class TestAddLiquidity(BaseTestCase):
                     # local state delta
                     pool_local_state_delta = txn[b'dt'][b'ld'][1]
 
-                    asset_1_protocol_fees = 0
-                    asset_2_protocol_fees = 0
                     if b'asset_1_protocol_fees' in pool_local_state_delta:
-                        asset_1_protocol_fees = pool_local_state_delta[b'asset_1_protocol_fees'][b'ui']
-                    if b'asset_2_protocol_fees' in pool_local_state_delta:
-                        asset_2_protocol_fees = pool_local_state_delta[b'asset_2_protocol_fees'][b'ui']
+                        self.assertEqual(pool_local_state_delta[b'asset_1_protocol_fees'][b'ui'], outputs["asset_1_protocol_fees"])
+                    else:
+                        self.assertEqual(outputs["asset_1_protocol_fees"], 0)
 
-                    self.assertEqual(pool_local_state_delta[b'asset_1_reserves'][b'ui'], initials["asset_1_reserves"] + inputs["asset_1_added_liquidity_amount"] - asset_1_protocol_fees)
-                    self.assertEqual(pool_local_state_delta[b'asset_2_reserves'][b'ui'], initials["asset_2_reserves"] + inputs["asset_2_added_liquidity_amount"] - asset_2_protocol_fees)
+                    if b'asset_2_protocol_fees' in pool_local_state_delta:
+                        self.assertEqual(pool_local_state_delta[b'asset_2_protocol_fees'][b'ui'], outputs["asset_2_protocol_fees"])
+                    else:
+                        self.assertEqual(outputs["asset_1_protocol_fees"], 0)
+
+                    self.assertEqual(pool_local_state_delta[b'asset_1_reserves'][b'ui'], initials["asset_1_reserves"] + inputs["asset_1_added_liquidity_amount"] - outputs["asset_1_protocol_fees"])
+                    self.assertEqual(pool_local_state_delta[b'asset_2_reserves'][b'ui'], initials["asset_2_reserves"] + inputs["asset_2_added_liquidity_amount"] - outputs["asset_2_protocol_fees"])
                     self.assertEqual(pool_local_state_delta[b'issued_pool_tokens'][b'ui'], initials["issued_pool_token_amount"] + outputs["pool_tokens_out_amount"])
 
     def test_pass_subsequent_add_liquidity_asset_1(self):

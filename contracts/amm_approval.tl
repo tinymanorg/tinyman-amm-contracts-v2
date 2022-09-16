@@ -779,64 +779,68 @@ block main:
             # z2 = asset_2_reserves * (pool_tokens_out / issued_pool_tokens)
             int z2 = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
 
-            int swap_amount
-            int total_fee
-            int poolers_fee
-            int protocol_fee
+            int total_fee_amount
+            int poolers_fee_amount
+            int protocol_fee_amount
             int fee_as_pool_tokens
 
             int total_fee_share = app_local_get(1, "total_fee_share")
             int protocol_fee_ratio = app_local_get(1, "protocol_fee_ratio")
 
-            # Determine which (if any) asset has been implicitly swapped
+            # Select the bigger swap amount. Because of the rounding errors both swap amounts can be positive
+            int swap_amount = 0
+            int asset_1_to_asset_2 = 1
             if asset_1_amount > z1:
                 swap_amount = asset_1_amount - z1
-                # swap_amount was swapped but no swap fee was charged
-                # Determine the fee that should have been charged for a swap of this amount
-                # input_amount = (swap_amount * 10000) / (10000 - FEE)
-                # total_fee = (input_amount * FEE) / 10000
-                # total_fee = (swap_amount * FEE) / (10000 - FEE)
-                total_fee = btoi((itob(swap_amount) b* itob(total_fee_share)) b/ itob((10000 - total_fee_share)))
-                protocol_fee = total_fee / protocol_fee_ratio
-                poolers_fee = total_fee - protocol_fee
+            end
 
-                asset_1_protocol_fees = asset_1_protocol_fees + protocol_fee
+            if asset_2_amount > z2:
+                if swap_amount <= (asset_2_amount - z2):
+                    swap_amount = asset_2_amount - z2
+                    asset_1_to_asset_2 = 0
+                end
+            end
+    
+            # swap_amount was swapped but no swap fee was charged
+            # Determine the fee that should have been charged for a swap of this amount
+            # input_amount = (swap_amount * 10000) / (10000 - FEE)
+            # total_fee_amount = (input_amount * FEE) / 10000
+            # total_fee_amount = (swap_amount * FEE) / (10000 - FEE)
+            total_fee_amount = btoi((itob(swap_amount) b* itob(total_fee_share)) b/ itob((10000 - total_fee_share)))
+            protocol_fee_amount = total_fee_amount / protocol_fee_ratio
+            poolers_fee_amount = total_fee_amount - protocol_fee_amount
+
+            if asset_1_to_asset_2:
+                asset_1_protocol_fees = asset_1_protocol_fees + protocol_fee_amount
 
                 # Calculate the fee value as pool tokens
-                # fee_as_pool_tokens = ((total_fee / asset_1_reserves) * issued_pool_tokens) / 2
-                fee_as_pool_tokens = btoi((itob(total_fee) b* itob(issued_pool_tokens)) b/ (itob(asset_1_reserves) b* itob(2)))
+                # fee_as_pool_tokens = ((total_fee_amount / asset_1_reserves) * issued_pool_tokens) / 2
+                fee_as_pool_tokens = btoi((itob(total_fee_amount) b* itob(issued_pool_tokens)) b/ (itob(asset_1_reserves) b* itob(2)))
 
                 # Subtract the protocol fee from asset_1_reserves (the whole of asset_1_amount was added earlier)
-                asset_1_reserves = asset_1_reserves - protocol_fee
+                asset_1_reserves = asset_1_reserves - protocol_fee_amount
 
-                # Subtract the fee from the outgoing pool tokens
-                pool_tokens_out = pool_tokens_out - fee_as_pool_tokens
-                issued_pool_tokens = issued_pool_tokens - fee_as_pool_tokens
-
-            elif asset_2_amount > z2:
-                swap_amount = asset_2_amount - z2
-                # swap_amount was swapped but no swap fee was charged
-                # Determine the fee that should have been charged for a swap of this amount
-                # input_amount = (swap_amount * 10000) / (10000 - FEE)
-                # total_fee = (input_amount * FEE) / 10000
-                # total_fee = (swap_amount * FEE) / (10000 - FEE)
-                total_fee = btoi((itob(swap_amount) b* itob(total_fee_share)) b/ itob((10000 - total_fee_share)))
-                protocol_fee = total_fee / protocol_fee_ratio
-                poolers_fee = total_fee - protocol_fee
-
-                asset_2_protocol_fees = asset_2_protocol_fees + protocol_fee
+                # Logs
+                log(concat("input_asset_id %i", itob(asset_1_id)))
+                log(concat("output_asset_id %i", itob(asset_2_id)))
+            else:
+                asset_2_protocol_fees = asset_2_protocol_fees + protocol_fee_amount
 
                 # Calculate the fee value as pool tokens
-                # fee_as_pool_tokens = ((total_fee / asset_2_reserves) * issued_pool_tokens) / 2
-                fee_as_pool_tokens = btoi((itob(total_fee) b* itob(issued_pool_tokens)) b/ (itob(asset_2_reserves) b* itob(2)))
+                # fee_as_pool_tokens = ((total_fee_amount / asset_2_reserves) * issued_pool_tokens) / 2
+                fee_as_pool_tokens = btoi((itob(total_fee_amount) b* itob(issued_pool_tokens)) b/ (itob(asset_2_reserves) b* itob(2)))
 
                 # Subtract the protocol fee from asset_2_reserves (the whole of asset_2_amount was added earlier)
-                asset_2_reserves = asset_2_reserves - protocol_fee
+                asset_2_reserves = asset_2_reserves - protocol_fee_amount
 
-                # Subtract the fee from the outgoing pool tokens
-                pool_tokens_out = pool_tokens_out - fee_as_pool_tokens
-                issued_pool_tokens = issued_pool_tokens - fee_as_pool_tokens
+                # Logs
+                log(concat("input_asset_id %i", itob(asset_2_id)))
+                log(concat("output_asset_id %i", itob(asset_1_id)))
             end
+
+            # Subtract the fee from the outgoing pool tokens
+            pool_tokens_out = pool_tokens_out - fee_as_pool_tokens
+            issued_pool_tokens = issued_pool_tokens - fee_as_pool_tokens
 
             # Ensure calculated amount of pool tokens is > 0
             assert(pool_tokens_out)
@@ -848,6 +852,12 @@ block main:
             transfer_to_user(pool_token_asset_id, pool_tokens_out)
 
             check_pool_token_value()
+
+            # Logs
+            log(concat("swap_amount %i", itob(swap_amount)))
+            log(concat("poolers_fee_amount %i", itob(poolers_fee_amount)))
+            log(concat("protocol_fee_amount %i", itob(protocol_fee_amount)))
+            log(concat("total_fee_amount %i", itob(total_fee_amount)))
 
             # State updates
             app_local_put(1, "asset_1_reserves", asset_1_reserves)
@@ -983,6 +993,14 @@ block main:
                     final_output_amount = asset_1_amount + swap_output_amount
                     assert(final_output_amount >= min_output_1)
                     transfer_to_user(asset_1_id, final_output_amount)
+
+                    # Logs
+                    log(concat("input_asset_id %i", itob(asset_2_id)))
+                    log(concat("input_amount %i", itob(asset_2_amount)))
+                    log(concat("swap_amount %i", itob(swap_amount)))
+
+                    log(concat("output_asset_id %i", itob(asset_1_id)))
+                    log(concat("output_amount %i", itob(swap_output_amount)))
                 elif Txn.Assets[0] == asset_2_id:
                     assert(asset_1_amount < asset_1_reserves)
                     total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_input_fee_amounts(asset_1_amount)
@@ -994,9 +1012,22 @@ block main:
                     final_output_amount = asset_2_amount + swap_output_amount
                     assert(final_output_amount >= min_output_2)
                     transfer_to_user(asset_2_id, final_output_amount)
+
+                    # Logs
+                    log(concat("input_asset_id %i", itob(asset_1_id)))
+                    log(concat("input_amount %i", itob(asset_1_amount)))
+                    log(concat("swap_amount %i", itob(swap_amount)))
+
+                    log(concat("output_asset_id %i", itob(asset_2_id)))
+                    log(concat("output_amount %i", itob(swap_output_amount)))
                 else:
                     error()
                 end
+
+                # Logs
+                log(concat("poolers_fee_amount %i", itob(poolers_fee_amount)))
+                log(concat("protocol_fee_amount %i", itob(protocol_fee_amount)))
+                log(concat("total_fee_amount %i", itob(total_fee_amount)))
             else:
                 error()
             end
