@@ -62,7 +62,7 @@ class TestPriceOracle(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", min_output],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -142,7 +142,7 @@ class TestPriceOracle(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", min_output],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -162,7 +162,7 @@ class TestPriceOracle(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", min_output],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
@@ -233,7 +233,7 @@ class TestPriceOracle(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, min_output, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", min_output],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )

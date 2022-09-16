@@ -100,7 +100,7 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=LOCKED_POOL_TOKENS,
                 ),
                 exception=dict(
-                    source_line='assert(pool_tokens_out)',
+                    source_line='assert(issued_pool_tokens > LOCKED_POOL_TOKENS)',
                 )
             ),
             dict(
@@ -110,7 +110,7 @@ class TestAddLiquidity(BaseTestCase):
                     asset_2_added_liquidity_amount=LOCKED_POOL_TOKENS - 1,
                 ),
                 exception=dict(
-                    source_line='assert(issued_pool_tokens >= LOCKED_POOL_TOKENS)',
+                    source_line='assert(issued_pool_tokens > LOCKED_POOL_TOKENS)',
                 )
             ),
         ]

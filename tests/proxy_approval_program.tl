@@ -20,8 +20,8 @@ inner_group:
         Fee: 0
         ApplicationID: TINYMAN_APP_ID
         ApplicationArgs[0]: "swap"
-        ApplicationArgs[1]: Txn.ApplicationArgs[1]
-        ApplicationArgs[2]: "fixed-input"
+        ApplicationArgs[1]: "fixed-input"
+        ApplicationArgs[2]: Txn.ApplicationArgs[1]
         Accounts[0]: Txn.Accounts[1]
         Assets[0]: Txn.Assets[0]
         Assets[1]: Txn.Assets[1]

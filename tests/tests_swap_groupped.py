@@ -85,7 +85,7 @@ class TestGroupedSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, swap_1_amount_out, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", swap_1_amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address1],
             ),
@@ -102,7 +102,7 @@ class TestGroupedSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, swap_2_amount_out, "fixed-input"],
+                app_args=[METHOD_SWAP, "fixed-input", swap_2_amount_out],
                 foreign_assets=[self.asset_2_id, self.asset_3_id],
                 accounts=[self.pool_address2],
             )
