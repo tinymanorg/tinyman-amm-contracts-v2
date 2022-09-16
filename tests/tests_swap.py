@@ -415,7 +415,7 @@ class TestSwap(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], "error()")
-        self.assertEqual(e.exception.source['line_no'], 397)
+        self.assertEqual(e.exception.source['line_no'], 390)
 
     def test_fail_invalid_input_asset(self):
         self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
