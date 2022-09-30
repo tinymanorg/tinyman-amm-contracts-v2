@@ -520,3 +520,142 @@ class TestSwap(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], "assert(Gtxn[input_txn_index].AssetReceiver == pool_address)")
+
+class TestSwapWithAlgo(BaseTestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.sp = get_suggested_params()
+        cls.app_creator_sk, cls.app_creator_address = generate_account()
+        cls.user_sk, cls.user_addr = generate_account()
+        cls.asset_1_id = 5
+        cls.asset_2_id = 0
+
+    def setUp(self):
+        self.ledger = JigLedger()
+        self.create_amm_app()
+        self.ledger.set_account_balance(self.user_addr, 1_000_000)
+        self.ledger.set_account_balance(
+            self.user_addr, 1_000_000, asset_id=self.asset_2_id
+        )
+        self.ledger.set_account_balance(self.user_addr, 0, asset_id=self.asset_1_id)
+
+        lsig = get_pool_logicsig_bytecode(
+            amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id
+        )
+        self.pool_address = lsig.address()
+        self.bootstrap_pool()
+
+    def test_pass_fixed_input(self):
+        self.set_initial_pool_liquidity(
+            asset_1_reserves=1_000_000, asset_2_reserves=1_000_000
+        )
+
+        min_output = 9000
+        txn_group = [
+            transaction.PaymentTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                amt=10_000,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SWAP, "fixed-input", min_output],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+        ]
+        txn_group[1].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [txn_group[0].sign(self.user_sk), txn_group[1].sign(self.user_sk)]
+
+        block = self.ledger.eval_transactions(stxns)
+        block_txns = block[b"txns"]
+
+        # outer transactions
+        self.assertEqual(len(block_txns), 2)
+
+        # outer transactions - [0]
+        txn = block_txns[0]
+        self.assertDictEqual(
+            txn[b"txn"],
+            {
+                b"amt": 10000,
+                b"rcv": decode_address(self.pool_address),
+                b"fee": ANY,
+                b"fv": ANY,
+                b"lv": ANY,
+                b"grp": ANY,
+                b"snd": decode_address(self.user_addr),
+                b"type": b"pay",
+            },
+        )
+
+        # outer transactions - [1]
+        txn = block_txns[1]
+        self.assertDictEqual(
+            txn[b"txn"],
+            {
+                b"apaa": [
+                    b"swap",
+                    b"fixed-input",
+                    min_output.to_bytes(8, "big"),
+                ],
+                b"apas": [self.asset_1_id, self.asset_2_id],
+                b"apat": [decode_address(self.pool_address)],
+                b"apid": APPLICATION_ID,
+                b"fee": 2000,
+                b"fv": ANY,
+                b"lv": ANY,
+                b"grp": ANY,
+                b"snd": decode_address(self.user_addr),
+                b"type": b"appl",
+            },
+        )
+
+        inner_transactions = txn[b"dt"][b"itx"]
+        self.assertEqual(len(inner_transactions), 1)
+
+        # inner transactions - [0]
+        self.assertDictEqual(
+            inner_transactions[0][b"txn"],
+            {
+                b"aamt": 9871,
+                b"arcv": decode_address(self.user_addr),
+                b"fv": ANY,
+                b"lv": ANY,
+                b"snd": decode_address(self.pool_address),
+                b"type": b"axfer",
+                b"xaid": self.asset_1_id,
+            },
+        )
+
+        # local state delta
+        pool_local_state_delta = txn[b"dt"][b"ld"][1]
+        self.assertDictEqual(
+            pool_local_state_delta,
+            {
+                b"asset_1_reserves": {b"at": 2, b"ui": 990129},
+                b"asset_2_reserves": {b"at": 2, b"ui": 1009995},
+                b"asset_2_protocol_fees": {b"at": 2, b"ui": 5},
+                b"asset_1_cumulative_price": {
+                    b"at": 1,
+                    b"bs": int_to_bytes_without_zero_padding(
+                        PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA
+                    ),
+                },
+                b"asset_2_cumulative_price": {
+                    b"at": 1,
+                    b"bs": int_to_bytes_without_zero_padding(
+                        PRICE_SCALE_FACTOR * BLOCK_TIME_DELTA
+                    ),
+                },
+                b"cumulative_price_update_timestamp": {
+                    b"at": 2,
+                    b"ui": BLOCK_TIME_DELTA,
+                },
+            },
+        )
