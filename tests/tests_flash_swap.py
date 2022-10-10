@@ -8,7 +8,6 @@ from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
-from .utils import get_pool_logicsig_bytecode
 
 dummy_program = TealishProgram('tests/dummy_program.tl')
 DUMMY_APP_ID = 11
@@ -30,10 +29,7 @@ class TestFlashSwap(BaseTestCase):
         self.ledger.set_account_balance(self.user_addr, 100_000_000)
         self.ledger.set_account_balance(self.user_addr, 100_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.user_addr, 100_000_000, asset_id=self.asset_2_id)
-
-        lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
-        self.pool_address = lsig.address()
-        self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
+        self.pool_address, self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
 
     def test_flash_swap_asset_1_and_asset_2_pass(self):
         self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
@@ -936,8 +932,7 @@ class TestFlashSwap(BaseTestCase):
 
     def test_fail_pools_are_not_same_in_app_calls(self):
         other_pool_asset_1_id = self.ledger.create_asset(asset_id=None)
-        other_pool_address = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, other_pool_asset_1_id, self.asset_2_id).address()
-        other_pool_token_asset_id = self.bootstrap_pool(other_pool_asset_1_id, self.asset_2_id)
+        other_pool_address, other_pool_token_asset_id = self.bootstrap_pool(other_pool_asset_1_id, self.asset_2_id)
 
         self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
         self.set_initial_pool_liquidity(other_pool_address, other_pool_asset_1_id, self.asset_2_id, other_pool_token_asset_id, asset_1_reserves=2_000_000, asset_2_reserves=2_000_000)

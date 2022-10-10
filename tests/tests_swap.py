@@ -9,7 +9,7 @@ from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
-from .utils import get_pool_logicsig_bytecode, int_to_bytes_without_zero_padding
+from .utils import int_to_bytes_without_zero_padding
 
 
 class TestSwap(BaseTestCase):
@@ -29,9 +29,7 @@ class TestSwap(BaseTestCase):
         self.ledger.set_account_balance(self.user_addr, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.user_addr, 0, asset_id=self.asset_2_id)
 
-        lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
-        self.pool_address = lsig.address()
-        self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
+        self.pool_address, self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
 
     def test_pass_fixed_input(self):
         self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)

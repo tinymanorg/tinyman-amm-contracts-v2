@@ -96,7 +96,7 @@ class BaseTestCase(unittest.TestCase):
             }
         )
         self.assertEqual(self.ledger.get_account_balance(pool_address)[0], minimum_balance)
-        return pool_token_asset_id
+        return pool_address, pool_token_asset_id
 
     def set_initial_pool_liquidity(self, pool_address, asset_1_id, asset_2_id, pool_token_asset_id, asset_1_reserves, asset_2_reserves, liquidity_provider_address=None):
         issued_pool_token_amount = int(Decimal.sqrt(Decimal(asset_1_reserves) * Decimal(asset_2_reserves)))

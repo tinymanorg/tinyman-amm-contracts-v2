@@ -9,7 +9,7 @@ from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
-from .utils import get_pool_logicsig_bytecode, itob
+from .utils import itob
 
 
 class TestRemoveLiquidity(BaseTestCase):
@@ -29,9 +29,7 @@ class TestRemoveLiquidity(BaseTestCase):
         self.ledger.set_account_balance(self.user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
 
-        lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
-        self.pool_address = lsig.address()
-        self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
+        self.pool_address, self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
         self.ledger.opt_in_asset(self.user_addr, self.pool_token_asset_id)
 
     def setUp(self):
