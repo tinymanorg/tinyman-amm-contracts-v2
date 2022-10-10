@@ -589,9 +589,11 @@ block main:
             assert(asset_1_output_amount || asset_2_output_amount)
 
             if asset_1_output_amount:
+                assert(asset_1_output_amount <= asset_1_reserves)
                 transfer_to_user(asset_1_id, asset_1_output_amount)
             end
             if asset_2_output_amount:
+                assert(asset_2_output_amount <= asset_2_reserves)
                 transfer_to_user(asset_2_id, asset_2_output_amount)
             end
 
