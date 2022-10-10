@@ -1,0 +1,23 @@
+{
+    "repo": "https://github.com/tinymanorg/tinyman-contracts-v2",
+    "ref": "c01f964da93dd4152d4b2694ec8ab6a26e5b1689",
+    "contracts": {
+        "pool_logicsig": {
+            "type": "logicsig",
+            "logic": "contracts/build/pool_template.teal"
+        },
+        "validator_app": {
+            "type": "app",
+            "approval_program": "contracts/build/amm_approval.teal",
+            "clear_program": "contracts/build/amm_clear_state.teal",
+            "global_state_schema": {
+                "num_uints": 0,
+                "num_byte_slices": 3
+            },
+            "local_state_schema": {
+                "num_uints": 12,
+                "num_byte_slices": 2
+            }
+        }
+    }
+}
