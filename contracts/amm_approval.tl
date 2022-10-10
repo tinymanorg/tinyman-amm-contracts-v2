@@ -264,8 +264,16 @@ block main:
 
         int asset_1_amount = get_balance(1, asset_1_id) - (app_local_get(1, "asset_1_reserves") + app_local_get(1, "asset_1_protocol_fees"))
         int asset_2_amount = get_balance(1, asset_2_id) - (app_local_get(1, "asset_2_reserves") + app_local_get(1, "asset_2_protocol_fees"))
+        
+        if asset_2_id > 0:
+            int algo_amount = get_balance(1, 0)
+            assert((asset_1_amount || asset_2_amount) || algo_amount)
+            
+            transfer(0, algo_amount, pool_address, app_global_get("fee_collector"))
+        else:
+            assert(asset_1_amount || asset_2_amount)
+        end
 
-        assert(asset_1_amount || asset_2_amount)
         transfer(asset_1_id, asset_1_amount, pool_address, app_global_get("fee_collector"))
         transfer(asset_2_id, asset_2_amount, pool_address, app_global_get("fee_collector"))
         exit(1)
