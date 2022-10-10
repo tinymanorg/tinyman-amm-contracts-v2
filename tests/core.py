@@ -5,6 +5,7 @@ from algosdk.encoding import decode_address
 from algosdk.future import transaction
 
 from .constants import *
+from .utils import get_pool_logicsig_bytecode
 
 
 class BaseTestCase(unittest.TestCase):
@@ -35,8 +36,9 @@ class BaseTestCase(unittest.TestCase):
             }
         )
 
-    def bootstrap_pool(self):
-        asset_2_id = getattr(self, "asset_2_id", ALGO_ASSET_ID)
+    def bootstrap_pool(self, asset_1_id, asset_2_id):
+        lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, asset_1_id, asset_2_id)
+        pool_address = lsig.address()
 
         if asset_2_id:
             minimum_balance = MIN_POOL_BALANCE_ASA_ASA_PAIR
@@ -48,33 +50,33 @@ class BaseTestCase(unittest.TestCase):
         minimum_balance -= local_state_requirements
 
         # Set Algo balance (min balance + 100_000 to be transferred to the app account)
-        self.ledger.set_account_balance(self.pool_address, minimum_balance + 100_000)
+        self.ledger.set_account_balance(pool_address, minimum_balance + 100_000)
 
         # Rekey to application address
-        self.ledger.set_auth_addr(self.pool_address, APPLICATION_ADDRESS)
+        self.ledger.set_auth_addr(pool_address, APPLICATION_ADDRESS)
 
         # Opt-in to assets
-        self.ledger.set_account_balance(self.pool_address, 0, asset_id=self.asset_1_id)
+        self.ledger.set_account_balance(pool_address, 0, asset_id=asset_1_id)
         if asset_2_id != 0:
-            self.ledger.set_account_balance(self.pool_address, 0, asset_id=self.asset_2_id)
+            self.ledger.set_account_balance(pool_address, 0, asset_id=asset_2_id)
 
         # Create pool token
-        self.pool_token_asset_id = self.ledger.create_asset(asset_id=None, params=dict(creator=APPLICATION_ADDRESS))
+        pool_token_asset_id = self.ledger.create_asset(asset_id=None, params=dict(creator=APPLICATION_ADDRESS))
 
         # Transfer Algo to application address
-        self.ledger.move(100_000, asset_id=0, sender=self.pool_address, receiver=APPLICATION_ADDRESS)
+        self.ledger.move(100_000, asset_id=0, sender=pool_address, receiver=APPLICATION_ADDRESS)
 
         # Transfer pool tokens from application adress to pool
-        self.ledger.set_account_balance(APPLICATION_ADDRESS, 0, asset_id=self.pool_token_asset_id)
-        self.ledger.set_account_balance(self.pool_address, POOL_TOKEN_TOTAL_SUPPLY, asset_id=self.pool_token_asset_id)
+        self.ledger.set_account_balance(APPLICATION_ADDRESS, 0, asset_id=pool_token_asset_id)
+        self.ledger.set_account_balance(pool_address, POOL_TOKEN_TOTAL_SUPPLY, asset_id=pool_token_asset_id)
 
         self.ledger.set_local_state(
-            address=self.pool_address,
+            address=pool_address,
             app_id=APPLICATION_ID,
             state={
-                b'asset_1_id': self.asset_1_id,
+                b'asset_1_id': asset_1_id,
                 b'asset_2_id': asset_2_id,
-                b'pool_token_asset_id': self.pool_token_asset_id,
+                b'pool_token_asset_id': pool_token_asset_id,
 
                 b'total_fee_share': TOTAL_FEE_SHARE,
                 b'protocol_fee_ratio': PROTOCOL_FEE_RATIO,
@@ -93,15 +95,16 @@ class BaseTestCase(unittest.TestCase):
                 b'asset_2_protocol_fees': 0,
             }
         )
-        self.assertEqual(self.ledger.get_account_balance(self.pool_address)[0], minimum_balance)
+        self.assertEqual(self.ledger.get_account_balance(pool_address)[0], minimum_balance)
+        return pool_token_asset_id
 
-    def set_initial_pool_liquidity(self, asset_1_reserves, asset_2_reserves, liquidity_provider_address=None):
+    def set_initial_pool_liquidity(self, pool_address, asset_1_id, asset_2_id, pool_token_asset_id, asset_1_reserves, asset_2_reserves, liquidity_provider_address=None):
         issued_pool_token_amount = int(Decimal.sqrt(Decimal(asset_1_reserves) * Decimal(asset_2_reserves)))
         pool_token_out_amount = issued_pool_token_amount - LOCKED_POOL_TOKENS
         assert pool_token_out_amount > 0
 
         self.ledger.update_local_state(
-            address=self.pool_address,
+            address=pool_address,
             app_id=APPLICATION_ID,
             state_delta={
                 b'asset_1_reserves': asset_1_reserves,
@@ -110,9 +113,9 @@ class BaseTestCase(unittest.TestCase):
             }
         )
 
-        self.ledger.move(sender=liquidity_provider_address, receiver=self.pool_address, amount=asset_1_reserves, asset_id=self.asset_1_id)
-        self.ledger.move(sender=liquidity_provider_address, receiver=self.pool_address, amount=asset_2_reserves, asset_id=self.asset_2_id)
-        self.ledger.move(sender=self.pool_address, receiver=liquidity_provider_address, amount=pool_token_out_amount, asset_id=self.pool_token_asset_id)
+        self.ledger.move(sender=liquidity_provider_address, receiver=pool_address, amount=asset_1_reserves, asset_id=asset_1_id)
+        self.ledger.move(sender=liquidity_provider_address, receiver=pool_address, amount=asset_2_reserves, asset_id=asset_2_id)
+        self.ledger.move(sender=pool_address, receiver=liquidity_provider_address, amount=pool_token_out_amount, asset_id=pool_token_asset_id)
 
     def set_pool_protocol_fees(self, asset_1_protocol_fees, asset_2_protocol_fees):
         self.ledger.update_local_state(

@@ -31,10 +31,10 @@ class TestSwap(BaseTestCase):
 
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
-        self.bootstrap_pool()
+        self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
 
     def test_pass_fixed_input(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         min_output = 9000
         txn_group = [
@@ -139,7 +139,7 @@ class TestSwap(BaseTestCase):
         )
 
     def test_pass_fixed_output(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         amount_out = 9871
         txn_group = [
@@ -178,7 +178,7 @@ class TestSwap(BaseTestCase):
         self.assertEqual(itxn0[b'snd'], decode_address(self.pool_address))
 
     def test_pass_fixed_output_with_change(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         amount_out = 9872
         txn_group = [
@@ -223,7 +223,7 @@ class TestSwap(BaseTestCase):
         self.assertEqual(itxn1[b'snd'], decode_address(self.pool_address))
 
     def test_fail_insufficient_fee(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         txn_group = [
             transaction.AssetTransferTxn(
@@ -252,7 +252,7 @@ class TestSwap(BaseTestCase):
         self.assertIn('fee too small', e.exception.error)
 
     def test_fail_fixed_input_high_min_output(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         min_output = 10_000
         txn_group = [
@@ -285,7 +285,7 @@ class TestSwap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], "assert(output_amount >= min_output)")
 
     def test_fail_fixed_output_low_input_amount(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         amount_out = 10_000
         txn_group = [
@@ -318,7 +318,7 @@ class TestSwap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], "assert(input_amount >= required_input_amount)")
 
     def test_fail_fixed_input_total_fee_is_0(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         min_output = 300
         txn_group = [
@@ -351,7 +351,7 @@ class TestSwap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], "assert(total_fee_amount)")
 
     def test_fail_fixed_output_total_fee_is_0(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         amount_out = 330
         txn_group = [
@@ -384,7 +384,7 @@ class TestSwap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], "assert(total_fee_amount)")
 
     def test_fail_invalid_mode(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         amount_out = 330
         txn_group = [
@@ -418,7 +418,7 @@ class TestSwap(BaseTestCase):
         self.assertEqual(e.exception.source['line_no'], 384)
 
     def test_fail_invalid_input_asset(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
         self.ledger.set_account_balance(self.user_addr, 1000, asset_id=self.pool_token_asset_id)
 
         amount_out = 300
@@ -453,7 +453,7 @@ class TestSwap(BaseTestCase):
         self.assertEqual(e.exception.source['line_no'], 354)
 
     def test_fail_invalid_asset_receiver(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         amount_out = 300
         txn_group = [
@@ -489,7 +489,7 @@ class TestSwap(BaseTestCase):
         new_user_sk, new_user_addr = generate_account()
         self.ledger.set_account_balance(new_user_addr, 1_000_000)
 
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         amount_out = 300
         txn_group = [

@@ -13,6 +13,7 @@ from .utils import get_pool_logicsig_bytecode
 dummy_program = TealishProgram('tests/dummy_program.tl')
 DUMMY_APP_ID = 11
 
+
 class TestFlashSwap(BaseTestCase):
 
     @classmethod
@@ -32,10 +33,10 @@ class TestFlashSwap(BaseTestCase):
 
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
-        self.bootstrap_pool()
+        self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
 
     def test_flash_swap_asset_1_and_asset_2_pass(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 10000
         asset_2_amount = 20000
@@ -186,7 +187,7 @@ class TestFlashSwap(BaseTestCase):
         )
 
     def test_flash_swap_repay_with_the_same_asset_pass(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 4001
         asset_1_repayment_amount = asset_1_amount * 10030 // 10000 + 1
@@ -327,7 +328,7 @@ class TestFlashSwap(BaseTestCase):
         )
 
     def test_flash_swap_repay_with_the_other_asset_pass(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 4001
         asset_1_reserves = 1_000_000 - asset_1_amount
@@ -471,7 +472,7 @@ class TestFlashSwap(BaseTestCase):
         )
 
     def test_flash_swap_lock(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 500_000
         asset_2_repayment_amount = 750_000
@@ -532,7 +533,7 @@ class TestFlashSwap(BaseTestCase):
         self.assertEqual(e.exception.txn_id, txn_group[2].get_txid())
 
     def test_fail_different_index_diffs(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 500_000
         asset_2_repayment_amount = 750_000
@@ -571,7 +572,7 @@ class TestFlashSwap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], 'assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])')
 
     def test_fail_amounts_are_zero(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         index_diff = 2
         asset_1_amount = 0
@@ -614,7 +615,7 @@ class TestFlashSwap(BaseTestCase):
         self.ledger.set_account_balance(new_user_addr, 1_000_000)
         self.ledger.set_account_balance(new_user_addr, 1_000_000, self.asset_1_id)
 
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 500_000
         asset_2_repayment_amount = 750_000
@@ -657,7 +658,7 @@ class TestFlashSwap(BaseTestCase):
         self.assertEqual(e.exception.source['line'], 'assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])')
 
     def test_fail_insufficient_repayment(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 10000
         asset_2_amount = 20000
@@ -697,7 +698,7 @@ class TestFlashSwap(BaseTestCase):
 
     def test_fail_application_ids_are_not_same(self):
         self.ledger.create_app(app_id=DUMMY_APP_ID, approval_program=dummy_program)
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         asset_1_amount = 10000
         asset_2_amount = 20000
@@ -776,7 +777,7 @@ class TestFlashSwap(BaseTestCase):
         """
         The same asset 1 and asset 2 amounts are used with TestFlash.test_flash_loan_asset_1_and_asset_2_pass tests.
         """
-        self.set_initial_pool_liquidity(asset_1_reserves=100_000_000, asset_2_reserves=100_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=100_000_000, asset_2_reserves=100_000_000)
 
         asset_1_amount = 10_000_000
         asset_2_amount = 20_000_000
@@ -932,3 +933,50 @@ class TestFlashSwap(BaseTestCase):
                 bytes(bytearray(b'asset_2_total_fee_amount %i') + bytearray((60180).to_bytes(8, "big"))),
             ]
         )
+
+    def test_fail_pools_are_not_same_in_app_calls(self):
+        other_pool_asset_1_id = self.ledger.create_asset(asset_id=None)
+        other_pool_address = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, other_pool_asset_1_id, self.asset_2_id).address()
+        other_pool_token_asset_id = self.bootstrap_pool(other_pool_asset_1_id, self.asset_2_id)
+
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(other_pool_address, other_pool_asset_1_id, self.asset_2_id, other_pool_token_asset_id, asset_1_reserves=2_000_000, asset_2_reserves=2_000_000)
+
+        asset_1_amount = 0
+        asset_2_amount = 4000
+        asset_2_repayment_amount = asset_2_amount * 10030 // 10000
+
+        index_diff = 2
+        txn_group = [
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_FLASH_SWAP, index_diff, asset_1_amount, asset_2_amount],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            ),
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=other_pool_address,
+                index=self.asset_2_id,
+                amt=asset_2_repayment_amount,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_VERIFY_FLASH_SWAP, index_diff],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[other_pool_address],
+            )
+        ]
+        txn_group[0].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = self.sign_txns(txn_group, self.user_sk)
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], 'assert(Gtxn[verify_flash_swap_txn_index].Accounts[1] == Txn.Accounts[1])')

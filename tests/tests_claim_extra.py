@@ -30,9 +30,9 @@ class TestClaimExtra(BaseTestCase):
 
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
-        self.bootstrap_pool()
+        self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
         self.ledger.opt_in_asset(self.user_addr, self.pool_token_asset_id)
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=self.user_addr)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=self.user_addr)
 
     def test_pass(self):
         fee_collector = self.app_creator_address
@@ -208,9 +208,9 @@ class TestClaimExtraAlgoPair(BaseTestCase):
 
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
-        self.bootstrap_pool()
+        self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
         self.ledger.opt_in_asset(self.user_addr, self.pool_token_asset_id)
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=self.user_addr)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000, liquidity_provider_address=self.user_addr)
 
     def test_pass(self):
         fee_collector = self.app_creator_address

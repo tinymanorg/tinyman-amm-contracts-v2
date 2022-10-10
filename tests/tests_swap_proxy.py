@@ -37,10 +37,10 @@ class TestProxySwap(BaseTestCase):
 
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
-        self.bootstrap_pool()
+        self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
 
     def test_pass(self):
-        self.set_initial_pool_liquidity(asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
         txn_group = [
             transaction.AssetTransferTxn(

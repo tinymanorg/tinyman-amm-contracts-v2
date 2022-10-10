@@ -28,7 +28,7 @@ class TestSetFeeSetter(BaseTestCase):
 
         lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
         self.pool_address = lsig.address()
-        self.bootstrap_pool()
+        self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
         self.ledger.opt_in_asset(self.user_addr, self.pool_token_asset_id)
 
     def test_pass(self):
