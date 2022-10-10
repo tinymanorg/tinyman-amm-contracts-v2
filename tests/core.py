@@ -139,7 +139,8 @@ class BaseTestCase(unittest.TestCase):
                 receiver=self.pool_address,
                 index=self.asset_1_id,
                 amt=asset_1_amount,
-        ))
+            )
+        )
         txn_group.append(
             transaction.AssetTransferTxn(
                 sender=self.user_addr,
@@ -152,7 +153,8 @@ class BaseTestCase(unittest.TestCase):
                 sp=self.sp,
                 receiver=self.pool_address,
                 amt=asset_2_amount,
-        ))
+            )
+        )
         txn_group.append(
             transaction.ApplicationNoOpTxn(
                 sender=self.user_addr,
@@ -161,7 +163,8 @@ class BaseTestCase(unittest.TestCase):
                 app_args=[METHOD_ADD_INITIAL_LIQUIDITY],
                 foreign_assets=[self.pool_token_asset_id],
                 accounts=[self.pool_address],
-        ))
+            )
+        )
         txn_group[-1].fee = app_call_fee or self.sp.fee
         return txn_group
 
@@ -179,7 +182,8 @@ class BaseTestCase(unittest.TestCase):
                     receiver=self.pool_address,
                     index=self.asset_1_id,
                     amt=asset_1_amount,
-            ))
+                )
+            )
         if asset_2_amount is not None:
             txn_group.append(
                 transaction.AssetTransferTxn(
@@ -193,7 +197,8 @@ class BaseTestCase(unittest.TestCase):
                     sp=self.sp,
                     receiver=self.pool_address,
                     amt=asset_2_amount,
-            ))
+                )
+            )
         txn_group.append(
             transaction.ApplicationNoOpTxn(
                 sender=self.user_addr,
@@ -202,7 +207,8 @@ class BaseTestCase(unittest.TestCase):
                 app_args=[METHOD_ADD_LIQUIDITY, mode, min_output],
                 foreign_assets=[self.pool_token_asset_id],
                 accounts=[self.pool_address],
-        ))
+            )
+        )
         txn_group[-1].fee = app_call_fee or (self.sp.fee * 3)
         return txn_group
 

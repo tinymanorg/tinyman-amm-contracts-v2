@@ -300,7 +300,7 @@ class TestSwap(BaseTestCase):
                 sender=self.user_addr,
                 sp=self.sp,
                 index=APPLICATION_ID,
-                app_args=[METHOD_SWAP, "fixed-output",amount_out],
+                app_args=[METHOD_SWAP, "fixed-output", amount_out],
                 foreign_assets=[self.asset_1_id, self.asset_2_id],
                 accounts=[self.pool_address],
             )
