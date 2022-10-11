@@ -11,7 +11,7 @@ from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
-from .utils import get_pool_logicsig_bytecode, itob
+from .utils import itob
 
 
 class TestAddLiquidity(BaseTestCase):
@@ -31,9 +31,7 @@ class TestAddLiquidity(BaseTestCase):
         self.ledger.set_account_balance(self.user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.user_addr, MAX_ASSET_AMOUNT, asset_id=self.asset_2_id)
 
-        lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
-        self.pool_address = lsig.address()
-        self.bootstrap_pool()
+        self.pool_address, self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
         self.ledger.opt_in_asset(self.user_addr, self.pool_token_asset_id)
 
     def setUp(self):
@@ -428,7 +426,7 @@ class TestAddLiquidity(BaseTestCase):
                 initials = test_case["initials"]
                 inputs = test_case["inputs"]
 
-                self.set_initial_pool_liquidity(asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"])
+                self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=initials["asset_1_reserves"], asset_2_reserves=initials["asset_2_reserves"])
                 self.assertEqual(initials["issued_pool_token_amount"], self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
                 txn_group = self.get_add_liquidity_transactions(asset_1_amount=inputs["asset_1_added_liquidity_amount"], asset_2_amount=inputs["asset_2_added_liquidity_amount"], app_call_fee=3_000)
@@ -555,7 +553,7 @@ class TestAddLiquidity(BaseTestCase):
         pool_tokens_out_amount = 5067
         asset_1_protocol_fees = 2
 
-        self.set_initial_pool_liquidity(asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
         self.assertEqual(initial_issued_pool_token_amount, self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
         txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, app_call_fee=3_000)
@@ -646,7 +644,7 @@ class TestAddLiquidity(BaseTestCase):
         pool_tokens_out_amount = 5067
         asset_2_protocol_fees = 2
 
-        self.set_initial_pool_liquidity(asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
         self.assertEqual(initial_issued_pool_token_amount, self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
         txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, app_call_fee=3_000)
@@ -771,7 +769,7 @@ class TestAddLiquidity(BaseTestCase):
         asset_1_added_liquidity_amount = 10_000
         asset_2_added_liquidity_amount = 15_000
         min_output = 100_000  # Much too high, should fail
-        self.set_initial_pool_liquidity(asset_1_reserves=100_000, asset_2_reserves=150_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=100_000, asset_2_reserves=150_000)
 
         txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, min_output=min_output)
         txn_group = transaction.assign_group_id(txn_group)
@@ -815,7 +813,7 @@ class TestAddLiquidity(BaseTestCase):
         asset_2_added_liquidity_amount = 15_000
         min_output = 100_000  # Much too high, should fail
 
-        self.set_initial_pool_liquidity(asset_1_reserves=100_000, asset_2_reserves=150_000)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=100_000, asset_2_reserves=150_000)
 
         txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, min_output=min_output)
         txn_group = transaction.assign_group_id(txn_group)
@@ -886,9 +884,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         self.ledger.set_account_balance(self.user_addr, 2_000_000)
         self.ledger.set_account_balance(self.user_addr, 1_000_000, asset_id=self.asset_1_id)
 
-        lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, ALGO_ASSET_ID)
-        self.pool_address = lsig.address()
-        self.bootstrap_pool()
+        self.pool_address, self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
         self.ledger.opt_in_asset(self.user_addr, self.pool_token_asset_id)
 
     def test_pass_initial_add_liquidity(self):
@@ -1046,7 +1042,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         asset_2_added_liquidity_amount = 15_000
         pool_tokens_out_amount = 12247
 
-        self.set_initial_pool_liquidity(asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
         self.assertEqual(initial_issued_pool_token_amount, self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
         txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, app_call_fee=3_000)
@@ -1153,7 +1149,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         pool_tokens_out_amount = 5067
         asset_1_protocol_fees = 2
 
-        self.set_initial_pool_liquidity(asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
         self.assertEqual(initial_issued_pool_token_amount, self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
         txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, app_call_fee=3_000)
@@ -1244,7 +1240,7 @@ class TestAddLiquidityAlgoPair(BaseTestCase):
         pool_tokens_out_amount = 5067
         asset_2_protocol_fees = 2
 
-        self.set_initial_pool_liquidity(asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=initial_asset_1_reserves, asset_2_reserves=initial_asset_2_reserves)
         self.assertEqual(initial_issued_pool_token_amount, self.ledger.accounts[self.pool_address]['local_states'][APPLICATION_ID][b'issued_pool_tokens'])
 
         txn_group = self.get_add_liquidity_transactions(asset_1_amount=asset_1_added_liquidity_amount, asset_2_amount=asset_2_added_liquidity_amount, app_call_fee=3_000)

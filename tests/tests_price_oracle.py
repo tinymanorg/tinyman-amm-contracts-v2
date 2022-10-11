@@ -10,7 +10,7 @@ from algosdk.future import transaction
 
 from .constants import *
 from .core import BaseTestCase
-from .utils import get_pool_logicsig_bytecode, int_to_bytes_without_zero_padding
+from .utils import int_to_bytes_without_zero_padding
 
 price_oracle_reader_program = TealishProgram('tests/price_oracle_reader.tl')
 PRICE_ORACLE_READER_APP_ID = 10
@@ -33,9 +33,7 @@ class TestPriceOracle(BaseTestCase):
         self.ledger.set_account_balance(self.user_addr, 1_000_000, asset_id=self.asset_1_id)
         self.ledger.set_account_balance(self.user_addr, 0, asset_id=self.asset_2_id)
 
-        lsig = get_pool_logicsig_bytecode(amm_pool_template, APPLICATION_ID, self.asset_1_id, self.asset_2_id)
-        self.pool_address = lsig.address()
-        self.bootstrap_pool()
+        self.pool_address, self.pool_token_asset_id = self.bootstrap_pool(self.asset_1_id, self.asset_2_id)
 
     def test_overflow(self):
         bootstrap_datetime = datetime(year=2022, month=1, day=1, tzinfo=ZoneInfo("UTC"))
@@ -46,7 +44,7 @@ class TestPriceOracle(BaseTestCase):
         asset_1_reserves = 1
         asset_2_reserves = MAX_ASSET_AMOUNT
 
-        self.set_initial_pool_liquidity(asset_1_reserves, asset_2_reserves)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves, asset_2_reserves)
         self.ledger.update_local_state(address=self.pool_address, app_id=APPLICATION_ID, state_delta={b'cumulative_price_update_timestamp': int(bootstrap_datetime.timestamp())})
 
         min_output = 0
@@ -115,7 +113,7 @@ class TestPriceOracle(BaseTestCase):
 
         asset_1_reserves = 12_345
         asset_2_reserves = 29_876
-        self.set_initial_pool_liquidity(asset_1_reserves, asset_2_reserves)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves, asset_2_reserves)
         self.ledger.update_local_state(
             address=self.pool_address,
             app_id=APPLICATION_ID,
@@ -216,7 +214,7 @@ class TestPriceOracle(BaseTestCase):
         """
         self.ledger.create_app(app_id=PRICE_ORACLE_READER_APP_ID, approval_program=price_oracle_reader_program)
         asset_1_reserves = asset_2_reserves = 1_000_000
-        self.set_initial_pool_liquidity(asset_1_reserves, asset_2_reserves)
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves, asset_2_reserves)
 
         byte_pool_address = decode_address(self.pool_address)
 

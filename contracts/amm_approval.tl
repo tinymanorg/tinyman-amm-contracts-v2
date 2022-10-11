@@ -443,7 +443,10 @@ block main:
             assert(Gtxn[verify_flash_loan_txn_index].OnCompletion == NoOp)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[0] == "verify_flash_loan")
+            # index diffs must be the same
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
+            # pools must be the same
+            assert(Gtxn[verify_flash_loan_txn_index].Accounts[1] == Txn.Accounts[1])
             assert(Gtxn[verify_flash_loan_txn_index].Sender == user_address)
             int asset_1_amount = btoi(Txn.ApplicationArgs[2])
             int asset_2_amount = btoi(Txn.ApplicationArgs[3])
@@ -476,7 +479,10 @@ block main:
             assert(Gtxn[flash_loan_txn_index].OnCompletion == NoOp)
             assert(Gtxn[flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_loan_txn_index].ApplicationArgs[0] == "flash_loan")
+            # index diffs must be the same
             assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
+            # pools must be the same
+            assert(Gtxn[flash_loan_txn_index].Accounts[1] == Txn.Accounts[1])
             assert(Gtxn[flash_loan_txn_index].Sender == user_address)
             int asset_1_output_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[2])
             int asset_2_output_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[3])
@@ -581,16 +587,21 @@ block main:
             assert(Gtxn[verify_flash_swap_txn_index].OnCompletion == NoOp)
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[0] == "verify_flash_swap")
+            # index diffs must be the same
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
+            # pools must be the same
+            assert(Gtxn[verify_flash_swap_txn_index].Accounts[1] == Txn.Accounts[1])
             assert(Gtxn[verify_flash_swap_txn_index].Sender == user_address)
             int asset_1_output_amount = btoi(Txn.ApplicationArgs[2])
             int asset_2_output_amount = btoi(Txn.ApplicationArgs[3])
             assert(asset_1_output_amount || asset_2_output_amount)
 
             if asset_1_output_amount:
+                assert(asset_1_output_amount <= asset_1_reserves)
                 transfer_to_user(asset_1_id, asset_1_output_amount)
             end
             if asset_2_output_amount:
+                assert(asset_2_output_amount <= asset_2_reserves)
                 transfer_to_user(asset_2_id, asset_2_output_amount)
             end
 
@@ -614,7 +625,10 @@ block main:
             assert(Gtxn[flash_swap_txn_index].OnCompletion == NoOp)
             assert(Gtxn[flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_swap_txn_index].ApplicationArgs[0] == "flash_swap")
+            # index diffs must be the same
             assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
+            # pools must be the same
+            assert(Gtxn[flash_swap_txn_index].Accounts[1] == Txn.Accounts[1])
             int asset_1_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2])
             int asset_2_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[3])
 
