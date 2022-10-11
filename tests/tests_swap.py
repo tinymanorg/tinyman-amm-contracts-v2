@@ -413,7 +413,6 @@ class TestSwap(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], "error()")
-        self.assertEqual(e.exception.source['line_no'], 384)
 
     def test_fail_invalid_input_asset(self):
         self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
@@ -448,7 +447,6 @@ class TestSwap(BaseTestCase):
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
         self.assertEqual(e.exception.source['line'], "error()")
-        self.assertEqual(e.exception.source['line_no'], 354)
 
     def test_fail_invalid_asset_receiver(self):
         self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)

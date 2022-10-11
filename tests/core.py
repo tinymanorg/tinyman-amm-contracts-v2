@@ -270,15 +270,15 @@ class BaseTestCase(unittest.TestCase):
         txn_group[0].fee = app_call_fee or self.sp.fee
         return txn_group
 
-    def get_claim_extra_transactions(self, sender, fee_collector, app_call_fee=None):
+    def get_claim_extra_transactions(self, sender, asset_id, address, fee_collector, app_call_fee=None):
         txn_group = [
             transaction.ApplicationNoOpTxn(
                 sender=sender,
                 sp=self.sp,
                 index=APPLICATION_ID,
                 app_args=[METHOD_CLAIM_EXTRA],
-                foreign_assets=[self.asset_1_id, self.asset_2_id],
-                accounts=[self.pool_address, fee_collector],
+                foreign_assets=[asset_id],
+                accounts=[address, fee_collector],
             )
         ]
         txn_group[0].fee = app_call_fee or self.sp.fee
