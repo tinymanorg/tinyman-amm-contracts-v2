@@ -327,7 +327,7 @@ class TestClaimExtra(BaseTestCase):
         self.assertDictEqual(
             inner_transactions[0][b'txn'],
             {
-                b'amt': extra + 100_000,      # TODO: Algojig cannot account the minimum balance for the created assets.
+                b'amt': extra,
                 b'rcv': decode_address(fee_collector),
                 b'fv': self.sp.first,
                 b'lv': self.sp.last,
@@ -396,7 +396,6 @@ class TestClaimExtra(BaseTestCase):
                 b'xaid': self.pool_token_asset_id
             },
         )
-        breakpoint()
         self.ledger.get_account_balance(APPLICATION_ADDRESS, self.pool_token_asset_id)
 
         # There is no extra to claim

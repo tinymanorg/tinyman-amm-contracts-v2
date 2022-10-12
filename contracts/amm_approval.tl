@@ -261,7 +261,12 @@ block main:
         int extra_asset_id = Txn.Assets[0]
 
         if Txn.Accounts[1] == Global.CurrentApplicationAddress:
-            asset_amount = get_balance(1, extra_asset_id)
+            if extra_asset_id:
+                asset_amount = get_balance(1, extra_asset_id)
+            else:
+                # 100000 microAlgo is reserved to cover the temporary extra min balance for increase_cost_budget.
+                asset_amount = get_balance(1, extra_asset_id) - 100000
+            end
 
         else:
             bytes pool_address = Txn.Accounts[1]
