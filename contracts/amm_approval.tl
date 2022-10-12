@@ -231,7 +231,7 @@ block main:
 
     block claim_fees:
         # Transfer accumulated fees from the pool to the fee_collector
-        # Txn: AppCall from User
+        # Txn: AppCall
         #   itxn[0]: Transfer Asset 1 to fee_collector from Pool
         #   itxn[1]: Transfer Asset 2 to fee_collector from Pool
 
@@ -254,20 +254,39 @@ block main:
     block claim_extra:
         # Transfer any extra (donations) to the fee_collector
 
-        # Txn: AppCall from User
-        #   itxn[0]: Transfer Asset 1 to fee_collector from Pool
-        #   itxn[1]: Transfer Asset 2 to fee_collector from Pool
+        # Txn: AppCall
+        #   itxn[0]: Transfer Asset[0] to fee_collector from Accounts[1]
 
-        bytes pool_address = Txn.Accounts[1]
-        int asset_1_id = app_local_get(1, "asset_1_id")
-        int asset_2_id = app_local_get(1, "asset_2_id")
+        int asset_amount
+        int extra_asset_id = Txn.Assets[0]
 
-        int asset_1_amount = get_balance(1, asset_1_id) - (app_local_get(1, "asset_1_reserves") + app_local_get(1, "asset_1_protocol_fees"))
-        int asset_2_amount = get_balance(1, asset_2_id) - (app_local_get(1, "asset_2_reserves") + app_local_get(1, "asset_2_protocol_fees"))
+        if Txn.Accounts[1] == Global.CurrentApplicationAddress:
+            if extra_asset_id:
+                asset_amount = get_balance(1, extra_asset_id)
+            else:
+                # 100000 microAlgo is reserved to cover the temporary extra min balance for increase_cost_budget.
+                asset_amount = get_balance(1, extra_asset_id) - 100000
+            end
 
-        assert(asset_1_amount || asset_2_amount)
-        transfer(asset_1_id, asset_1_amount, pool_address, app_global_get("fee_collector"))
-        transfer(asset_2_id, asset_2_amount, pool_address, app_global_get("fee_collector"))
+        else:
+            bytes pool_address = Txn.Accounts[1]
+            int asset_1_id = app_local_get(1, "asset_1_id")
+            int asset_2_id = app_local_get(1, "asset_2_id")
+            int pool_token_asset_id = app_local_get(1, "pool_token_asset_id")
+
+            if extra_asset_id == asset_1_id:
+                asset_amount = get_balance(1, asset_1_id) - (app_local_get(1, "asset_1_reserves") + app_local_get(1, "asset_1_protocol_fees"))
+            elif extra_asset_id == asset_2_id:
+                asset_amount = get_balance(1, asset_2_id) - (app_local_get(1, "asset_2_reserves") + app_local_get(1, "asset_2_protocol_fees"))
+            elif extra_asset_id == pool_token_asset_id:
+                asset_amount = (get_balance(1, pool_token_asset_id) - LOCKED_POOL_TOKENS)  - (POOL_TOKEN_TOTAL_SUPPLY - app_local_get(1, "issued_pool_tokens"))
+            else:
+                asset_amount = get_balance(1, extra_asset_id)
+            end
+        end
+
+        assert(asset_amount)
+        transfer(extra_asset_id, asset_amount, Txn.Accounts[1], app_global_get("fee_collector"))
         exit(1)
     end
 
@@ -435,7 +454,10 @@ block main:
             assert(Gtxn[verify_flash_loan_txn_index].OnCompletion == NoOp)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[0] == "verify_flash_loan")
+            # index diffs must be the same
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
+            # pools must be the same
+            assert(Gtxn[verify_flash_loan_txn_index].Accounts[1] == Txn.Accounts[1])
             assert(Gtxn[verify_flash_loan_txn_index].Sender == user_address)
             int asset_1_amount = btoi(Txn.ApplicationArgs[2])
             int asset_2_amount = btoi(Txn.ApplicationArgs[3])
@@ -468,7 +490,10 @@ block main:
             assert(Gtxn[flash_loan_txn_index].OnCompletion == NoOp)
             assert(Gtxn[flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_loan_txn_index].ApplicationArgs[0] == "flash_loan")
+            # index diffs must be the same
             assert(Gtxn[flash_loan_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
+            # pools must be the same
+            assert(Gtxn[flash_loan_txn_index].Accounts[1] == Txn.Accounts[1])
             assert(Gtxn[flash_loan_txn_index].Sender == user_address)
             int asset_1_output_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[2])
             int asset_2_output_amount = btoi(Gtxn[flash_loan_txn_index].ApplicationArgs[3])
@@ -573,16 +598,21 @@ block main:
             assert(Gtxn[verify_flash_swap_txn_index].OnCompletion == NoOp)
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[0] == "verify_flash_swap")
+            # index diffs must be the same
             assert(Gtxn[verify_flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
+            # pools must be the same
+            assert(Gtxn[verify_flash_swap_txn_index].Accounts[1] == Txn.Accounts[1])
             assert(Gtxn[verify_flash_swap_txn_index].Sender == user_address)
             int asset_1_output_amount = btoi(Txn.ApplicationArgs[2])
             int asset_2_output_amount = btoi(Txn.ApplicationArgs[3])
             assert(asset_1_output_amount || asset_2_output_amount)
 
             if asset_1_output_amount:
+                assert(asset_1_output_amount <= asset_1_reserves)
                 transfer_to_user(asset_1_id, asset_1_output_amount)
             end
             if asset_2_output_amount:
+                assert(asset_2_output_amount <= asset_2_reserves)
                 transfer_to_user(asset_2_id, asset_2_output_amount)
             end
 
@@ -606,7 +636,10 @@ block main:
             assert(Gtxn[flash_swap_txn_index].OnCompletion == NoOp)
             assert(Gtxn[flash_swap_txn_index].ApplicationID == Global.CurrentApplicationID)
             assert(Gtxn[flash_swap_txn_index].ApplicationArgs[0] == "flash_swap")
+            # index diffs must be the same
             assert(Gtxn[flash_swap_txn_index].ApplicationArgs[1] == Txn.ApplicationArgs[1])
+            # pools must be the same
+            assert(Gtxn[flash_swap_txn_index].Accounts[1] == Txn.Accounts[1])
             int asset_1_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[2])
             int asset_2_output_amount = btoi(Gtxn[flash_swap_txn_index].ApplicationArgs[3])
 
