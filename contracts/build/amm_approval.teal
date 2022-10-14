@@ -830,16 +830,14 @@ main:
     app_local_get
     store 9 // asset_2_protocol_fees
     
-    // assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))
-    txna ApplicationArgs 0
-    pushbytes "verify_flash_swap"
-    ==
+    // assert(app_local_get(1, "lock") == (Txn.ApplicationArgs[0] == "verify_flash_swap"))
     pushint 1
     pushbytes "lock"
     app_local_get
-    pushint 0
+    txna ApplicationArgs 0
+    pushbytes "verify_flash_swap"
     ==
-    ||
+    ==
     assert
     
     // switch Txn.ApplicationArgs[0]:

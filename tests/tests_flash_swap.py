@@ -525,7 +525,7 @@ class TestFlashSwap(BaseTestCase):
         stxns = self.sign_txns(txn_group, self.user_sk)
         with self.assertRaises(LogicEvalError) as e:
             self.ledger.eval_transactions(stxns)
-        self.assertEqual(e.exception.source['line'], 'assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))')
+        self.assertEqual(e.exception.source['line'], 'assert(app_local_get(1, "lock") == (Txn.ApplicationArgs[0] == "verify_flash_swap"))')
         self.assertEqual(e.exception.txn_id, txn_group[2].get_txid())
 
     def test_fail_different_index_diffs(self):

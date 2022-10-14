@@ -320,7 +320,7 @@ block main:
         int asset_1_protocol_fees = app_local_get(1, "asset_1_protocol_fees")
         int asset_2_protocol_fees = app_local_get(1, "asset_2_protocol_fees")
 
-        assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))
+        assert(app_local_get(1, "lock") == (Txn.ApplicationArgs[0] == "verify_flash_swap"))
 
         switch Txn.ApplicationArgs[0]:
             "add_initial_liquidity": add_initial_liquidity
