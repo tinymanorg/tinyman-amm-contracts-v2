@@ -2084,6 +2084,11 @@ main:
           store 6 // asset_2_reserves
         l21_end: // end
       
+      // assert(asset_1_total_fee_amount || asset_2_total_fee_amount)
+      load 20 // asset_1_total_fee_amount
+      load 23 // asset_2_total_fee_amount
+      ||
+      assert
       // check_invariant(asset_1_poolers_fee_amount, asset_2_poolers_fee_amount)
       load 21 // asset_1_poolers_fee_amount
       load 24 // asset_2_poolers_fee_amount

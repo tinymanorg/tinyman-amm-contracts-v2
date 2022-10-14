@@ -683,6 +683,7 @@ block main:
                 asset_2_reserves = asset_2_reserves - asset_2_output_amount
             end
 
+            assert(asset_1_total_fee_amount || asset_2_total_fee_amount)
             check_invariant(asset_1_poolers_fee_amount, asset_2_poolers_fee_amount)
 
             # Logs
