@@ -453,6 +453,15 @@ block main:
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
             int verify_flash_loan_txn_index = Txn.GroupIndex + index_diff
+            int asset_1_amount = btoi(Txn.ApplicationArgs[2])
+            int asset_2_amount = btoi(Txn.ApplicationArgs[3])
+            if (asset_1_amount && asset_2_amount):
+                assert(index_diff > 2)
+            else:
+                assert(index_diff > 1)
+                assert(asset_1_amount || asset_2_amount)
+            end
+
             assert(Gtxn[verify_flash_loan_txn_index].TypeEnum == Appl)
             assert(Gtxn[verify_flash_loan_txn_index].OnCompletion == NoOp)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
@@ -462,9 +471,6 @@ block main:
             # pools must be the same
             assert(Gtxn[verify_flash_loan_txn_index].Accounts[1] == Txn.Accounts[1])
             assert(Gtxn[verify_flash_loan_txn_index].Sender == user_address)
-            int asset_1_amount = btoi(Txn.ApplicationArgs[2])
-            int asset_2_amount = btoi(Txn.ApplicationArgs[3])
-            assert(asset_1_amount || asset_2_amount)
 
             if asset_1_amount:
                 assert(asset_1_amount <= asset_1_reserves)
@@ -596,6 +602,7 @@ block main:
             # Gtxn[N+X]: Verify Flash Swap AppCall from User
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
+            assert(index_diff > 1)
             int verify_flash_swap_txn_index = Txn.GroupIndex + index_diff
             assert(Gtxn[verify_flash_swap_txn_index].TypeEnum == Appl)
             assert(Gtxn[verify_flash_swap_txn_index].OnCompletion == NoOp)
