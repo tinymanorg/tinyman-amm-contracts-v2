@@ -61,7 +61,7 @@ class TestRemoveLiquidity(BaseTestCase):
                 )
             ),
             dict(
-                msg="Test removing 0 pool token. It should fail because asset out amounts are 0.",
+                msg="Test removing 0 pool token.",
                 initials=dict(
                     asset_1_reserves=1_000_000,
                     asset_2_reserves=1_000_000,
@@ -71,7 +71,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     removed_pool_token_amount=0,
                 ),
                 exception=dict(
-                    source_line='assert(asset_1_amount && asset_2_amount)'
+                    source_line='assert(removed_pool_token_amount)'
                 )
             ),
             dict(
@@ -109,6 +109,20 @@ class TestRemoveLiquidity(BaseTestCase):
                         b'cumulative_price_update_timestamp': ANY,
                         b'issued_pool_tokens': {b'at': 2},
                     }
+                )
+            ),
+            dict(
+                msg="Remove 0 pool token.",
+                initials=dict(
+                    asset_1_reserves=10_000_000,
+                    asset_2_reserves=10_000_000,
+                    issued_pool_token_amount=10_000_000,
+                ),
+                inputs=dict(
+                    removed_pool_token_amount=0,
+                ),
+                exception=dict(
+                    source_line='assert(removed_pool_token_amount)'
                 )
             )
         ]
@@ -268,7 +282,7 @@ class TestRemoveLiquidity(BaseTestCase):
                 )
             ),
             dict(
-                msg="Test removing 0 pool token. It should fail because asset out amounts are 0.",
+                msg="Test removing 0 pool token.",
                 initials=dict(
                     asset_1_reserves=1_000_000,
                     asset_2_reserves=1_000_000,
@@ -278,7 +292,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     removed_pool_token_amount=0,
                 ),
                 exception=dict(
-                    source_line='assert(asset_1_amount && asset_2_amount)'
+                    source_line='assert(removed_pool_token_amount)'
                 )
             ),
             dict(
@@ -407,7 +421,7 @@ class TestRemoveLiquidity(BaseTestCase):
                 )
             ),
             dict(
-                msg="Test removing 0 pool token. It should fail because asset out amounts are 0.",
+                msg="Test removing 0 pool token.",
                 initials=dict(
                     asset_1_reserves=1_000_000,
                     asset_2_reserves=1_000_000,
@@ -417,7 +431,7 @@ class TestRemoveLiquidity(BaseTestCase):
                     removed_pool_token_amount=0,
                 ),
                 exception=dict(
-                    source_line='assert(asset_1_amount && asset_2_amount)'
+                    source_line='assert(removed_pool_token_amount)'
                 )
             ),
             dict(

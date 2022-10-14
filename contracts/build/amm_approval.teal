@@ -2991,6 +2991,9 @@ main:
       load 12 // pool_token_txn_index
       gtxns AssetAmount
       store 13 // removed_pool_token_amount
+      // assert(removed_pool_token_amount)
+      load 13 // removed_pool_token_amount
+      assert
       
       // int asset_1_amount [slot 14]
       // int asset_2_amount [slot 15]

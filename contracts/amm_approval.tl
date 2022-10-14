@@ -965,6 +965,7 @@ block main:
             assert(Gtxn[pool_token_txn_index].XferAsset == pool_token_asset_id)
             assert(Gtxn[pool_token_txn_index].Sender == user_address)
             int removed_pool_token_amount = Gtxn[pool_token_txn_index].AssetAmount
+            assert(removed_pool_token_amount)
 
             int asset_1_amount
             int asset_2_amount
