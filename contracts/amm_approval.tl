@@ -358,6 +358,7 @@ block main:
                 error()
             end
             assert(Gtxn[input_txn_index].Sender == user_address)
+            assert(input_amount)
 
             int input_supply
             int output_supply
@@ -384,6 +385,7 @@ block main:
                 swap_amount = input_amount - total_fee_amount
                 output_amount = calculate_fixed_input_swap(input_supply, output_supply, swap_amount)
 
+                assert(output_amount)
                 assert(total_fee_amount)
                 assert(output_amount >= min_output)
             elif mode == 'fixed-output':
@@ -392,6 +394,7 @@ block main:
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
                 int required_input_amount = swap_amount + total_fee_amount
 
+                assert(output_amount)
                 assert(total_fee_amount)
                 assert(input_amount >= required_input_amount)
 

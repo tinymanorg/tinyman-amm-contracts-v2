@@ -955,6 +955,9 @@ main:
       load 0 // user_address
       ==
       assert
+      // assert(input_amount)
+      load 15 // input_amount
+      assert
       
       // int input_supply [slot 16]
       // int output_supply [slot 17]
@@ -1028,6 +1031,9 @@ main:
           callsub __func__calculate_fixed_input_swap
           store 22 // output_amount
           
+          // assert(output_amount)
+          load 22 // output_amount
+          assert
           // assert(total_fee_amount)
           load 18 // total_fee_amount
           assert
@@ -1064,6 +1070,9 @@ main:
           +
           store 24 // required_input_amount
           
+          // assert(output_amount)
+          load 22 // output_amount
+          assert
           // assert(total_fee_amount)
           load 18 // total_fee_amount
           assert

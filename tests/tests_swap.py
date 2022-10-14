@@ -220,6 +220,102 @@ class TestSwap(BaseTestCase):
         self.assertEqual(itxn1[b'xaid'], self.asset_2_id)
         self.assertEqual(itxn1[b'snd'], decode_address(self.pool_address))
 
+    def test_fail_zero_input_amount(self):
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+
+        txn_group = [
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=0,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SWAP, "fixed-input", 0],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[1].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [
+            txn_group[0].sign(self.user_sk),
+            txn_group[1].sign(self.user_sk)
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], "assert(input_amount)")
+
+    def test_fail_zero_output_amount_fixed_input(self):
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=100_000_000, asset_2_reserves=1_000_000)
+
+        txn_group = [
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=10,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SWAP, "fixed-input", 1],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[1].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [
+            txn_group[0].sign(self.user_sk),
+            txn_group[1].sign(self.user_sk)
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], "assert(output_amount)")
+
+    def test_fail_zero_output_amount_fixed_output(self):
+        self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
+
+        txn_group = [
+            transaction.AssetTransferTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                receiver=self.pool_address,
+                index=self.asset_1_id,
+                amt=10_000,
+            ),
+            transaction.ApplicationNoOpTxn(
+                sender=self.user_addr,
+                sp=self.sp,
+                index=APPLICATION_ID,
+                app_args=[METHOD_SWAP, "fixed-output", 0],
+                foreign_assets=[self.asset_1_id, self.asset_2_id],
+                accounts=[self.pool_address],
+            )
+        ]
+        txn_group[1].fee = 2000
+
+        txn_group = transaction.assign_group_id(txn_group)
+        stxns = [
+            txn_group[0].sign(self.user_sk),
+            txn_group[1].sign(self.user_sk)
+        ]
+
+        with self.assertRaises(LogicEvalError) as e:
+            self.ledger.eval_transactions(stxns)
+        self.assertEqual(e.exception.source['line'], "assert(output_amount)")
+
     def test_fail_insufficient_fee(self):
         self.set_initial_pool_liquidity(self.pool_address, self.asset_1_id, self.asset_2_id, self.pool_token_asset_id, asset_1_reserves=1_000_000, asset_2_reserves=1_000_000)
 
