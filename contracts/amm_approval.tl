@@ -337,7 +337,8 @@ block main:
             update_price_oracle()
             # Gtxn[N-1]: Transfer Input Asset to Pool from User
             # Gtxn[N]: AppCall from User
-            #   itxn[0]: Transfer Output Asset to User from Pool
+            #   itxn: Transfer Input Asset (change amount) to User from Pool, if it is applicable.
+            #   itxn: Transfer Output Asset to User from Pool
 
             int input_txn_index = Txn.GroupIndex - 1
             bytes mode = Txn.ApplicationArgs[1]
