@@ -320,7 +320,7 @@ block main:
         int asset_1_protocol_fees = app_local_get(1, "asset_1_protocol_fees")
         int asset_2_protocol_fees = app_local_get(1, "asset_2_protocol_fees")
 
-        assert((Txn.ApplicationArgs[0] == "verify_flash_swap") || (app_local_get(1, "lock") == 0))
+        assert(app_local_get(1, "lock") == (Txn.ApplicationArgs[0] == "verify_flash_swap"))
 
         switch Txn.ApplicationArgs[0]:
             "add_initial_liquidity": add_initial_liquidity
@@ -337,7 +337,8 @@ block main:
             update_price_oracle()
             # Gtxn[N-1]: Transfer Input Asset to Pool from User
             # Gtxn[N]: AppCall from User
-            #   itxn[0]: Transfer Output Asset to User from Pool
+            #   itxn: Transfer Input Asset (change amount) to User from Pool, if it is applicable.
+            #   itxn: Transfer Output Asset to User from Pool
 
             int input_txn_index = Txn.GroupIndex - 1
             bytes mode = Txn.ApplicationArgs[1]
@@ -358,6 +359,7 @@ block main:
                 error()
             end
             assert(Gtxn[input_txn_index].Sender == user_address)
+            assert(input_amount)
 
             int input_supply
             int output_supply
@@ -384,6 +386,7 @@ block main:
                 swap_amount = input_amount - total_fee_amount
                 output_amount = calculate_fixed_input_swap(input_supply, output_supply, swap_amount)
 
+                assert(output_amount)
                 assert(total_fee_amount)
                 assert(output_amount >= min_output)
             elif mode == 'fixed-output':
@@ -392,6 +395,7 @@ block main:
                 total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
                 int required_input_amount = swap_amount + total_fee_amount
 
+                assert(output_amount)
                 assert(total_fee_amount)
                 assert(input_amount >= required_input_amount)
 
@@ -450,6 +454,15 @@ block main:
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
             int verify_flash_loan_txn_index = Txn.GroupIndex + index_diff
+            int asset_1_amount = btoi(Txn.ApplicationArgs[2])
+            int asset_2_amount = btoi(Txn.ApplicationArgs[3])
+            if (asset_1_amount && asset_2_amount):
+                assert(index_diff > 2)
+            else:
+                assert(index_diff > 1)
+                assert(asset_1_amount || asset_2_amount)
+            end
+
             assert(Gtxn[verify_flash_loan_txn_index].TypeEnum == Appl)
             assert(Gtxn[verify_flash_loan_txn_index].OnCompletion == NoOp)
             assert(Gtxn[verify_flash_loan_txn_index].ApplicationID == Global.CurrentApplicationID)
@@ -459,9 +472,6 @@ block main:
             # pools must be the same
             assert(Gtxn[verify_flash_loan_txn_index].Accounts[1] == Txn.Accounts[1])
             assert(Gtxn[verify_flash_loan_txn_index].Sender == user_address)
-            int asset_1_amount = btoi(Txn.ApplicationArgs[2])
-            int asset_2_amount = btoi(Txn.ApplicationArgs[3])
-            assert(asset_1_amount || asset_2_amount)
 
             if asset_1_amount:
                 assert(asset_1_amount <= asset_1_reserves)
@@ -593,6 +603,7 @@ block main:
             # Gtxn[N+X]: Verify Flash Swap AppCall from User
 
             int index_diff = btoi(Txn.ApplicationArgs[1])
+            assert(index_diff > 1)
             int verify_flash_swap_txn_index = Txn.GroupIndex + index_diff
             assert(Gtxn[verify_flash_swap_txn_index].TypeEnum == Appl)
             assert(Gtxn[verify_flash_swap_txn_index].OnCompletion == NoOp)
@@ -673,6 +684,7 @@ block main:
                 asset_2_reserves = asset_2_reserves - asset_2_output_amount
             end
 
+            assert(asset_1_total_fee_amount || asset_2_total_fee_amount)
             check_invariant(asset_1_poolers_fee_amount, asset_2_poolers_fee_amount)
 
             # Logs
@@ -955,6 +967,7 @@ block main:
             assert(Gtxn[pool_token_txn_index].XferAsset == pool_token_asset_id)
             assert(Gtxn[pool_token_txn_index].Sender == user_address)
             int removed_pool_token_amount = Gtxn[pool_token_txn_index].AssetAmount
+            assert(removed_pool_token_amount)
 
             int asset_1_amount
             int asset_2_amount
