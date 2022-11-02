@@ -804,14 +804,6 @@ block main:
             # z2 = asset_2_reserves * (pool_tokens_out / issued_pool_tokens)
             int z2 = btoi((itob(pool_tokens_out) b* itob(asset_2_reserves)) b/ itob(issued_pool_tokens))
 
-            int total_fee_amount
-            int poolers_fee_amount
-            int protocol_fee_amount
-            int fee_as_pool_tokens
-
-            int total_fee_share = app_local_get(1, "total_fee_share")
-            int protocol_fee_ratio = app_local_get(1, "protocol_fee_ratio")
-
             # Select the bigger swap amount. Because of the rounding errors both swap amounts can be positive
             int swap_amount = 0
             int asset_1_to_asset_2 = 1
@@ -825,15 +817,12 @@ block main:
                     asset_1_to_asset_2 = 0
                 end
             end
-    
-            # swap_amount was swapped but no swap fee was charged
-            # Determine the fee that should have been charged for a swap of this amount
-            # input_amount = (swap_amount * 10000) / (10000 - FEE)
-            # total_fee_amount = (input_amount * FEE) / 10000
-            # total_fee_amount = (swap_amount * FEE) / (10000 - FEE)
-            total_fee_amount = btoi((itob(swap_amount) b* itob(total_fee_share)) b/ itob((10000 - total_fee_share)))
-            protocol_fee_amount = total_fee_amount / protocol_fee_ratio
-            poolers_fee_amount = total_fee_amount - protocol_fee_amount
+
+            int total_fee_amount
+            int poolers_fee_amount
+            int protocol_fee_amount
+            int fee_as_pool_tokens
+            total_fee_amount, poolers_fee_amount, protocol_fee_amount = calculate_fixed_output_fee_amounts(swap_amount)
 
             if asset_1_to_asset_2:
                 asset_1_protocol_fees = asset_1_protocol_fees + protocol_fee_amount
@@ -1071,7 +1060,7 @@ block main:
         end
 
         func check_invariant(asset_1_poolers_fee_amount: int, asset_2_poolers_fee_amount: int):
-            # Initial K < Final K without fees
+            # Initial K <= Final K without fees
             assert((itob(app_local_get(1, "asset_1_reserves")) b* itob(app_local_get(1, "asset_2_reserves"))) b<= (itob(asset_1_reserves - asset_1_poolers_fee_amount) b* itob(asset_2_reserves - asset_2_poolers_fee_amount)))
             return
         end
