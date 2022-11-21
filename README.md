@@ -3,9 +3,15 @@ Tinyman AMM Contracts V2
 
 Tinyman is an automated market maker (AMM) implementation on Algorand.
 
+### Docs
+
+The protocol is described in detail in the following document:
+https://docs.google.com/document/d/1O3QBkWmUDoaUM63hpniqa2_7G_6wZcCpkvCqVrGrDlc/edit?usp=sharing
+
 
 ### Contracts
-The contracts are written in [Tealish](https://github.com/Hipo/tealish).
+The contracts are written in [Tealish](https://github.com/tinymanorg/tealish).
+The specific version of Tealish is https://github.com/tinymanorg/tealish/tree/0cec751154b0083c2cb79da43b40aa26b367ecc4.
 
 The annotated TEAL outputs and compiled bytecode are available in the [build](contracts/build/) folder.
 
@@ -19,23 +25,17 @@ A VS Code extension for syntax highlighting of Tealish & TEAL is available [here
 
 
 ### Tests
-Tests are included in the `tests/` directory. [AlgoJig](https://github.com/Hipo/algojig) and [Tealish](https://github.com/Hipo/tealish) are required to run the tests.
+Tests are included in the `tests/` directory. [AlgoJig](https://github.com/Hipo/algojig) and [Tealish](https://github.com/tinymanorg/tealish) are required to run the tests.
 
-Set up a new virtualenv and install AlgoJig & Tealish & AlgoSDK with `pip install -r requirements.txt`.
+Set up a new virtualenv and install the specific versions of AlgoJig & Tealish & AlgoSDK with `pip install -r requirements.txt`.
 
 ```
     python -m unittest
 ```
 
-### Docs
-
-The protocol is described in detail in the following document:
-https://docs.google.com/document/d/1O3QBkWmUDoaUM63hpniqa2_7G_6wZcCpkvCqVrGrDlc/edit?usp=sharing
-
 
 ### Bug Bounty Program
-Please see details in the blog post announcing the program:
-https://tinymanorg.medium.com/tinyman-bug-bounty-campaign-b6c5e1ba7d6c
+TODO
 
 Reports of potential flaws must be responsibly disclosed to `security@tinyman.org`. Do not share details with anyone else until notified to do so by the team.
 
@@ -43,12 +43,9 @@ Reports of potential flaws must be responsibly disclosed to `security@tinyman.or
 TODO
 
 
-### Internal Review
-TODO
-
-
 ### Acknowledgements
-TODO
+The Tinyman team would like to thank Runtime Verification for their insightful comments and code improvement suggestions.
+
 
 ### Licensing
 
