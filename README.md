@@ -6,7 +6,7 @@ Tinyman is an automated market maker (AMM) implementation on Algorand.
 ### Docs
 
 The protocol is described in detail in the following document:
-https://docs.google.com/document/d/1O3QBkWmUDoaUM63hpniqa2_7G_6wZcCpkvCqVrGrDlc/edit?usp=sharing
+[Tinyman AMM V2 Protocol Specification](docs/Tinyman%20AMM%20V2%20Protocol%20Specification.pdf)
 
 
 ### Contracts
