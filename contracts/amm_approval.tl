@@ -1,8 +1,9 @@
 #pragma version 7
-#tealish version git+https://github.com/Hipo/tealish.git@0cec751154b0083c2cb79da43b40aa26b367ecc4
-
+#tealish version git+https://github.com/tinymanorg/tealish.git@0cec751154b0083c2cb79da43b40aa26b367ecc4
 
 # Tinyman AMM V2
+# License: https://github.com/tinymanorg/tinyman-amm-contracts-v2/blob/main/LICENSE
+# Documentation: https://docs.tinyman.org
 
 # Notes:
 # * Tinyman assumes that the asset id of ALGO is 0. Algorand cannot have another ASA with id 0.
