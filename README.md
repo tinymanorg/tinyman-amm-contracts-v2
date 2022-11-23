@@ -40,7 +40,7 @@ TODO
 Reports of potential flaws must be responsibly disclosed to `security@tinyman.org`. Do not share details with anyone else until notified to do so by the team.
 
 ### Audit
-TODO
+An audit of these contracts has been completed by [Runtime Verification](https://runtimeverification.com/). It can be found in [their GitHub repo](https://github.com/runtimeverification/publications/tree/main/reports/smart-contracts/Tinyman-amm-v2-audit).
 
 
 ### Acknowledgements
