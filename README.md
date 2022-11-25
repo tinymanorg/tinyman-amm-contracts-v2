@@ -35,7 +35,7 @@ Set up a new virtualenv and install the specific versions of AlgoJig & Tealish &
 
 
 ### Bug Bounty Program
-TODO
+Details to be announced in the week of the 28th November.
 
 Reports of potential flaws must be responsibly disclosed to `security@tinyman.org`. Do not share details with anyone else until notified to do so by the team.
 
